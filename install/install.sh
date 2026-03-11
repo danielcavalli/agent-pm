@@ -19,7 +19,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── Step 1: Install pm CLI globally ──────────────────────────────────────────
 echo "==> Installing pm CLI globally..."
-(cd "$REPO_DIR" && npm install -g .)
+(cd "$REPO_DIR" && npm install -g --force .)
 echo "    pm installed: $(command -v pm)"
 echo ""
 
