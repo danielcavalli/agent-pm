@@ -43,7 +43,7 @@ program
     chalk.bold("Project Management Tool") +
       " — file-based project tracking for AI agents and humans",
   )
-  .version("0.0.2-alpha")
+  .version("0.0.3-alpha")
   .addHelpText(
     "before",
     chalk.cyan.bold("\n  pm") +
@@ -149,6 +149,11 @@ storyCmd
     "Acceptance criteria items (repeatable)",
     [],
   )
+  .option(
+    "--depends-on <storyCode...>",
+    "Story codes this story depends on (repeatable, e.g. --depends-on PM-E001-S001)",
+    [],
+  )
   .action(
     action(async (epicCode: string, options: Record<string, unknown>) => {
       const { storyAdd } = await import("./commands/story.js");
@@ -159,10 +164,11 @@ storyCmd
 storyCmd
   .command("list <epicCode>")
   .description("List all stories for an epic with status and priority")
+  .option("--deps", "Show dependency info (depends_on) for each story")
   .action(
-    action(async (epicCode: string) => {
+    action(async (epicCode: string, options: Record<string, unknown>) => {
       const { storyList } = await import("./commands/story.js");
-      await storyList(epicCode);
+      await storyList(epicCode, options);
     }),
   );
 
@@ -176,6 +182,10 @@ storyCmd
     "New status: backlog | in_progress | done | cancelled",
   )
   .option("--priority <priority>", "New priority: high | medium | low")
+  .option(
+    "--depends-on <storyCode...>",
+    "Story codes this story depends on (repeatable, replaces current list)",
+  )
   .action(
     action(async (storyCode: string, options: Record<string, unknown>) => {
       const { storyUpdate } = await import("./commands/story.js");

@@ -168,6 +168,33 @@ describe("StorySchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("defaults depends_on to empty array when omitted", () => {
+    const result = StorySchema.safeParse(validStory);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.depends_on).toEqual([]);
+    }
+  });
+
+  it("accepts valid depends_on story codes", () => {
+    const result = StorySchema.safeParse({
+      ...validStory,
+      depends_on: ["PM-E002-S001", "PM-E003-S002"],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.depends_on).toEqual(["PM-E002-S001", "PM-E003-S002"]);
+    }
+  });
+
+  it("rejects invalid story codes in depends_on", () => {
+    const result = StorySchema.safeParse({
+      ...validStory,
+      depends_on: ["invalid-code"],
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe("StoryPointsSchema", () => {

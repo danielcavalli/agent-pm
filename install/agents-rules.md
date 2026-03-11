@@ -70,9 +70,12 @@ any agent can execute them without prior context:
 - **Acceptance criteria**: List concrete, verifiable conditions. Each criterion should
   be checkable by running a command, reading a file, or observing a behavior. Avoid
   vague criteria like "code is clean" or "works correctly."
-- **Dependencies**: If a story depends on another story being completed first, say so in
-  the description (e.g., "Requires PM-E005-S002 to be done first"). Prefer structuring
-  stories to **minimize dependencies** — independent stories can run in parallel.
+- **Dependencies**: If a story depends on another story being completed first, declare it
+  using the `depends_on` field (e.g., `--depends-on PM-E005-S002` when filing via CLI, or
+  `depends_on: ["PM-E005-S002"]` via MCP tool). The orchestrator uses this to build
+  dispatch tiers — stories with unmet dependencies wait until their dependencies complete.
+  Prefer structuring stories to **minimize dependencies** — independent stories can run
+  in parallel.
 - **Points**: Estimate complexity honestly. 1 = trivial rename or config change,
   3 = typical feature or fix, 5 = complex with multiple files, 8 = significant
   effort spanning a subsystem.
@@ -101,6 +104,8 @@ project, epic, or story data. The PM CLI tools provide all the information you n
 - `pm_status` (with project code) → full project detail with active/completed epic sections
 - `pm epic list <PROJECT>` → tabular epic listing with status and progress
 - `pm story list <EPIC>` → all stories in an epic with status and criteria
+- `pm story list <EPIC> --deps` → same as above, plus each story's `depends_on` codes
+- `pm_story_add` accepts `depends_on` (array of story codes) to declare execution dependencies
 
 The project YAML files on disk are an implementation detail. Reading them directly
 creates fragile workflows and bypasses validation. Always go through the CLI.

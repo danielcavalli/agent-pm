@@ -131,4 +131,81 @@ describe("pm story add / list / update (integration)", () => {
       storyUpdate(`${epicCode}-S999`, { status: "done" }),
     ).rejects.toThrow(StoryNotFoundError);
   });
+
+  // ── depends_on ──────────────────────────────────────────────────────
+
+  it("AC8: storyAdd persists depends_on array in YAML", async () => {
+    // Create the dependency target first
+    await storyAdd(epicCode, { title: "Dep Target", points: "1" });
+    const depCode = `${epicCode}-S001`;
+
+    // Create a story that depends on S001
+    await storyAdd(epicCode, {
+      title: "Dependent Story",
+      points: "3",
+      dependsOn: [depCode],
+    });
+
+    const epicFile = findEpicFile(epicCode)!;
+    const epic = readYaml(epicFile, EpicSchema);
+    const story = epic.stories[1]!;
+    expect(story.depends_on).toEqual([depCode]);
+  });
+
+  it("AC9: storyAdd defaults depends_on to empty array when not provided", async () => {
+    await storyAdd(epicCode, { title: "No Deps", points: "2" });
+
+    const epicFile = findEpicFile(epicCode)!;
+    const epic = readYaml(epicFile, EpicSchema);
+    expect(epic.stories[0]!.depends_on).toEqual([]);
+  });
+
+  it("AC10: storyUpdate with --depends-on replaces the depends_on list", async () => {
+    await storyAdd(epicCode, { title: "Update Deps", points: "3" });
+    const storyCode = `${epicCode}-S001`;
+
+    await storyUpdate(storyCode, {
+      dependsOn: ["PM-E002-S001", "PM-E003-S001"],
+    });
+
+    const epicFile = findEpicFile(epicCode)!;
+    const epic = readYaml(epicFile, EpicSchema);
+    expect(epic.stories[0]!.depends_on).toEqual([
+      "PM-E002-S001",
+      "PM-E003-S001",
+    ]);
+  });
+
+  it("AC11: storyList with --deps flag shows dependency codes", async () => {
+    await storyAdd(epicCode, {
+      title: "With Dep",
+      points: "2",
+      dependsOn: ["PM-E002-S001"],
+    });
+
+    out.restore();
+    out = captureOutput();
+
+    await storyList(epicCode, { deps: true });
+
+    const lines = out.log().join("\n");
+    expect(lines).toContain("Depends On");
+    expect(lines).toContain("PM-E002-S001");
+  });
+
+  it("AC12: storyList without --deps flag does not show Depends On header", async () => {
+    await storyAdd(epicCode, {
+      title: "With Dep Hidden",
+      points: "2",
+      dependsOn: ["PM-E002-S001"],
+    });
+
+    out.restore();
+    out = captureOutput();
+
+    await storyList(epicCode);
+
+    const lines = out.log().join("\n");
+    expect(lines).not.toContain("Depends On");
+  });
 });

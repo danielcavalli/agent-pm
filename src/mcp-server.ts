@@ -8,7 +8,7 @@ import {
 import { spawnSync } from "node:child_process";
 
 const server = new Server(
-  { name: "pm-tools", version: "0.0.2-alpha" },
+  { name: "pm-tools", version: "0.0.3-alpha" },
   { capabilities: { tools: {} } },
 );
 
@@ -94,6 +94,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             items: { type: "string" },
             description: "Acceptance criteria items",
           },
+          depends_on: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Story codes this story depends on (e.g. ['PM-E001-S001']). Use this to declare explicit ordering dependencies for the orchestrator.",
+          },
         },
         required: ["epic", "title", "description"],
       },
@@ -178,6 +184,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         for (const criterion of args["criteria"]) {
           if (typeof criterion === "string") {
             cliArgs.push("--criteria", criterion);
+          }
+        }
+      }
+
+      if (Array.isArray(args["depends_on"])) {
+        for (const dep of args["depends_on"]) {
+          if (typeof dep === "string") {
+            cliArgs.push("--depends-on", dep);
           }
         }
       }
