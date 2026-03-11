@@ -19,12 +19,16 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── Step 1: Install pm CLI globally ──────────────────────────────────────────
 echo "==> Installing pm CLI globally..."
-(cd "$REPO_DIR" && npm install -g --force .)
+# Uninstall under both current and legacy package names, then remove any
+# stale binary, to avoid EEXIST errors in newer npm versions.
+npm uninstall -g agent-pm 2>/dev/null || true
+npm uninstall -g project-management 2>/dev/null || true
+(cd "$REPO_DIR" && npm install -g .)
 echo "    pm installed: $(command -v pm)"
 echo ""
 
 # Resolve MCP server path via global npm root
-MCP_SERVER="$(npm root -g)/project-management/dist/mcp-server.js"
+MCP_SERVER="$(npm root -g)/agent-pm/dist/mcp-server.js"
 
 # ── Step 2: Detect available AI coding clients ───────────────────────────────
 OPENCODE_DETECTED=false
