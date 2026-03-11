@@ -4,16 +4,20 @@ export {
   ProjectStatusSchema,
   ProjectCodeSchema,
   ProjectArchitectureSchema,
-} from './project.schema.js';
-export type { Project, ProjectStatus, ProjectArchitecture } from './project.schema.js';
+} from "./project.schema.js";
+export type {
+  Project,
+  ProjectStatus,
+  ProjectArchitecture,
+} from "./project.schema.js";
 
 export {
   EpicSchema,
   EpicStatusSchema,
   EpicIdSchema,
   EpicCodeSchema,
-} from './epic.schema.js';
-export type { Epic, EpicStatus } from './epic.schema.js';
+} from "./epic.schema.js";
+export type { Epic, EpicStatus } from "./epic.schema.js";
 
 export {
   StorySchema,
@@ -21,11 +25,55 @@ export {
   StoryCodeSchema,
   StoryPointsSchema,
   PrioritySchema,
-} from './story.schema.js';
-export type { Story, StoryStatus, StoryPoints, Priority } from './story.schema.js';
+} from "./story.schema.js";
+export type {
+  Story,
+  StoryStatus,
+  StoryPoints,
+  Priority,
+} from "./story.schema.js";
+
+export {
+  ReportSchema,
+  ReportStatusSchema,
+  ReportIdSchema,
+  ReportCodeSchema,
+  ReportListSchema,
+} from "./report.schema.js";
+export type { Report, ReportStatus, ReportList } from "./report.schema.js";
+
+export {
+  CrossTaskCommentSchema,
+  TaskReferenceSchema,
+  CommentAuthorSchema,
+  CommentIndexSchema,
+  CommentIndexEntrySchema,
+} from "./comment.schema.js";
+export type {
+  CrossTaskComment,
+  CommentAuthor,
+  CommentIndex,
+  CommentIndexEntry,
+} from "./comment.schema.js";
+
+export {
+  ExecutionReportSchema,
+  ExecutionStatusSchema,
+  ExecutionResultSchema,
+  ExecutionIdSchema,
+  ExecutionIndexSchema,
+  ExecutionIndexEntrySchema,
+} from "./execution.schema.js";
+export type {
+  ExecutionReport,
+  ExecutionStatus,
+  ExecutionResult,
+  ExecutionIndex,
+  ExecutionIndexEntry,
+} from "./execution.schema.js";
 
 // Index schema
-import { z } from 'zod';
+import { z } from "zod";
 
 export const IndexProjectEntrySchema = z.object({
   code: z.string(),

@@ -19,8 +19,11 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── Step 1: Install pm CLI globally ──────────────────────────────────────────
 echo "==> Installing pm CLI globally..."
-# Uninstall under both current and legacy package names, then remove any
-# stale binary, to avoid EEXIST errors in newer npm versions.
+# Ensure local node_modules are present so devDependencies (tsc) are available
+# when the `prepare` script runs during global install.
+(cd "$REPO_DIR" && npm install --silent)
+# Uninstall under both current and legacy package names to avoid EEXIST errors
+# in newer npm versions (--force is not reliable for binary conflicts).
 npm uninstall -g agent-pm 2>/dev/null || true
 npm uninstall -g project-management 2>/dev/null || true
 (cd "$REPO_DIR" && npm install -g .)

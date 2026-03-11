@@ -3,6 +3,10 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { PmError } from "./lib/errors.js";
 import { ensureProjectsDir } from "./lib/codes.js";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
 
 // Ensure the global data directory exists before any command runs.
 ensureProjectsDir();
@@ -43,7 +47,7 @@ program
     chalk.bold("Project Management Tool") +
       " — file-based project tracking for AI agents and humans",
   )
-  .version("0.0.3-alpha")
+  .version(version)
   .addHelpText(
     "before",
     chalk.cyan.bold("\n  pm") +

@@ -181,3 +181,63 @@ export function listProjectCodes(): string[] {
     return fs.statSync(full).isDirectory();
   });
 }
+
+/**
+ * Ensure the reports directory exists for a project, creating it if needed.
+ */
+export function ensureReportsDir(projectCode: string): string {
+  const reportsDir = path.join(getProjectsDir(), projectCode, "reports");
+  fs.mkdirSync(reportsDir, { recursive: true });
+  return reportsDir;
+}
+
+/**
+ * Find the next available report number for a project.
+ * Scans projects/{code}/reports/ for existing R### files and returns the next.
+ * e.g. if R001-R003 exist, returns "R004"
+ */
+export function nextReportNumber(projectCode: string): string {
+  const reportsDir = path.join(getProjectsDir(), projectCode, "reports");
+
+  if (!fs.existsSync(reportsDir)) {
+    return "R001";
+  }
+
+  const files = fs
+    .readdirSync(reportsDir)
+    .filter((f) => /^R\d{3}-.+\.yaml$/.test(f));
+  const numbers = files
+    .map((f) => {
+      const m = f.match(/^R(\d{3})/);
+      return m ? parseInt(m[1], 10) : 0;
+    })
+    .filter((n) => n > 0)
+    .sort((a, b) => a - b);
+
+  const next = numbers.length > 0 ? (numbers[numbers.length - 1] ?? 0) + 1 : 1;
+  return `R${String(next).padStart(3, "0")}`;
+}
+
+/**
+ * Find the report YAML file path for a given report code (e.g. "PM-R001").
+ * Scans the project's reports directory for a file starting with "R001-".
+ * Returns null if not found.
+ */
+export function findReportFile(reportCode: string): string | null {
+  const parts = reportCode.split("-");
+  if (parts.length !== 2) return null;
+
+  const projectCode = parts[0];
+  const reportId = parts[1];
+
+  if (!projectCode || !reportId) return null;
+
+  const reportsDir = path.join(getProjectsDir(), projectCode, "reports");
+  if (!fs.existsSync(reportsDir)) return null;
+
+  const files = fs.readdirSync(reportsDir);
+  const match = files.find(
+    (f) => f.startsWith(`${reportId}-`) && f.endsWith(".yaml"),
+  );
+  return match ? path.join(reportsDir, match) : null;
+}

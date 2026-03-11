@@ -1,6 +1,6 @@
 {
   "name": "agent-pm",
-  "version": "0.0.4-alpha",
+  "version": "0.0.5-alpha",
   "description": "File-based project management for AI agent workflows — track epics, stories, and progress across multiple agents",
   "type": "module",
   "main": "dist/cli.js",
@@ -17,6 +17,7 @@
   },
   "scripts": {
     "build": "tsc && chmod +x dist/cli.js dist/mcp-server.js",
+    "prepare": "npm run build",
     "pm": "node dist/cli.js",
     "test": "vitest run",
     "lint": "eslint src --ext .ts,.tsx",
