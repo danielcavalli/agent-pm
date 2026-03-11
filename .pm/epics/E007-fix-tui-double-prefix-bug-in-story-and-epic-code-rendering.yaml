@@ -1,0 +1,51 @@
+id: E007
+code: PM-E007
+title: Fix TUI double-prefix bug in story and epic code rendering
+description: >-
+  loadTree.ts incorrectly concatenates the project code with epic.code (which already contains the project code),
+  producing malformed identifiers like PM-PM-E001 and PM-PM-E001-S001 instead of PM-E001 and PM-E001-S001. This breaks
+  the TUI tree display, the clipboard copy shortcut (c/y), and cursor-preservation logic across live-reloads. Every code
+  shown in the TUI and written to the clipboard is currently wrong.
+status: done
+priority: high
+created_at: '2026-03-09'
+stories:
+  - id: S001
+    code: PM-E007-S001
+    title: Fix double-prefix concatenation in loadTree.ts
+    description: >-
+      In src/tui/loadTree.ts, the epic code is built as `${code}-${epic.code}` and the story code as
+      `${code}-${epic.code}-${s.id}`, where code is the directory name and epic.code already contains the full
+      project-prefixed code (e.g. PM-E006). The fix is to use epic.code directly for epic nodes and s.code directly for
+      story nodes — both fields already hold the fully-qualified code as written in the YAML and validated by schema.
+    acceptance_criteria:
+      - Running pm tui with the live PM project renders epic codes as PM-E001 through PM-E012 with no double prefix
+      - Running pm tui renders story codes as PM-E006-S001 through PM-E006-S005 with no double prefix
+      - Pressing c on a selected epic copies its correct code (e.g. PM-E007) to the clipboard
+      - Pressing c on a selected story copies its correct code (e.g. PM-E006-S003) to the clipboard
+      - >-
+        After a YAML file is edited while pm tui is running, the cursor stays on the same item (cursor-key match is
+        preserved)
+    status: done
+    priority: high
+    story_points: 1
+    notes: ''
+  - id: S002
+    code: PM-E007-S002
+    title: Add regression test for loadTree code assembly
+    description: >-
+      Now that the double-prefix bug is fixed, add a unit test for loadTree.ts that creates a minimal project/epic/story
+      fixture in a temp directory and asserts the returned code fields are correctly formed. This is the first TUI-layer
+      test and guards against the bug re-emerging in any future structural refactor (e.g. E010).
+    acceptance_criteria:
+      - A test file exists at src/tui/__tests__/loadTree.test.ts
+      - The test creates a temp directory with one project folder, one epic YAML, and one story in that epic
+      - >-
+        It calls loadTree() with PROJECTS_DIR env var pointing to the temp dir and asserts projects[0].epics[0].code ===
+        'PM-E001'
+      - It asserts projects[0].epics[0].stories[0].code === 'PM-E001-S001'
+      - npm test passes with no new failures
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''

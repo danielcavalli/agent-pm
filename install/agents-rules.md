@@ -7,6 +7,16 @@ and `pm_status` tools. Use these to **proactively decompose work** into trackabl
 and to **capture issues you discover** during your tasks. This enables parallel agents
 to pick up and execute work independently.
 
+### Local Project Discovery
+
+The PM system stores all project data in a `.pm/` directory at the repository root.
+When you run PM commands, they automatically discover and use the `.pm/` directory
+in your current working directory (or the nearest ancestor directory containing `.pm/`).
+
+Project codes (e.g., `PM`, `BLOG`) are optional in most commands — the CLI infers the
+project from your current working directory. Use project codes explicitly only when
+working across multiple projects or when your cwd differs from the target project.
+
 ### When to file
 
 **Reactive — issues discovered while working:**
@@ -95,14 +105,24 @@ any agent can execute them without prior context:
 7. For **proactive decomposition**: file all stories first, then begin working through
    them (or leave them for parallel agents to pick up)
 
+### Passing workdir to MCP tools
+
+All PM MCP tools accept a `workdir` parameter. **Always pass your current working directory
+as workdir** to ensure commands execute in the correct project context. This is especially
+important when working across multiple projects or when your process cwd differs from the
+target project's root directory.
+
+Example: If you're working in `/home/user/projects/myapp`, pass `workdir: "/home/user/projects/myapp"`
+to each MCP tool call.
+
 ### IMPORTANT: Use CLI tools, not filesystem exploration
 
 **NEVER** use `find`, `grep`, `ls`, or other filesystem commands to discover or read
 project, epic, or story data. The PM CLI tools provide all the information you need:
 
-- `pm_status` (no args) → lists all projects with every epic code, title, and story count
-- `pm_status` (with project code) → full project detail with active/completed epic sections
-- `pm epic list <PROJECT>` → tabular epic listing with status and progress
+- `pm status` → lists all projects with every epic code, title, and story count
+- `pm status [PROJECT]` → full project detail with active/completed epic sections (project optional)
+- `pm epic list [PROJECT]` → tabular epic listing with status and progress (project optional)
 - `pm story list <EPIC>` → all stories in an epic with status and criteria
 - `pm story list <EPIC> --deps` → same as above, plus each story's `depends_on` codes
 - `pm_story_add` accepts `depends_on` (array of story codes) to declare execution dependencies

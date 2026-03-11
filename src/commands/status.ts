@@ -3,8 +3,7 @@ import * as fs from "node:fs";
 import chalk from "chalk";
 import { ProjectSchema, EpicSchema } from "../schemas/index.js";
 import { readYaml, listFiles } from "../lib/fs.js";
-import { getProjectsDir, listProjectCodes } from "../lib/codes.js";
-import { ProjectNotFoundError } from "../lib/errors.js";
+import { getPmDir } from "../lib/codes.js";
 
 interface StatusOptions {
   json?: boolean;
@@ -79,8 +78,8 @@ function deriveEpicStatus(yamlStatus: string, stories: StoryData[]): string {
  * Epic status is auto-derived from story statuses for display purposes.
  * When warnOnError is true, YAML parse failures are logged to stderr.
  */
-function loadProjectEpics(projectDir: string, warnOnError = false): EpicData[] {
-  const epicsDir = path.join(projectDir, "epics");
+function loadProjectEpics(pmDir: string, warnOnError = false): EpicData[] {
+  const epicsDir = path.join(pmDir, "epics");
   const epicFiles = listFiles(epicsDir, ".yaml").sort();
   const epicsData: EpicData[] = [];
 
@@ -165,30 +164,28 @@ export async function status(
   options: Record<string, unknown>,
 ): Promise<void> {
   const opts = options as StatusOptions;
-  const projectsDir = getProjectsDir();
+  const pmDir = getPmDir();
 
-  if (projectCode) {
-    await statusSingleProject(projectCode, projectsDir, opts);
-  } else {
-    await statusAllProjects(projectsDir, opts);
-  }
+  // In single-project mode, always show the single project
+  await statusSingleProject(projectCode, pmDir, opts);
 }
 
 // ── Single project detailed view ─────────────────────────────────────
 
 async function statusSingleProject(
-  projectCode: string,
-  projectsDir: string,
+  _projectCode: string | undefined,
+  pmDir: string,
   opts: StatusOptions,
 ): Promise<void> {
-  const projectDir = path.join(projectsDir, projectCode);
-  if (!fs.existsSync(projectDir)) {
-    throw new ProjectNotFoundError(projectCode);
+  const projectYaml = path.join(pmDir, "project.yaml");
+  if (!fs.existsSync(projectYaml)) {
+    throw new Error(
+      `No project.yaml found in ${pmDir}. Run 'pm init' to create a project.`,
+    );
   }
 
-  const projectYaml = path.join(projectDir, "project.yaml");
   const project = readYaml(projectYaml, ProjectSchema);
-  const epicsData = loadProjectEpics(projectDir, !opts.json);
+  const epicsData = loadProjectEpics(pmDir, !opts.json);
   const { total: totalStories, done: totalDone } = countStories(epicsData);
   const nextRecommended = findNextRecommended(epicsData);
 
@@ -319,116 +316,4 @@ async function statusSingleProject(
     );
     console.log("");
   }
-}
-
-// ── All projects summary view ────────────────────────────────────────
-
-async function statusAllProjects(
-  projectsDir: string,
-  opts: StatusOptions,
-): Promise<void> {
-  const codes = listProjectCodes();
-
-  if (codes.length === 0) {
-    console.log(chalk.dim("No projects found in ") + projectsDir);
-    return;
-  }
-
-  // Always load live data from YAML files (not the index cache)
-  // so the output is always accurate and includes epic details.
-  type ProjectSummary = {
-    code: string;
-    name: string;
-    status: string;
-    epics: EpicData[];
-    totalStories: number;
-    totalDone: number;
-  };
-
-  const projects: ProjectSummary[] = [];
-
-  for (const code of codes) {
-    const projectDir = path.join(projectsDir, code);
-    const projectYaml = path.join(projectDir, "project.yaml");
-    if (!fs.existsSync(projectYaml)) continue;
-
-    try {
-      const project = readYaml(projectYaml, ProjectSchema);
-      const epicsData = loadProjectEpics(projectDir, !opts.json);
-      const { total, done } = countStories(epicsData);
-
-      projects.push({
-        code: project.code,
-        name: project.name,
-        status: project.status,
-        epics: epicsData,
-        totalStories: total,
-        totalDone: done,
-      });
-    } catch {
-      // skip unreadable projects
-    }
-  }
-
-  if (opts.json) {
-    const output = {
-      projects: projects.map((p) => ({
-        code: p.code,
-        name: p.name,
-        status: p.status,
-        summary: {
-          epic_count: p.epics.length,
-          story_count: p.totalStories,
-          stories_done: p.totalDone,
-        },
-        next_recommended: findNextRecommended(p.epics),
-        epics: p.epics,
-      })),
-    };
-    console.log(JSON.stringify(output, null, 2));
-    return;
-  }
-
-  // ── Human-readable: project headers with epic breakdowns ──
-
-  for (const proj of projects) {
-    const statusColor = proj.status === "active" ? chalk.green : chalk.dim;
-    console.log("");
-    console.log(
-      chalk.bold.cyan("  " + proj.code) +
-        chalk.dim(" — ") +
-        chalk.bold(proj.name) +
-        chalk.dim("  [") +
-        statusColor(proj.status) +
-        chalk.dim("]  ") +
-        progressBar(proj.totalDone, proj.totalStories),
-    );
-    console.log("");
-
-    if (proj.epics.length === 0) {
-      console.log(chalk.dim("    No epics yet"));
-    } else {
-      for (const epic of proj.epics) {
-        const epicIcon = STATUS_ICON[epic.status] ?? "?";
-        const activeStories = epic.stories.filter(
-          (s) => s.status !== "cancelled",
-        );
-        const epicDone = activeStories.filter(
-          (s) => s.status === "done",
-        ).length;
-        const storyCount = activeStories.length;
-        const storyLabel =
-          storyCount === 0
-            ? chalk.dim("(no stories)")
-            : chalk.dim(`(${epicDone}/${storyCount})`);
-        console.log(
-          `    ${epicIcon} ${chalk.bold(epic.code)}  ${epic.title.slice(0, 45).padEnd(45)} ${storyLabel}`,
-        );
-      }
-    }
-
-    console.log("");
-  }
-  console.log(chalk.dim("─".repeat(84)));
-  console.log("");
 }

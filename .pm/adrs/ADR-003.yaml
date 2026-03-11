@@ -1,0 +1,38 @@
+id: ADR-003
+title: Local-first storage at repository root
+status: accepted
+context: >-
+  The PM tool originally used a global data directory at ~/.pm/ (or $PM_HOME) to store all project data. This created a
+  disconnect between project data and the repository itself. Users had to manage project data separately from their
+  code, and project tracking was not portable across machines or team members. The global storage model assumed a
+  single-user, single-machine workflow that doesn't align with modern git-centric development practices.
+decision: >-
+  Store all project data in a .pm/ directory at the repository root. Each repository has its own isolated project data.
+  PM_HOME is retained only as a test/CI override for isolation. The storage resolution order is: (1) PM_HOME env if
+  set (test/CI override), (2) .pm/ at the git repo root, (3) .pm/ in the current working directory.
+consequences:
+  positive:
+    - Project data is version-controllable alongside code via git
+    - Single-project scope simplifies the mental model - one repo, one project
+    - Alignment with repo-centric workflows (clone, branch, PR all include PM data)
+    - Team members can share project tracking by committing .pm/ to the repo
+    - No cross-project namespace conflicts or code collisions
+    - Simpler CLI - no need to specify project code, it's inferred from repo
+    - Portable - cloning a repo brings all PM data with it
+  negative:
+    - Loss of cross-project visibility - no single view of all projects
+    - Each repo requires its own .pm/ directory - no shared global state
+    - Migration required for existing users on global ~/.pm/ storage
+    - Slightly more complex storage resolution logic (git root detection)
+author:
+  type: human
+  name: anonymous
+timestamp: "2026-03-11T15:00:00.000Z"
+tags:
+  - storage
+  - architecture
+  - local-first
+  - git
+references: []
+created_at: "2026-03-11T15:00:00.000Z"
+updated_at: "2026-03-11T15:00:00.000Z"

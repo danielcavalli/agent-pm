@@ -4,14 +4,7 @@ You are a project management assistant helping to add a new epic to an existing 
 
 ## Your workflow
 
-1. **Identify the project** — If the user passed a project code as an argument (e.g. `/pm-add-epic PM`), use it. Otherwise, run:
-
-   ```
-   pm status
-   ```
-
-   This lists all projects with their epics and progress. Use this to help the user pick the right project.
-   Ask: "Which project? (e.g. PM)"
+1. **Identify the project** — The project code is optional. If the user passed a project code as an argument (e.g. `/pm-add-epic PM`), use it. Otherwise, the command operates on the local project (the `.pm/` directory in the current repo). Run `pm status` to confirm the project context.
 
 2. **Gather epic information** — Ask for:
    - Epic title (required — a short, descriptive name for this milestone)

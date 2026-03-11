@@ -1,0 +1,15 @@
+id: E011
+code: PM-E011
+title: Implement /pm-work-on-project orchestration command
+description: >-
+  Create .opencode/commands/pm-work-on-project.md — a slash command that instructs an orchestrator agent to autonomously
+  drive all open (backlog/in_progress) stories in a project to completion. The orchestrator calls pm status to build a
+  prioritized work queue, then spawns an independent sub-agent per story (via the Task tool) to execute each one in
+  parallel or sequence. Each sub-agent follows the /pm-work-on workflow: load context via pm work, implement against
+  acceptance criteria, then mark done via pm story update. The orchestrator tracks sub-agent results, surfaces failures,
+  and loops until no backlog stories remain. This enables a single prompt to fully execute an entire project backlog
+  without human intervention between stories.
+status: done
+priority: high
+created_at: "2026-03-09"
+stories: []

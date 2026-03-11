@@ -116,3 +116,13 @@ export class ValidationError extends PmError {
     }));
   }
 }
+
+export class PmAlreadyExistsError extends PmError {
+  constructor(public readonly pmDir: string) {
+    super(
+      "PM_ALREADY_EXISTS",
+      `.pm/ directory already exists at ${pmDir}. Use 'pm status' to view the existing project.`,
+    );
+    this.name = "PmAlreadyExistsError";
+  }
+}

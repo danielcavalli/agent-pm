@@ -1,0 +1,66 @@
+id: E004
+code: PM-E004
+title: Validation & Error Handling
+description: >
+  Harden the CLI with comprehensive input validation, typed error classes,
+  and user-facing error messages. Ensure all error paths exit with appropriate
+  codes and provide actionable guidance.
+status: done
+priority: medium
+created_at: "2026-03-09"
+stories:
+  - id: S001
+    code: PM-E004-S001
+    title: Implement typed error classes
+    description: >
+      Create src/lib/errors.ts with typed error classes for all expected failure
+      modes: ProjectNotFoundError, EpicNotFoundError, StoryNotFoundError,
+      DuplicateProjectCodeError, ValidationError (wrapping Zod errors),
+      YamlNotFoundError, and YamlParseError. Each should have a meaningful
+      message and optional context fields.
+    acceptance_criteria:
+      - All error classes extend a base PmError class
+      - Each error class has a unique code property (e.g. "PROJECT_NOT_FOUND")
+      - ValidationError exposes the Zod field path and message
+      - Errors are exported from src/lib/errors.ts
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ""
+
+  - id: S002
+    code: PM-E004-S002
+    title: Add consistent error output formatting to CLI
+    description: >
+      Update the CLI entry point to catch all PmError subclasses and print
+      them using chalk with a consistent format: red "Error" prefix, error code,
+      and human-readable message. Non-PmError exceptions should print a generic
+      "Unexpected error" message with the stack in debug mode (--debug flag).
+      All errors exit with code 1.
+    acceptance_criteria:
+      - All CLI errors print in consistent red format with code prefix
+      - --debug flag prints full stack trace for unexpected errors
+      - Process exits with code 1 on any error
+      - Process exits with code 0 on success
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ""
+
+  - id: S003
+    code: PM-E004-S003
+    title: Write unit tests for schemas and utilities
+    description: >
+      Set up vitest and write unit tests covering: all Zod schema valid/invalid
+      fixtures, YAML I/O round-trips, code generation utilities, and each typed
+      error class. Aim for full coverage of src/schemas/ and src/lib/.
+    acceptance_criteria:
+      - vitest configured and npm test runs successfully
+      - All schema valid/invalid cases are covered
+      - YAML round-trip test passes
+      - Code generation utilities are fully tested
+      - npm test exits 0 with no failures
+    status: done
+    priority: medium
+    story_points: 5
+    notes: ""

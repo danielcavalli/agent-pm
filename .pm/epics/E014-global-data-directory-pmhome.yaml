@@ -1,0 +1,86 @@
+id: E014
+code: PM-E014
+title: Global Data Directory (PM_HOME)
+description: >-
+  Replace process.cwd()/projects with a fixed global data directory at ~/.pm/ (or $PM_HOME). All project data resolves
+  to PM_HOME/projects/ — never relative to cwd. Covers getProjectsDir() refactor, default path via os.homedir(),
+  auto-creation on first CLI invocation, test updates, and TUI file watcher update.
+status: done
+priority: high
+created_at: '2026-03-10'
+stories:
+  - id: S001
+    code: PM-E014-S001
+    title: Replace process.cwd()/projects with PM_HOME resolution in getProjectsDir()
+    description: >-
+      Refactor getProjectsDir() in src/lib/codes.ts to resolve PM_HOME environment variable instead of process.cwd().
+      Remove the three duplicate copies in codes.ts, useFileWatcher.ts, and loadTree.ts — consolidate into a single
+      shared function that checks PM_HOME first, then falls back to ~/.pm/.
+    acceptance_criteria:
+      - getProjectsDir() checks PM_HOME env var first
+      - Falls back to ~/.pm/ (not process.cwd()) when PM_HOME is unset
+      - All three duplicate copies are consolidated into one shared function
+      - Existing PROJECTS_DIR test override still works
+    status: done
+    priority: high
+    story_points: 3
+    notes: ''
+  - id: S002
+    code: PM-E014-S002
+    title: Default PM_HOME to ~/.pm/ using os.homedir()
+    description: >-
+      When PM_HOME is not set, the default data directory should be ~/.pm/ resolved via path.join(os.homedir(), '.pm').
+      This must never fall back to process.cwd(). Update the resolution function to use os.homedir() for the default.
+    acceptance_criteria:
+      - Default path is path.join(os.homedir(), '.pm') when PM_HOME is unset
+      - process.cwd() is never used for data directory resolution
+      - Works correctly on Linux and macOS
+    status: done
+    priority: high
+    story_points: 1
+    notes: ''
+  - id: S003
+    code: PM-E014-S003
+    title: Create ~/.pm/projects/ on first CLI invocation if it does not exist
+    description: >-
+      On every CLI command, ensure the global data directory and projects subdirectory exist. If ~/.pm/projects/ (or
+      PM_HOME/projects/) does not exist, create it with mkdirSync recursive. This should happen early in CLI
+      initialization before any command runs.
+    acceptance_criteria:
+      - Running any pm command for the first time auto-creates ~/.pm/projects/
+      - 'Uses mkdirSync with recursive: true'
+      - Does not error if directory already exists
+      - Respects PM_HOME override
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S004
+    code: PM-E014-S004
+    title: Update all tests to use PM_HOME env var
+    description: >-
+      Existing tests use PROJECTS_DIR env var for test isolation. Update to use PM_HOME instead (or support both with
+      PM_HOME taking precedence). Ensure all test fixtures and temporary directories work with the new resolution logic.
+    acceptance_criteria:
+      - Tests set PM_HOME to a temp directory for isolation
+      - All existing tests pass with the new env var
+      - No test relies on process.cwd() for data resolution
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ''
+  - id: S005
+    code: PM-E014-S005
+    title: Update TUI file watcher to watch PM_HOME/projects/
+    description: >-
+      The TUI file watcher in useFileWatcher.ts currently watches cwd/projects. Update it to use the shared
+      getProjectsDir() function that resolves PM_HOME. The watcher should watch the global data directory so the TUI
+      reflects changes made from any working directory.
+    acceptance_criteria:
+      - TUI watches PM_HOME/projects/ (or ~/.pm/projects/ by default)
+      - Uses the shared getProjectsDir() function (no duplicate resolution)
+      - Live reload works when agents update YAML from other directories
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ''

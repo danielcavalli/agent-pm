@@ -1,0 +1,31 @@
+code: PM
+name: Project Management for AI Agents
+description: >
+  A file-based project management tool designed for AI agents operating inside OpenCode. Enables structured tracking of
+  projects, epics, and stories with a TypeScript CLI and OpenCode slash commands as the primary interfaces. Projects,
+  epics, and stories are stored as plain YAML files that agents can read, write, and reason about directly.
+vision: >
+  Enable AI agents to autonomously create, manage, prioritize, and execute software projects through a structured,
+  file-based workflow — maintaining full execution state across sessions without any external services.
+status: active
+created_at: '2026-03-09'
+tech_stack:
+  - TypeScript
+  - Node.js
+  - YAML
+  - Zod
+  - commander.js
+architecture:
+  pattern: cli-tool
+  storage: yaml-files
+  primary_interface: slash-commands + cli
+  location: ./projects/
+consolidation:
+  max_reports_per_run: 20
+  trigger_mode: manual
+  trigger_event_count: 5
+  trigger_interval_minutes: 9999
+  last_consolidated_at: '2026-03-11T14:27:07'
+notes: >
+  This project is self-hosting: it tracks its own development using the very schema and structure it defines. The PM
+  project code is "PM".

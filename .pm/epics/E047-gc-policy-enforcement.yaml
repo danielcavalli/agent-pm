@@ -1,0 +1,91 @@
+id: E047
+code: PM-E047
+title: GC Policy Enforcement
+description: >-
+  Fix E035 PARTIAL — GC has broken reference types, unconditional report archival, no configurable TTLs, no MCP tool,
+  and no tests. Fix the supersedes/reference type mismatch, archive only consolidated reports, add TTL thresholds,
+  expose pm_gc_run via MCP, and add test coverage.
+status: backlog
+priority: medium
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E047-S001
+    title: Fix reference type mismatch in gc.ts
+    description: >-
+      gc.ts checks for type: supersedes but ADRReferenceSchema only allows comment|report|adr|task. Align the GC code
+      with the schema or extend the schema.
+    acceptance_criteria:
+      - GC code and ADRReferenceSchema use consistent reference types
+      - Supersession detection works correctly for ADR lifecycle
+      - No runtime errors from type mismatch
+      - Unit test covers the reference type validation
+    status: backlog
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E047-S002
+    title: Archive reports only when consolidated
+    description: >-
+      Change GC to archive reports only when consolidated: true instead of unconditionally. This ensures reports are
+      preserved until the consolidation pipeline processes them.
+    acceptance_criteria:
+      - GC skips reports where consolidated is false or absent
+      - 'GC archives reports where consolidated: true'
+      - Dry-run output shows which reports would be archived and why
+      - Reports without the consolidated field are treated as not consolidated
+    status: backlog
+    priority: high
+    story_points: 2
+    depends_on:
+      - PM-E042-S002
+    notes: ''
+  - id: S003
+    code: PM-E047-S003
+    title: Implement configurable TTL thresholds
+    description: >-
+      Add configurable TTL thresholds for GC: 30-day default for agent comments, 7-day for consolidated reports, 90-day
+      for deprecated ADRs. Allow project-level config override.
+    acceptance_criteria:
+      - 'Default TTLs: 30 days for comments, 7 days for reports, 90 days for ADRs'
+      - TTLs are configurable via project.yaml gc_config section
+      - Items younger than their TTL are never garbage collected
+      - pm gc run --verbose shows TTL evaluation for each item
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E047-S004
+    title: Add pm_gc_run MCP tool
+    description: Expose pm gc run as an MCP tool so agents can trigger garbage collection programmatically.
+    acceptance_criteria:
+      - pm_gc_run is registered in MCP server tools/list response
+      - Tool supports --dry-run parameter
+      - Tool delegates to pm gc run CLI command
+      - Tool returns structured summary of GC actions
+    status: backlog
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S005
+    code: PM-E047-S005
+    title: Add test coverage for GC commands
+    description: >-
+      Add unit and integration tests for the garbage collection system. Cover comment expiry, report archival, ADR
+      lifecycle transitions, and TTL enforcement.
+    acceptance_criteria:
+      - Test file exists at src/commands/__tests__/gc.test.ts or similar
+      - Tests cover comment expiry based on consumed_by
+      - 'Tests cover report archival with consolidated: true check'
+      - Tests cover ADR reference type handling
+      - Tests verify --dry-run produces output without side effects
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on: []
+    notes: ''

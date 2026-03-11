@@ -1,8 +1,12 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as yaml from 'js-yaml';
-import { z } from 'zod';
-import { YamlNotFoundError, YamlParseError, ZodValidationError } from './errors.js';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as yaml from "js-yaml";
+import { z } from "zod";
+import {
+  YamlNotFoundError,
+  YamlParseError,
+  ZodValidationError,
+} from "./errors.js";
 
 /**
  * Read and validate a YAML file against a Zod schema.
@@ -11,14 +15,17 @@ import { YamlNotFoundError, YamlParseError, ZodValidationError } from './errors.
  * Throws YamlParseError if the YAML is malformed.
  * Throws ZodValidationError if schema validation fails.
  */
-export function readYaml<S extends z.ZodTypeAny>(filePath: string, schema: S): z.output<S> {
+export function readYaml<S extends z.ZodTypeAny>(
+  filePath: string,
+  schema: S,
+): z.output<S> {
   if (!fs.existsSync(filePath)) {
     throw new YamlNotFoundError(filePath);
   }
 
   let raw: unknown;
   try {
-    const content = fs.readFileSync(filePath, 'utf8');
+    const content = fs.readFileSync(filePath, "utf8");
     raw = yaml.load(content);
   } catch (err) {
     throw new YamlParseError(filePath, err);
@@ -47,7 +54,7 @@ export function writeYaml(filePath: string, data: unknown): void {
     sortKeys: false,
   });
 
-  fs.writeFileSync(filePath, content, 'utf8');
+  fs.writeFileSync(filePath, content, "utf8");
 }
 
 /**
@@ -87,7 +94,7 @@ export function listDirs(dirPath: string): string[] {
  * List files matching a glob-style suffix in a directory.
  * Returns [] if the directory does not exist.
  */
-export function listFiles(dirPath: string, suffix = '.yaml'): string[] {
+export function listFiles(dirPath: string, suffix = ".yaml"): string[] {
   if (!fs.existsSync(dirPath)) return [];
   return fs
     .readdirSync(dirPath)

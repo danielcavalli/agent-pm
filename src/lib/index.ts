@@ -1,84 +1,66 @@
-import * as path from 'node:path';
-import * as fs from 'node:fs';
-import { readYaml, writeYaml, listFiles } from './fs.js';
-import { ProjectSchema, EpicSchema, IndexSchema } from '../schemas/index.js';
-import type { IndexProjectEntry, Index } from '../schemas/index.js';
-import { getProjectsDir, listProjectCodes } from './codes.js';
+import * as path from "node:path";
+import * as fs from "node:fs";
+import { readYaml, writeYaml, listFiles } from "./fs.js";
+import { ProjectSchema, EpicSchema, IndexSchema } from "../schemas/index.js";
+import type { Index } from "../schemas/index.js";
+import { getPmDir, getProjectCode } from "./codes.js";
 
-/**
- * Rebuild the projects/index.yaml from the current filesystem state.
- * Called after every mutating CLI command.
- */
-export function rebuildIndex(filterCode?: string): void {
-  const projectsDir = getProjectsDir();
-  const indexPath = path.join(projectsDir, 'index.yaml');
-  const today = new Date().toISOString().slice(0, 10);
+export { getProjectCode };
 
-  const codes = filterCode ? [filterCode] : listProjectCodes();
-  const entries: IndexProjectEntry[] = [];
+function buildIndexEntry(pmDir: string): Index | null {
+  const projectYaml = path.join(pmDir, "project.yaml");
+  if (!fs.existsSync(projectYaml)) return null;
 
-  for (const code of codes) {
-    const projectPath = path.join(projectsDir, code, 'project.yaml');
-    if (!fs.existsSync(projectPath)) continue;
-
-    let project;
-    try {
-      project = readYaml(projectPath, ProjectSchema);
-    } catch {
-      continue;
-    }
-
-    const epicsDir = path.join(projectsDir, code, 'epics');
-    const epicFiles = listFiles(epicsDir, '.yaml');
-    let storyCount = 0;
-    let storiesDone = 0;
-
-    for (const epicFile of epicFiles) {
-      try {
-        const epic = readYaml(epicFile, EpicSchema);
-    storyCount += epic.stories?.length ?? 0;
-    storiesDone += epic.stories?.filter((s) => s.status === 'done').length ?? 0;
-      } catch {
-        // skip unreadable epic files
-      }
-    }
-
-    entries.push({
-      code: project.code,
-      name: project.name,
-      status: project.status,
-      epic_count: epicFiles.length,
-      story_count: storyCount,
-      stories_done: storiesDone,
-      last_updated: today,
-    });
+  let project;
+  try {
+    project = readYaml(projectYaml, ProjectSchema);
+  } catch {
+    return null;
   }
 
-  // If filtering, merge with existing index
-  if (filterCode) {
-    let existing: Index = { projects: [] };
+  const epicsDir = path.join(pmDir, "epics");
+  const epicFiles = listFiles(epicsDir, ".yaml");
+  let storyCount = 0;
+  let storiesDone = 0;
+
+  for (const epicFile of epicFiles) {
     try {
-      existing = readYaml(indexPath, IndexSchema);
+      const epic = readYaml(epicFile, EpicSchema);
+      storyCount += epic.stories?.length ?? 0;
+      storiesDone +=
+        epic.stories?.filter((s) => s.status === "done").length ?? 0;
     } catch {
-      // start fresh
+      // skip unreadable epic files
     }
-    const others = existing.projects.filter((p) => p.code !== filterCode);
-    const merged = [...others, ...entries].sort((a, b) => a.code.localeCompare(b.code));
-    writeYaml(indexPath, { projects: merged } as Index);
-  } else {
-    entries.sort((a, b) => a.code.localeCompare(b.code));
-    writeYaml(indexPath, { projects: entries } as Index);
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    code: project.code,
+    name: project.name,
+    status: project.status,
+    epic_count: epicFiles.length,
+    story_count: storyCount,
+    stories_done: storiesDone,
+    last_updated: today,
+  };
+}
+
+export function rebuildIndex(_filterCode?: string): void {
+  const pmDir = getPmDir();
+  const indexPath = path.join(pmDir, "index.yaml");
+
+  const entry = buildIndexEntry(pmDir);
+  if (entry) {
+    writeYaml(indexPath, entry);
   }
 }
 
-/**
- * Read the current index.yaml or return an empty index.
- */
-export function readIndex(): Index {
-  const indexPath = path.join(getProjectsDir(), 'index.yaml');
+export function readIndex(): Index | null {
+  const indexPath = path.join(getPmDir(), "index.yaml");
   try {
     return readYaml(indexPath, IndexSchema);
   } catch {
-    return { projects: [] };
+    return null;
   }
 }

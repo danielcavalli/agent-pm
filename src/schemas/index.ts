@@ -4,11 +4,15 @@ export {
   ProjectStatusSchema,
   ProjectCodeSchema,
   ProjectArchitectureSchema,
+  ConsolidationConfigSchema,
+  TriggerModeSchema,
 } from "./project.schema.js";
 export type {
   Project,
   ProjectStatus,
   ProjectArchitecture,
+  ConsolidationConfig,
+  TriggerMode,
 } from "./project.schema.js";
 
 export {
@@ -25,12 +29,14 @@ export {
   StoryCodeSchema,
   StoryPointsSchema,
   PrioritySchema,
+  ResolutionTypeSchema,
 } from "./story.schema.js";
 export type {
   Story,
   StoryStatus,
   StoryPoints,
   Priority,
+  ResolutionType,
 } from "./story.schema.js";
 
 export {
@@ -45,12 +51,14 @@ export type { Report, ReportStatus, ReportList } from "./report.schema.js";
 export {
   CrossTaskCommentSchema,
   TaskReferenceSchema,
+  CommentTypeSchema,
   CommentAuthorSchema,
   CommentIndexSchema,
   CommentIndexEntrySchema,
 } from "./comment.schema.js";
 export type {
   CrossTaskComment,
+  CommentType,
   CommentAuthor,
   CommentIndex,
   CommentIndexEntry,
@@ -72,10 +80,51 @@ export type {
   ExecutionIndexEntry,
 } from "./execution.schema.js";
 
-// Index schema
+export {
+  AgentExecutionReportSchema,
+  ExecutionReportStatusSchema,
+  ItemTypeSchema,
+  DecisionItemSchema,
+  AssumptionItemSchema,
+  TradeoffItemSchema,
+  OutOfScopeItemSchema,
+  PotentialConflictItemSchema,
+  AGENT_REPORT_SCHEMA_SPEC,
+} from "./agent-report.schema.js";
+export type {
+  AgentExecutionReport,
+  ExecutionReportStatus,
+  ItemType,
+  DecisionItem,
+  AssumptionItem,
+  TradeoffItem,
+  OutOfScopeItem,
+  PotentialConflictItem,
+} from "./agent-report.schema.js";
+
+export {
+  ADRSchema,
+  ADRStatusSchema,
+  ADRAuthorSchema,
+  ADRSupersessionSchema,
+  ADRReferenceSchema,
+  ADRIndexSchema,
+  ADRIndexEntrySchema,
+} from "./adr.schema.js";
+export type {
+  ADR,
+  ADRStatus,
+  ADRAuthor,
+  ADRSupersession,
+  ADRReference,
+  ADRIndex,
+  ADRIndexEntry,
+} from "./adr.schema.js";
+
+// Index schema (single-project)
 import { z } from "zod";
 
-export const IndexProjectEntrySchema = z.object({
+export const IndexSchema = z.object({
   code: z.string(),
   name: z.string(),
   status: z.string(),
@@ -83,10 +132,5 @@ export const IndexProjectEntrySchema = z.object({
   story_count: z.number().int().nonnegative(),
   stories_done: z.number().int().nonnegative(),
   last_updated: z.string(),
-});
-export type IndexProjectEntry = z.infer<typeof IndexProjectEntrySchema>;
-
-export const IndexSchema = z.object({
-  projects: z.array(IndexProjectEntrySchema).default([]),
 });
 export type Index = z.infer<typeof IndexSchema>;

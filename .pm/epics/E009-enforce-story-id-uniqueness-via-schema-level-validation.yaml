@@ -1,0 +1,47 @@
+id: E009
+code: PM-E009
+title: Enforce story ID uniqueness via schema-level validation
+description: >-
+  The PRD specifies that story IDs must be unique within an epic, but neither EpicSchema nor any CLI write path enforces
+  this at the data layer. A Zod refine on EpicSchema would catch duplicate S-codes when reading any epic YAML. Without
+  this, manually-edited YAML files with duplicate story IDs pass validation silently and can cause silent data
+  corruption in story-update and work commands.
+status: done
+priority: medium
+created_at: '2026-03-09'
+stories:
+  - id: S001
+    code: PM-E009-S001
+    title: Add superRefine to EpicSchema for story ID uniqueness
+    description: >-
+      Extend EpicSchema in src/schemas/epic.schema.ts with a .superRefine() call that iterates the stories array, tracks
+      seen id values, and adds a Zod issue (with path stories.<index>.id) for each duplicate. This means every readYaml
+      call for a corrupt epic YAML will throw a ZodValidationError with a clear, actionable message instead of silently
+      accepting the data.
+    acceptance_criteria:
+      - 'EpicSchema.safeParse() returns success: false when two stories share the same id (e.g., both S001)'
+      - Each Zod issue has path ["stories", <index>, "id"] pointing to the offending duplicate entry
+      - 'Each Zod issue message names the duplicate ID (e.g., "Duplicate story ID: S001")'
+      - 'EpicSchema.safeParse() returns success: true for a valid epic with all-unique story IDs'
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S002
+    code: PM-E009-S002
+    title: Unit tests for story ID uniqueness in EpicSchema
+    description: >-
+      Extend the existing EpicSchema describe block in src/schemas/__tests__/schemas.test.ts with test cases that
+      exercise the new uniqueness constraint. Tests cover both the rejection case with a meaningful error and
+      confirmation that valid epics with unique IDs continue to pass.
+    acceptance_criteria:
+      - >-
+        A test with two stories both having id: S001 fails EpicSchema.safeParse() and the first issue message includes
+        'Duplicate story ID'
+      - The failing test confirms the issue path includes 'stories' and the index of the duplicate
+      - 'A test with stories having id: S001 and id: S002 passes EpicSchema.safeParse()'
+      - npm test exits 0 with no failures after these additions
+    status: done
+    priority: medium
+    story_points: 1
+    notes: ''

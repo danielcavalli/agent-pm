@@ -4,8 +4,17 @@ import chalk from "chalk";
 import { EpicSchema, PrioritySchema } from "../schemas/index.js";
 import type { Epic, Priority } from "../schemas/index.js";
 import { readYaml, writeYaml, listFiles } from "../lib/fs.js";
-import { getProjectsDir, nextEpicNumber, toKebabSlug } from "../lib/codes.js";
-import { ProjectNotFoundError, ValidationError } from "../lib/errors.js";
+import {
+  getPmDir,
+  nextEpicNumber,
+  toKebabSlug,
+  getProjectCode,
+} from "../lib/codes.js";
+import {
+  ProjectNotFoundError,
+  ValidationError,
+  PmError,
+} from "../lib/errors.js";
 import { rebuildIndex } from "../lib/index.js";
 
 interface EpicAddOptions {
@@ -22,19 +31,25 @@ const STATUS_ICON: Record<string, string> = {
 };
 
 export async function epicAdd(
-  projectCode: string,
+  projectCode: string | undefined,
   options: Record<string, unknown>,
 ): Promise<void> {
   const opts = options as unknown as EpicAddOptions;
 
-  // Validate project exists
-  const projectsDir = getProjectsDir();
-  const projectDir = path.join(projectsDir, projectCode);
-  if (!fs.existsSync(projectDir)) {
-    throw new ProjectNotFoundError(projectCode);
+  const pmDir = getPmDir();
+  const projectYaml = path.join(pmDir, "project.yaml");
+  if (!fs.existsSync(projectYaml)) {
+    throw new ProjectNotFoundError(projectCode || "unknown");
   }
 
-  // Validate priority
+  const actualProjectCode = getProjectCode();
+  if (!actualProjectCode) {
+    throw new PmError(
+      "PROJECT_CODE_NOT_FOUND",
+      "Cannot determine project code. Run 'pm init' first or specify project code explicitly.",
+    );
+  }
+
   const priorityInput = opts.priority ?? "medium";
   const priorityResult = PrioritySchema.safeParse(priorityInput);
   if (!priorityResult.success) {
@@ -43,12 +58,12 @@ export async function epicAdd(
     );
   }
 
-  const epicId = nextEpicNumber(projectCode);
-  const epicNum = epicId; // e.g. "E007"
-  const epicCode = `${projectCode}-${epicId}`;
+  const epicId = nextEpicNumber();
+  const epicNum = epicId;
+  const epicCode = `${actualProjectCode}-${epicId}`;
   const slug = toKebabSlug(opts.title);
   const filename = `${epicNum}-${slug}.yaml`;
-  const epicPath = path.join(projectDir, "epics", filename);
+  const epicPath = path.join(pmDir, "epics", filename);
   const today = new Date().toISOString().slice(0, 10);
 
   const epic: Epic = {
@@ -63,7 +78,7 @@ export async function epicAdd(
   };
 
   writeYaml(epicPath, epic);
-  rebuildIndex(projectCode);
+  rebuildIndex();
 
   console.log(chalk.green("✓") + " Epic created: " + chalk.bold(epicCode));
   console.log(chalk.dim("  File: ") + epicPath);
@@ -71,14 +86,11 @@ export async function epicAdd(
   console.log(chalk.dim("  Priority: ") + priorityResult.data);
 }
 
-export async function epicSync(projectCode: string): Promise<void> {
-  const projectsDir = getProjectsDir();
-  const projectDir = path.join(projectsDir, projectCode);
-  if (!fs.existsSync(projectDir)) {
-    throw new ProjectNotFoundError(projectCode);
-  }
-
-  const epicsDir = path.join(projectDir, "epics");
+export async function epicSync(
+  _projectCode: string | undefined,
+): Promise<void> {
+  const pmDir = getPmDir();
+  const epicsDir = path.join(pmDir, "epics");
   const epicFiles = listFiles(epicsDir, ".yaml").sort();
   let updated = 0;
 
@@ -114,26 +126,26 @@ export async function epicSync(projectCode: string): Promise<void> {
     }
   }
 
-  rebuildIndex(projectCode);
+  rebuildIndex();
 
   if (updated === 0) {
     console.log(chalk.dim("All epic statuses are already consistent."));
   } else {
+    const projectCode = getProjectCode() || "PROJECT";
     console.log(
       chalk.green(`\n✓ Updated ${updated} epic(s) in ${projectCode}`),
     );
   }
 }
 
-export async function epicList(projectCode: string): Promise<void> {
-  const projectsDir = getProjectsDir();
-  const projectDir = path.join(projectsDir, projectCode);
-  if (!fs.existsSync(projectDir)) {
-    throw new ProjectNotFoundError(projectCode);
-  }
-
-  const epicsDir = path.join(projectDir, "epics");
+export async function epicList(
+  _projectCode: string | undefined,
+): Promise<void> {
+  const pmDir = getPmDir();
+  const epicsDir = path.join(pmDir, "epics");
   const epicFiles = listFiles(epicsDir, ".yaml").sort();
+
+  const projectCode = getProjectCode() || "PROJECT";
 
   if (epicFiles.length === 0) {
     console.log(

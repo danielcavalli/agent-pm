@@ -73,6 +73,15 @@ describe("pm story add / list / update (integration)", () => {
     ).rejects.toThrow(ValidationError);
   });
 
+  it("AC3b: storyAdd rejects resolution_type as it's reserved for consolidation agent", async () => {
+    await expect(
+      storyAdd(epicCode, {
+        title: "Conflict Story",
+        resolution_type: "conflict",
+      }),
+    ).rejects.toThrow("resolution_type is reserved");
+  });
+
   // ── storyList ───────────────────────────────────────────────────────
 
   it("AC4: storyList output includes story code, title, status, and points", async () => {

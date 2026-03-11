@@ -1,0 +1,131 @@
+id: E036
+code: PM-E036
+title: pm-audit Slash Command Revision
+description: >-
+  Rewrite the /pm-audit command as a rigorous research agent that cross-validates PM data against actual implementation
+  using multiple evidence sources (story acceptance criteria, source code, test results, git history). Uses sub-agent
+  delegation for parallel research, requires 2+ evidence sources per finding, and outputs story-level verdicts with
+  confidence scoring. Research quality is paramount.
+status: backlog
+priority: high
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E036-S001
+    title: Multi-source evidence gathering
+    description: >-
+      Rewrite the research phase to collect from 4 sources: (1) story acceptance criteria via pm story list, (2) source
+      code via explore sub-agents, (3) test results via npm test execution, (4) git history for implementation evidence.
+      PRD becomes context, not sole source of truth.
+    acceptance_criteria:
+      - Audit reads story acceptance criteria from pm story list for every story in every epic
+      - Audit dispatches explore agents to read actual source files and verify implementation
+      - Audit runs npm test and parses results to check coverage
+      - Audit checks git log for implementation commits
+      - PRD.md is used as context/background, not as the primary verification source
+    status: done
+    priority: high
+    story_points: 5
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E036-S002
+    title: Sub-agent delegation for parallel research
+    description: >-
+      Dispatch explore sub-agents per epic or functional area (e.g., one for schemas, one for CLI commands, one for
+      TUI). Each agent gets a scoped audit task with specific files to check and criteria to verify. Collect results and
+      synthesize into a unified report.
+    acceptance_criteria:
+      - Audit dispatches multiple explore sub-agents in parallel using the Task tool
+      - Each sub-agent receives a scoped task with specific epic codes, files to check, and criteria to verify
+      - Sub-agent results are collected and synthesized into a unified finding set
+      - No single agent audits more than 5 epics — work is distributed
+    status: done
+    priority: high
+    story_points: 5
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E036-S003
+    title: Cross-validation protocol
+    description: >-
+      Every finding must cite 2+ evidence sources. A story is PASS only if (a) acceptance criteria match code AND (b)
+      test coverage exists. PARTIAL requires a specific gap description with file:line references. No finding accepted
+      based on a single source alone.
+    acceptance_criteria:
+      - Every PASS verdict is backed by both code evidence and test evidence
+      - Every PARTIAL/FAIL verdict cites specific file:line references for the gap
+      - No finding is based on a single evidence source alone
+      - Cross-validation failures (e.g., code exists but no test) are flagged explicitly
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E036-S004
+    title: Story-level audit granularity
+    description: >-
+      Audit at the story acceptance criteria level, not just interface level. For each story marked done, verify every
+      acceptance criterion individually. Output a per-story verdict (PASS/PARTIAL/FAIL) with specific unmet criteria
+      listed.
+    acceptance_criteria:
+      - Every story in every epic is individually audited
+      - Each acceptance criterion is checked against implementation
+      - Per-story verdict (PASS/PARTIAL/FAIL) is output with unmet criteria listed
+      - Epic-level verdict is derived from story verdicts, not assessed independently
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S005
+    code: PM-E036-S005
+    title: Actionable output with stories and acceptance criteria
+    description: >-
+      Generate stories (not just epics) for every gap found. Each story must include title, description with context,
+      and testable acceptance criteria. Group into epics by theme. Deduplicate against existing epics/stories before
+      filing.
+    acceptance_criteria:
+      - Gaps are filed as stories with title, description, and acceptance criteria — not just epics
+      - Stories are grouped into thematic epics
+      - Existing epics and stories are checked before filing to avoid duplicates
+      - Each generated story has at least 3 testable acceptance criteria
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S006
+    code: PM-E036-S006
+    title: Confidence scoring and structured reporting
+    description: >-
+      Each finding gets a confidence level (high/medium/low) based on evidence strength. Final report includes: per-epic
+      scorecard, per-story verdicts, evidence citations, gap stories created, and an overall completeness percentage.
+    acceptance_criteria:
+      - Each finding includes a confidence level (high/medium/low)
+      - Final report contains a per-epic scorecard table
+      - Final report contains per-story verdicts with evidence citations
+      - Final report includes an overall completeness percentage
+      - Gap stories created are listed with their codes in the report
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S007
+    code: PM-E036-S007
+    title: Test execution integration
+    description: >-
+      Actually run the test suite as part of the audit. Parse results to verify which stories have test coverage and
+      which dont. Flag stories whose tests fail.
+    acceptance_criteria:
+      - Audit runs npm test and captures output
+      - Test results are parsed to identify passing and failing tests
+      - Stories with no associated test coverage are flagged
+      - Stories whose tests fail are marked as FAIL regardless of code presence
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''

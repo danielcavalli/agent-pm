@@ -1,0 +1,81 @@
+id: E040
+code: PM-E040
+title: Global-to-Local Migration Tooling
+description: >-
+  Provide a migration path for users on global ~/.pm/ storage to move projects into per-repo .pm/ directories. New pm
+  migrate --to-local command copies project data, flattens the directory structure, verifies integrity, and optionally
+  cleans up the global copy. Includes ADR superseding ADR-002. Depends on Local-First Storage Engine and CLI Adaptation
+  epics.
+status: backlog
+priority: high
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E040-S001
+    title: New pm migrate --to-local command
+    description: >-
+      Given a project code and a target repo directory, copy ~/.pm/projects/{CODE}/* to {target}/.pm/. Flatten the
+      directory structure (remove the {CODE}/ nesting since .pm/ is project-scoped). Preserve all YAML data.
+    acceptance_criteria:
+      - pm migrate --to-local --code PM --target /path/to/repo copies data correctly
+      - 'Directory structure is flattened: {CODE}/ nesting removed'
+      - All YAML files (project, epics, comments, adrs) are preserved
+      - Reports and execution data are preserved
+      - Command prints summary of migrated files
+    status: done
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E037-S001
+      - PM-E038-S001
+    notes: ''
+  - id: S002
+    code: PM-E040-S002
+    title: Post-migration verification
+    description: >-
+      After copying, run pm status from the target repo to verify the data loads correctly. Report any schema validation
+      errors.
+    acceptance_criteria:
+      - Migration runs pm status in the target directory after copying
+      - Schema validation errors are reported with file paths
+      - Migration exits non-zero if verification fails
+      - Success message confirms project loads correctly
+    status: done
+    priority: high
+    story_points: 2
+    depends_on:
+      - PM-E040-S001
+    notes: ''
+  - id: S003
+    code: PM-E040-S003
+    title: Optional global cleanup after migration
+    description: >-
+      pm migrate --to-local --cleanup removes the project from ~/.pm/ after successful migration. Without --cleanup, the
+      global copy is preserved as a safety net.
+    acceptance_criteria:
+      - Default behavior preserves the global copy
+      - '--cleanup flag removes the project directory from ~/.pm/projects/'
+      - Cleanup only runs after successful verification
+      - Warning message shown before cleanup
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on:
+      - PM-E040-S002
+    notes: ''
+  - id: S004
+    code: PM-E040-S004
+    title: ADR superseding ADR-002 for local-first storage
+    description: >-
+      Write ADR documenting the move from global to local-first storage. Reference ADR-002 as superseded. Capture
+      rationale: git tracking, single-project scope, simpler mental model, alignment with repo-centric workflows.
+    acceptance_criteria:
+      - ADR created via pm adr create with status accepted
+      - ADR references ADR-002 and marks it as superseded
+      - Rationale covers git tracking, single-project scope, and repo-centric workflows
+      - Trade-offs section discusses loss of cross-project visibility
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''

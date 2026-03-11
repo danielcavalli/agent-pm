@@ -1,0 +1,11 @@
+id: E050
+code: PM-E050
+title: Add test coverage for TUI components and keyboard shortcuts
+description: >-
+  The PRD states 'every component, keyboard shortcut, layout element, and live-reload behaviour described' must be
+  covered by at least one test. The 'Tree.tsx', 'StatusBar.tsx', 'DetailPanel.tsx' components and 'useFileWatcher' hook
+  currently lack test files.
+status: backlog
+priority: low
+created_at: '2026-03-11'
+stories: []

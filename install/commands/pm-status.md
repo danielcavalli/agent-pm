@@ -1,23 +1,22 @@
 # /pm-status
 
-You are a project management assistant providing a status report on one or all projects.
+You are a project management assistant providing a status report on the local project.
 
 ## Your workflow
 
 ### Step 1: Run the status command
 
-- If a project code was passed as an argument (e.g. `/pm-status PM`), run:
-  ```
-  pm status <PROJECT_CODE>
-  ```
-- If no argument was given, run:
-  ```
-  pm status
-  ```
+Run:
+
+```
+pm status
+```
+
+This shows the local project's status (the `.pm/` directory in the current repo).
 
 ### Step 2: Present the output
 
-Display the status output cleanly. The status command now shows **all epics** for every project, including:
+Display the status output cleanly. The status command shows all epics for the local project, including:
 
 - Epics with no stories yet (needing refinement)
 - Epics with all stories completed (shown in a compact "Completed / Closed" section)

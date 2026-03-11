@@ -36,6 +36,7 @@ export const ExecutionReportSchema = z.object({
   executor: z.string().optional(),
   error_message: z.string().optional().default(""),
   output: z.string().optional().default(""),
+  consolidated: z.boolean().optional().default(false),
 });
 export type ExecutionReport = z.infer<typeof ExecutionReportSchema>;
 

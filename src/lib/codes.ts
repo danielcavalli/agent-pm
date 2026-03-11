@@ -1,29 +1,124 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import * as childProcess from "node:child_process";
 import { readYaml } from "./fs.js";
-import { EpicSchema } from "../schemas/index.js";
+import { PmError } from "./errors.js";
+import { EpicSchema, ProjectSchema } from "../schemas/index.js";
 
 /**
- * Resolve the root projects directory.
- * Priority: PM_HOME env var > ~/.pm/
- * Never falls back to process.cwd().
+ * Find the git repository root directory.
+ * Returns null if not in a git repository.
  */
-export function getProjectsDir(): string {
-  if (process.env["PM_HOME"]) {
-    return path.join(process.env["PM_HOME"], "projects");
+export function findGitRoot(): string | null {
+  try {
+    const root = childProcess
+      .execSync("git rev-parse --show-toplevel", {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      })
+      .trim();
+    return root || null;
+  } catch {
+    return null;
   }
-  return path.join(os.homedir(), ".pm", "projects");
 }
 
 /**
- * Ensure the projects directory exists, creating it (and parents) if needed.
+ * Resolve the .pm directory for the current project.
+ * Priority: PM_HOME > git-root/.pm > cwd/.pm
+ * Throws if no .pm directory can be resolved.
+ */
+export function getPmDir(): string {
+  if (process.env["PM_HOME"]) {
+    return process.env["PM_HOME"];
+  }
+
+  const gitRoot = findGitRoot();
+  if (gitRoot) {
+    const gitPmDir = path.join(gitRoot, ".pm");
+    if (fs.existsSync(gitPmDir)) {
+      return gitPmDir;
+    }
+  }
+
+  const cwdPmDir = path.join(process.cwd(), ".pm");
+  if (fs.existsSync(cwdPmDir)) {
+    return cwdPmDir;
+  }
+
+  throw new PmError(
+    "PM_DIR_NOT_FOUND",
+    "No .pm directory found. Run 'pm init' to create one, or set PM_HOME.",
+  );
+}
+
+/**
+ * Legacy alias for getPmDir() - returns the .pm directory.
+ * @deprecated Use getPmDir() instead.
+ */
+export function getProjectsDir(): string {
+  return getPmDir();
+}
+
+/**
+ * Ensure the .pm directory exists, creating it (and parents) if needed.
  * Safe to call multiple times — no-op when the directory already exists.
  * Should be called early in CLI initialization before any command runs.
+ *
+ * Creates .pm/ at git root or cwd, with subdirectories for epics, comments,
+ * adrs, and reports. Refuses to create in / or HOME without explicit pm init.
+ */
+export function ensurePmDir(): void {
+  const subdirs = ["epics", "comments", "adrs", "reports"];
+
+  if (process.env["PM_HOME"]) {
+    const pmDir = process.env["PM_HOME"];
+    fs.mkdirSync(pmDir, { recursive: true });
+    for (const subdir of subdirs) {
+      fs.mkdirSync(path.join(pmDir, subdir), { recursive: true });
+    }
+    return;
+  }
+
+  const targetDir = determinePmLocation();
+  if (!targetDir) {
+    return;
+  }
+
+  fs.mkdirSync(targetDir, { recursive: true });
+  for (const subdir of subdirs) {
+    fs.mkdirSync(path.join(targetDir, subdir), { recursive: true });
+  }
+}
+
+/**
+ * Determine where .pm/ should be created.
+ * Returns null if creation should be refused (e.g., in / or HOME).
+ * Priority: git root > cwd, with safety guards.
+ */
+function determinePmLocation(): string | null {
+  const homeDir = process.env["HOME"] || os.homedir();
+  const cwd = process.cwd();
+
+  const gitRoot = findGitRoot();
+  if (gitRoot) {
+    return path.join(gitRoot, ".pm");
+  }
+
+  if (cwd === "/" || cwd === homeDir) {
+    return null;
+  }
+
+  return path.join(cwd, ".pm");
+}
+
+/**
+ * Legacy alias for ensurePmDir().
+ * @deprecated Use ensurePmDir() instead.
  */
 export function ensureProjectsDir(): void {
-  const projectsDir = getProjectsDir();
-  fs.mkdirSync(projectsDir, { recursive: true });
+  ensurePmDir();
 }
 
 /**
@@ -60,20 +155,21 @@ export function toKebabSlug(title: string): string {
 }
 
 /**
- * Check if a project code is already taken (projects/{code}/ directory exists).
+ * Check if a project code is already taken.
+ * @deprecated In single-project mode, this always returns false.
+ * Kept for backward compatibility with existing code.
  */
-export function isProjectCodeTaken(code: string): boolean {
-  const projectDir = path.join(getProjectsDir(), code);
-  return fs.existsSync(projectDir);
+export function isProjectCodeTaken(_code: string): boolean {
+  return false;
 }
 
 /**
- * Find the next available epic number for a project.
- * Scans projects/{code}/epics/ for existing E### files and returns the next.
+ * Find the next available epic number for the project.
+ * Scans .pm/epics/ for existing E### files and returns the next.
  * e.g. if E001-E003 exist, returns "E004"
  */
-export function nextEpicNumber(projectCode: string): string {
-  const epicsDir = path.join(getProjectsDir(), projectCode, "epics");
+export function nextEpicNumber(_projectCode?: string): string {
+  const epicsDir = path.join(getPmDir(), "epics");
 
   if (!fs.existsSync(epicsDir)) {
     return "E001";
@@ -125,19 +221,17 @@ export function nextStoryNumber(epicFilePath: string): string {
 
 /**
  * Find the epic YAML file path for a given epic code (e.g. "PM-E001").
- * Scans the project's epics directory for a file starting with "E001-".
+ * Scans .pm/epics/ for a file starting with "E001-".
  * Returns null if not found.
  */
 export function findEpicFile(epicCode: string): string | null {
   const parts = epicCode.split("-");
   if (parts.length !== 2) return null;
 
-  const projectCode = parts[0];
   const epicId = parts[1];
+  if (!epicId) return null;
 
-  if (!projectCode || !epicId) return null;
-
-  const epicsDir = path.join(getProjectsDir(), projectCode, "epics");
+  const epicsDir = path.join(getPmDir(), "epics");
   if (!fs.existsSync(epicsDir)) return null;
 
   const files = fs.readdirSync(epicsDir);
@@ -170,34 +264,139 @@ export function parseStoryCode(storyCode: string): {
 }
 
 /**
- * List all project codes in the projects directory.
+ * Resolve an epic code, accepting either full form (PM-E001) or short form (E001).
+ * Returns the full epic code with project prefix.
+ * Throws PmError if no project code can be determined.
  */
-export function listProjectCodes(): string[] {
-  const projectsDir = getProjectsDir();
-  if (!fs.existsSync(projectsDir)) return [];
-  return fs.readdirSync(projectsDir).filter((name) => {
-    if (name === "index.yaml") return false;
-    const full = path.join(projectsDir, name);
-    return fs.statSync(full).isDirectory();
-  });
+export function resolveEpicCode(input: string): string {
+  if (/^[A-Z]{2,6}-E\d{3}$/.test(input)) {
+    return input;
+  }
+  if (/^E\d{3}$/.test(input)) {
+    const projectCode = getProjectCode();
+    if (!projectCode) {
+      throw new PmError(
+        "PROJECT_CODE_NOT_FOUND",
+        "Cannot resolve epic code: no project found. Run 'pm init' first or use full code (e.g. PM-E001).",
+      );
+    }
+    return `${projectCode}-${input}`;
+  }
+  throw new PmError(
+    "INVALID_EPIC_CODE",
+    `Invalid epic code '${input}': expected E### or PROJECT-E### (e.g. E001 or PM-E001)`,
+  );
 }
 
 /**
- * Ensure the reports directory exists for a project, creating it if needed.
+ * Resolve a story code, accepting either full form (PM-E001-S001) or short form (E001-S001).
+ * Returns parsed components with the full epic code.
+ * Throws PmError if no project code can be determined.
  */
-export function ensureReportsDir(projectCode: string): string {
-  const reportsDir = path.join(getProjectsDir(), projectCode, "reports");
+export function resolveStoryCode(input: string): {
+  projectCode: string;
+  epicId: string;
+  storyId: string;
+  epicCode: string;
+} {
+  const fullMatch = input.match(/^([A-Z]{2,6})-(E\d{3})-(S\d{3})$/);
+  if (fullMatch) {
+    const [, projectCode, epicId, storyId] = fullMatch;
+    if (!projectCode || !epicId || !storyId) {
+      throw new PmError("INVALID_STORY_CODE", `Invalid story code '${input}'`);
+    }
+    return {
+      projectCode,
+      epicId,
+      storyId,
+      epicCode: `${projectCode}-${epicId}`,
+    };
+  }
+
+  const shortMatch = input.match(/^(E\d{3})-(S\d{3})$/);
+  if (shortMatch) {
+    const [, epicId, storyId] = shortMatch;
+    if (!epicId || !storyId) {
+      throw new PmError("INVALID_STORY_CODE", `Invalid story code '${input}'`);
+    }
+    const projectCode = getProjectCode();
+    if (!projectCode) {
+      throw new PmError(
+        "PROJECT_CODE_NOT_FOUND",
+        "Cannot resolve story code: no project found. Run 'pm init' first or use full code (e.g. PM-E001-S001).",
+      );
+    }
+    return {
+      projectCode,
+      epicId,
+      storyId,
+      epicCode: `${projectCode}-${epicId}`,
+    };
+  }
+
+  throw new PmError(
+    "INVALID_STORY_CODE",
+    `Invalid story code '${input}': expected E###-S### or PROJECT-E###-S### (e.g. E001-S001 or PM-E001-S001)`,
+  );
+}
+
+/**
+ * List all project codes in the projects directory.
+ * In single-project mode, returns an array with only the local project code.
+ * Returns empty array if no project found.
+ */
+export function listProjectCodes(): string[] {
+  const code = getProjectCode();
+  return code ? [code] : [];
+}
+
+let cachedProjectCode: string | null | undefined = undefined;
+
+/**
+ * Get the project code from .pm/project.yaml.
+ * Caches the result to avoid repeated file reads within a single CLI invocation.
+ * Returns null if .pm/project.yaml does not exist or is invalid.
+ */
+export function getProjectCode(): string | null {
+  if (cachedProjectCode !== undefined) {
+    return cachedProjectCode;
+  }
+
+  try {
+    const pmDir = getPmDir();
+    const projectYaml = path.join(pmDir, "project.yaml");
+    const project = readYaml(projectYaml, ProjectSchema);
+    cachedProjectCode = project.code;
+    return cachedProjectCode;
+  } catch {
+    cachedProjectCode = null;
+    return null;
+  }
+}
+
+/**
+ * Reset the project code cache. For testing only.
+ */
+export function resetProjectCodeCache(): void {
+  cachedProjectCode = undefined;
+}
+
+/**
+ * Ensure the reports directory exists, creating it if needed.
+ */
+export function ensureReportsDir(_projectCode?: string): string {
+  const reportsDir = path.join(getPmDir(), "reports");
   fs.mkdirSync(reportsDir, { recursive: true });
   return reportsDir;
 }
 
 /**
- * Find the next available report number for a project.
- * Scans projects/{code}/reports/ for existing R### files and returns the next.
+ * Find the next available report number for the project.
+ * Scans .pm/reports/ for existing R### files and returns the next.
  * e.g. if R001-R003 exist, returns "R004"
  */
-export function nextReportNumber(projectCode: string): string {
-  const reportsDir = path.join(getProjectsDir(), projectCode, "reports");
+export function nextReportNumber(_projectCode?: string): string {
+  const reportsDir = path.join(getPmDir(), "reports");
 
   if (!fs.existsSync(reportsDir)) {
     return "R001";
@@ -220,19 +419,17 @@ export function nextReportNumber(projectCode: string): string {
 
 /**
  * Find the report YAML file path for a given report code (e.g. "PM-R001").
- * Scans the project's reports directory for a file starting with "R001-".
+ * Scans .pm/reports/ for a file starting with "R001-".
  * Returns null if not found.
  */
 export function findReportFile(reportCode: string): string | null {
   const parts = reportCode.split("-");
   if (parts.length !== 2) return null;
 
-  const projectCode = parts[0];
   const reportId = parts[1];
+  if (!reportId) return null;
 
-  if (!projectCode || !reportId) return null;
-
-  const reportsDir = path.join(getProjectsDir(), projectCode, "reports");
+  const reportsDir = path.join(getPmDir(), "reports");
   if (!fs.existsSync(reportsDir)) return null;
 
   const files = fs.readdirSync(reportsDir);

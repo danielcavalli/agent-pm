@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { statusIcon, statusColor } from "./Tree.js";
-import type { TreeNode } from "../types.js";
+import type { TreeNode, StoryNode } from "../types.js";
 
 // ── Detail Panel ──────────────────────────────────────────────────────────────
 
@@ -59,20 +59,70 @@ export function DetailPanel({ node, width, height }: DetailPanelProps) {
   }
 
   if (node.kind === "story") {
-    addField("Code", node.code, "code");
-    addField("Title", node.title, "title");
-    addField("Status", node.status, "status");
-    addField("Priority", node.priority, "priority");
-    addField("Points", String(node.story_points), "points");
+    const story = node as StoryNode;
+    addField("Code", story.code, "code");
+    addField("Title", story.title, "title");
+    addField("Status", story.status, "status");
+    addField("Priority", story.priority, "priority");
+    addField("Points", String(story.story_points), "points");
+    if (story.resolution_type) {
+      addLine(<Text> </Text>, "sep-res");
+      addLine(
+        <Text
+          bold
+          color={story.resolution_type === "conflict" ? "red" : "yellow"}
+        >
+          {story.resolution_type === "conflict" ? "⚠ CONFLICT" : "⚑ GAP"}
+        </Text>,
+        "res-type",
+      );
+      if (
+        story.resolution_type === "conflict" &&
+        story.conflicting_assumptions
+      ) {
+        addLine(<Text bold>Conflicting Assumptions:</Text>, "conf-assum-label");
+        story.conflicting_assumptions.forEach((ca, i) => {
+          const label = `  ${i + 1}. ${ca.assumption} (from ${ca.source_report_id})`;
+          for (const [j, line] of wrapText(label, w).entries()) {
+            addLine(<Text> {line}</Text>, `ca-${i}-${j}`);
+          }
+        });
+        if (story.source_reports && story.source_reports.length > 0) {
+          addLine(<Text>Source Reports:</Text>, "src-rep-label");
+          story.source_reports.forEach((sr, i) => {
+            addLine(<Text> - {sr}</Text>, `sr-${i}`);
+          });
+        }
+        if (story.proposed_resolution) {
+          addLine(<Text>Proposed Resolution:</Text>, "prop-res-label");
+          for (const [i, line] of wrapText(
+            `  ${story.proposed_resolution}`,
+            w,
+          ).entries()) {
+            addLine(<Text>{line}</Text>, `pr-${i}`);
+          }
+        }
+      }
+      if (story.resolution_type === "gap" && story.undefined_concept) {
+        addLine(<Text>Undefined Concept:</Text>, "undef-conc-label");
+        addLine(<Text> {story.undefined_concept}</Text>, "undef-concept");
+        if (story.referenced_in && story.referenced_in.length > 0) {
+          addLine(<Text>Referenced In:</Text>, "ref-in-label");
+          story.referenced_in.forEach((ri, i) => {
+            addLine(<Text> - {ri}</Text>, `ri-${i}`);
+          });
+        }
+      }
+    }
     addLine(<Text> </Text>, "sep1");
     addLine(<Text bold>Description:</Text>, "desc-label");
-    for (const [i, line] of wrapText(node.description, w).entries()) {
+    for (const [i, line] of wrapText(story.description, w).entries()) {
       addLine(<Text> {line}</Text>, `desc-${i}`);
     }
-    if (node.acceptance_criteria.length > 0) {
+    if (story.acceptance_criteria.length > 0) {
       addLine(<Text> </Text>, "sep2");
       addLine(<Text bold>Acceptance Criteria:</Text>, "ac-label");
-      node.acceptance_criteria.forEach((ac, i) => {
+      story.acceptance_criteria.forEach((ac, i) => {
         for (const [j, line] of wrapText(`${i + 1}. ${ac}`, w).entries()) {
           addLine(<Text> {line}</Text>, `ac-${i}-${j}`);
         }

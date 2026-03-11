@@ -1,0 +1,139 @@
+id: E008
+code: PM-E008
+title: Add integration test coverage for all CLI commands
+description: >-
+  All 8 CLI commands (init, epic add, epic list, story add, story list, story update, work, status, prioritize) have
+  zero test coverage. The existing test suite only covers Zod schemas and lib utilities. CLI commands need integration
+  tests that exercise end-to-end behaviour against a real tmp directory: creating projects, adding epics and stories,
+  updating statuses, verifying output and YAML file contents. Without these tests there is no regression safety net for
+  the core command surface.
+status: done
+priority: medium
+created_at: '2026-03-09'
+stories:
+  - id: S001
+    code: PM-E008-S001
+    title: Create integration test helper utilities
+    description: >-
+      Before writing per-command test files, extract the common boilerplate (tmp dir lifecycle, PROJECTS_DIR env
+      override, console.log/console.error capture via vi.spyOn, fixture builders for pre-seeded projects and epics) into
+      a shared src/__tests__/integration-helpers.ts module. Every subsequent integration test story depends on these
+      helpers to stay DRY.
+    acceptance_criteria:
+      - >-
+        src/__tests__/integration-helpers.ts exports a setupTmpDir() function that creates a temp directory, sets
+        PROJECTS_DIR to it, and returns a teardown() callback that deletes the directory and restores the env var
+      - >-
+        File exports a captureOutput() helper that spies on console.log and console.error and returns the captured lines
+        after each test
+      - >-
+        File exports a seedProject() helper that calls init() directly to create a real project in the tmp dir,
+        returning the project code
+      - File exports a seedEpic() helper that calls epicAdd() directly to create a real epic, returning the epic code
+      - npm test passes with no new failures after the file is added
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S002
+    code: PM-E008-S002
+    title: Integration tests for pm init
+    description: >-
+      Write src/commands/__tests__/init.test.ts covering the full behaviour of src/commands/init.ts against a real tmp
+      filesystem. Verify both the YAML files written and the console output produced, covering the happy path,
+      duplicate-code rejection, and invalid-code-format rejection.
+    acceptance_criteria:
+      - >-
+        A test verifies that calling init() creates projects/TEST/project.yaml with correct code, name, and status:
+        active fields
+      - A test verifies that projects/TEST/epics/ directory is created by init()
+      - A test verifies that projects/index.yaml is updated with the new project entry after init()
+      - A test verifies that calling init() with a duplicate code throws DuplicateProjectCodeError
+      - A test verifies that calling init() with a lowercase code throws ValidationError
+      - npm test passes with all new tests green
+    status: done
+    priority: high
+    story_points: 3
+    notes: ''
+  - id: S003
+    code: PM-E008-S003
+    title: Integration tests for pm epic add and pm epic list
+    description: >-
+      Write src/commands/__tests__/epic.test.ts covering epicAdd() and epicList() in src/commands/epic.ts. Verify YAML
+      file creation, correct code assignment, slug-based filename generation, and formatted console output, along with
+      all error paths.
+    acceptance_criteria:
+      - >-
+        A test verifies that epicAdd() creates a file at projects/TEST/epics/E001-<slug>.yaml with correct id, code,
+        title, and status: backlog fields
+      - A test verifies that a second epicAdd() call assigns E002, not E001
+      - A test verifies that epicAdd() with an invalid priority throws ValidationError
+      - A test verifies that epicAdd() for a non-existent project code throws ProjectNotFoundError
+      - A test verifies that epicList() output includes the epic code and title for each created epic
+      - A test verifies that epicList() prints a 'No epics found' message when the project has no epics
+      - npm test passes with all new tests green
+    status: done
+    priority: high
+    story_points: 3
+    notes: ''
+  - id: S004
+    code: PM-E008-S004
+    title: Integration tests for pm story add, list, and update
+    description: >-
+      Write src/commands/__tests__/story.test.ts covering storyAdd(), storyList(), and storyUpdate() in
+      src/commands/story.ts. This is the largest integration test file because it covers three commands, validates
+      Fibonacci story points enforcement, acceptance criteria persistence, and in-place YAML mutation on update.
+    acceptance_criteria:
+      - >-
+        A test verifies that storyAdd() appends a story to the epic's stories array in the YAML file with correct id,
+        code, title, story_points, and status: backlog
+      - A test verifies that storyAdd() persists acceptance_criteria array entries in the YAML
+      - A test verifies that storyAdd() with an invalid points value (e.g. '4') throws ValidationError
+      - A test verifies that storyList() output includes story code, title, status, and points for each story
+      - A test verifies that storyUpdate() changes a story's status field to done in the YAML file
+      - A test verifies that storyUpdate() with an invalid status string throws ValidationError
+      - A test verifies that storyUpdate() for a non-existent story code throws StoryNotFoundError
+      - npm test passes with all new tests green
+    status: done
+    priority: high
+    story_points: 5
+    notes: ''
+  - id: S005
+    code: PM-E008-S005
+    title: Integration tests for pm work
+    description: >-
+      Write src/commands/__tests__/work.test.ts covering work() in src/commands/work.ts. Verify that calling pm work on
+      a backlog story marks it in_progress in the YAML, prints all required story fields, and handles the
+      done/already-in-progress edge cases correctly.
+    acceptance_criteria:
+      - A test verifies that work() sets the story's status to in_progress in the YAML file
+      - A test verifies that work() console output includes the story code, title, and acceptance criteria
+      - A test verifies that work() on a story already in_progress prints a warning but does not change the YAML
+      - A test verifies that work() on a done story prints a warning and returns without modifying the YAML
+      - A test verifies that work() on a non-existent story code throws StoryNotFoundError
+      - npm test passes with all new tests green
+    status: done
+    priority: medium
+    story_points: 3
+    notes: ''
+  - id: S006
+    code: PM-E008-S006
+    title: Integration tests for pm status and pm prioritize
+    description: >-
+      Write src/commands/__tests__/status-prioritize.test.ts covering status() in src/commands/status.ts and
+      prioritize() in src/commands/prioritize.ts. Verify all-projects summary, single-project detail view, JSON output,
+      and the prioritization context block output.
+    acceptance_criteria:
+      - A test verifies that status() with no args prints a table row containing the project code and name
+      - A test verifies that status('TEST', {}) output includes the epic code and at least one story code
+      - >-
+        A test verifies that status('TEST', { json: true }) output is valid JSON containing project, epics, and
+        next_recommended keys
+      - A test verifies that status('NONEXISTENT', {}) throws ProjectNotFoundError
+      - A test verifies that prioritize('TEST', {}) output includes the strategy label and a backlog story code
+      - 'A test verifies that prioritize(''TEST'', { epic: ''TEST-E001'' }) output includes the epic code and story codes'
+      - npm test passes with all new tests green
+    status: done
+    priority: medium
+    story_points: 3
+    notes: ''

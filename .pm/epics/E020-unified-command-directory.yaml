@@ -1,0 +1,78 @@
+id: E020
+code: PM-E020
+title: Unified Command Directory
+description: >-
+  Move the canonical slash command .md files to a single install/commands/ directory — the sole source of truth for all
+  11 pm-* commands. Replace both .opencode/commands/ and the new .claude/commands/ with relative symlinks pointing to
+  install/commands/. Remove the now-redundant install/opencode/commands/ subdirectory and update the OpenCode install
+  script to copy from the new location. Relative symlinks survive git clone on any Linux/macOS machine with no extra
+  config.
+status: done
+priority: high
+created_at: "2026-03-10"
+stories:
+  - id: S001
+    code: PM-E020-S001
+    title: Move commands to install/commands/ canonical directory
+    description: >-
+      Create install/commands/ and move all 11 .md files from install/opencode/commands/ to it using git mv so history
+      is preserved. Remove the now-empty install/opencode/commands/ directory. The file contents are unchanged — they
+      already use bare pm (done in PM-E017-S002).
+    acceptance_criteria:
+      - install/commands/ exists and contains all 11 pm-*.md files
+      - install/opencode/commands/ directory no longer exists
+      - File contents are identical to the former install/opencode/commands/ originals
+      - git log --follow install/commands/pm-status.md shows prior history
+    status: done
+    priority: high
+    story_points: 1
+    notes: ""
+  - id: S002
+    code: PM-E020-S002
+    title: Replace .opencode/commands/ files with relative symlinks
+    description: >-
+      For each of the 11 .md files in .opencode/commands/, delete the file and create a relative symlink targeting
+      ../../install/commands/<file>.md. This makes .opencode/commands/ a thin pass-through to the canonical source. The
+      relative path is correct for any git clone depth and requires no absolute-path configuration.
+    acceptance_criteria:
+      - All 11 entries in .opencode/commands/ are symlinks, not regular files
+      - readlink .opencode/commands/pm-status.md returns ../../install/commands/pm-status.md
+      - cat .opencode/commands/pm-status.md resolves and returns the full command file content
+      - Symlinks are committed to git and survive a fresh git clone (verify with ls -la .opencode/commands/)
+    status: done
+    priority: high
+    story_points: 2
+    notes: ""
+  - id: S003
+    code: PM-E020-S003
+    title: Create .claude/commands/ directory with relative symlinks
+    description: >-
+      Create a new .claude/commands/ directory at the repo root containing 11 relative symlinks, each targeting
+      ../../install/commands/<file>.md. This mirrors the .opencode/commands/ symlink structure and gives Claude Code
+      users a repo-local command directory. The E022 install-claude.sh script will copy from install/commands/ directly,
+      but this directory provides a working local reference.
+    acceptance_criteria:
+      - .claude/commands/ directory exists and is committed to git
+      - All 11 pm-*.md entries are relative symlinks (../../install/commands/<file>.md)
+      - cat .claude/commands/pm-status.md resolves and returns the full command content
+      - Symlinks survive a fresh git clone without any platform-specific config
+    status: done
+    priority: medium
+    story_points: 1
+    notes: ""
+  - id: S004
+    code: PM-E020-S004
+    title: Update install.sh to copy from install/commands/
+    description: >-
+      Update the slash-command copy step in install/install.sh to reference $SCRIPT_DIR/commands instead of
+      $SCRIPT_DIR/opencode/commands. Update the comment header and warning message to match. This ensures install.sh
+      remains functional after the install/opencode/commands/ directory is removed in S001.
+    acceptance_criteria:
+      - install.sh references $SCRIPT_DIR/commands (not $SCRIPT_DIR/opencode/commands) in the copy step
+      - bash -n install/install.sh passes with no syntax errors
+      - Running install.sh copies all 11 command files to ~/.config/opencode/commands/
+      - No remaining references to opencode/commands in install.sh
+    status: done
+    priority: high
+    story_points: 1
+    notes: ""

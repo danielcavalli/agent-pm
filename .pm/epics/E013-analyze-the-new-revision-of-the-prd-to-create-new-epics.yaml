@@ -1,0 +1,160 @@
+id: E013
+code: PM-E013
+title: Analyze the new revision of the PRD to create new Epics
+description: >-
+  Analyze the new revision of the project-management PRD and generate epics based on the new details. There are several
+  improvements over the original project that should be implemented
+status: done
+priority: high
+created_at: '2026-03-10'
+stories:
+  - id: S001
+    code: PM-E013-S001
+    title: Research PRD v2 and document gap analysis
+    description: >-
+      Deep-dive into the PRD v2 section (Global + Autonomous Filing). Compare each v2 requirement and acceptance
+      criterion against existing epics and stories. Produce a detailed gap list identifying the 6 new epics needed,
+      their dependencies, and implementation order.
+    acceptance_criteria:
+      - All PRD v2 acceptance criteria are mapped to specific gaps
+      - Dependencies between new epics are identified (e.g. Global Data Dir before CLI Installation)
+      - A recommended implementation order is documented
+    status: done
+    priority: high
+    story_points: 2
+    notes: >-
+      GAP ANALYSIS — PRD v2 Acceptance Criteria mapped to gaps:
+
+      1. "pm CLI works from any directory" → getProjectsDir() in src/lib/codes.ts uses process.cwd()/projects. Three
+      duplicate copies exist (codes.ts, useFileWatcher.ts, loadTree.ts). All must switch to PM_HOME resolution. → Epic:
+      Global Data Directory.
+
+      2. "Project data lives in ~/.pm/ or $PM_HOME" → No PM_HOME env var support. Only PROJECTS_DIR override exists (for
+      tests). Must add PM_HOME with ~/.pm/ default via os.homedir(). → Epic: Global Data Directory.
+
+      3. "/pm-* slash commands available in every OpenCode session" → Commands are in .opencode/commands/
+      (project-local). All 10 use "npm run pm --" not bare "pm". No install/ directory exists. Must copy to
+      ~/.config/opencode/commands/ with updated references. → Epic: Global Slash Command Installation.
+
+      4. "pm_epic_add and pm_story_add custom tools available to all agents" → No custom tools exist at all. No
+      install/opencode/tools/pm.ts. Must create from scratch per PRD Section 7.1 spec. → Epic: OpenCode Custom Tools.
+
+      5. "Agent in unrelated project can file a story" → Requires both custom tools (#4) AND global data dir (#1).
+      Currently impossible. → Epics: Global Data Dir + Custom Tools.
+
+      6. "Agent in unrelated project can file an epic" → Same as #5. → Epics: Global Data Dir + Custom Tools.
+
+      7. "Agents follow autonomous filing rules" → No AGENTS.md rules exist. No pm-reminder plugin. Must create both per
+      PRD Section 7.3-7.4 spec. → Epic: AGENTS.md Rules & Plugin Hook.
+
+      8. "pm migrate moves v1 data to global directory" → No migrate command exists. Must implement per PRD Section 8
+      spec. → Epic: Migration Tooling.
+
+      9. "TUI watches global data directory" → TUI uses cwd/projects path via duplicate getProjectsDir(). Must switch to
+      PM_HOME. → Epic: Global Data Directory (story S005).
+
+      10. "install.sh performs complete setup" → No install/ directory or install script exists. Must create install.sh
+      that does npm install -g + copies tools + copies commands + appends AGENTS.md rules. → Epic: Global CLI
+      Installation (story S004).
+
+      DEPENDENCIES: - Global Data Directory → foundation, everything depends on it (no deps itself) - Global CLI
+      Installation → depends on Global Data Dir (CLI must resolve PM_HOME) - Migration Tooling → depends on Global Data
+      Dir (target must exist) - OpenCode Custom Tools → depends on Global CLI Installation (tools invoke bare "pm") -
+      Global Slash Commands → depends on Global CLI Installation (commands use bare "pm") - AGENTS.md Rules & Plugin
+      Hook → depends on Custom Tools + Global Slash Commands
+
+      RECOMMENDED IMPLEMENTATION ORDER: 1. Global Data Directory (PM_HOME) — foundation for everything 2. Global CLI
+      Installation — enables bare "pm" on PATH 3. Migration Tooling — move existing data early, can parallel with 4-5 4.
+      OpenCode Custom Tools for Autonomous Filing — agent-callable tools 5. Global Slash Command Installation —
+      globalize commands 6. AGENTS.md Rules & Plugin Hook — autonomous filing instructions (last, depends on tools +
+      commands)
+  - id: S002
+    code: PM-E013-S002
+    title: 'Create epic: Global Data Directory (PM_HOME)'
+    description: >-
+      Create a new epic for implementing the global data directory. Covers replacing process.cwd()/projects with PM_HOME
+      resolution, defaulting to ~/.pm/, auto-creating on first invocation, updating tests, and updating the TUI file
+      watcher. Decompose into stories per PRD spec (5 stories).
+    acceptance_criteria:
+      - Epic is created with accurate title, description, and priority
+      - All 5 stories from PRD section PM-E013 are created with acceptance criteria
+      - Story points are assigned based on complexity
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S003
+    code: PM-E013-S003
+    title: 'Create epic: Global CLI Installation'
+    description: >-
+      Create a new epic for enabling global CLI installation. Covers package.json bin field, shebang line, testing npm
+      install -g and npm link workflows, and creating an install.sh script. Decompose into stories per PRD spec (4
+      stories).
+    acceptance_criteria:
+      - Epic is created with accurate title, description, and priority
+      - All 4 stories from PRD section PM-E014 are created with acceptance criteria
+      - Story points are assigned based on complexity
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S004
+    code: PM-E013-S004
+    title: 'Create epic: OpenCode Custom Tools for Autonomous Filing'
+    description: >-
+      Create a new epic for implementing OpenCode custom tools (pm_epic_add, pm_story_add, pm_status). Covers creating
+      the tools file, ensuring CLI separation, adding agent-guiding descriptions, and cross-project testing. Decompose
+      into stories per PRD spec (4 stories).
+    acceptance_criteria:
+      - Epic is created with accurate title, description, and priority
+      - All 4 stories from PRD section PM-E015 are created with acceptance criteria
+      - Story points are assigned based on complexity
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S005
+    code: PM-E013-S005
+    title: 'Create epic: Global Slash Command Installation'
+    description: >-
+      Create a new epic for making slash commands globally available. Covers copying commands to install dir, replacing
+      npm run pm references with plain pm, updating install.sh, and verifying no conflicts. Decompose into stories per
+      PRD spec (4 stories).
+    acceptance_criteria:
+      - Epic is created with accurate title, description, and priority
+      - All 4 stories from PRD section PM-E016 are created with acceptance criteria
+      - Story points are assigned based on complexity
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ''
+  - id: S006
+    code: PM-E013-S006
+    title: 'Create epic: AGENTS.md Rules and Plugin Hook'
+    description: >-
+      Create a new epic for writing autonomous filing rules in AGENTS.md and an optional compaction plugin. Covers
+      filing rules, pm-reminder plugin, cross-project agent visibility testing, and guideline validation. Decompose into
+      stories per PRD spec (4 stories).
+    acceptance_criteria:
+      - Epic is created with accurate title, description, and priority
+      - All 4 stories from PRD section PM-E017 are created with acceptance criteria
+      - Story points are assigned based on complexity
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ''
+  - id: S007
+    code: PM-E013-S007
+    title: 'Create epic: Migration Tooling (v1 to v2)'
+    description: >-
+      Create a new epic for implementing pm migrate command. Covers the migrate command itself, handling duplicate
+      project codes gracefully, and rebuilding the index after migration. Decompose into stories per PRD spec (3
+      stories).
+    acceptance_criteria:
+      - Epic is created with accurate title, description, and priority
+      - All 3 stories from PRD section PM-E018 are created with acceptance criteria
+      - Story points are assigned based on complexity
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ''

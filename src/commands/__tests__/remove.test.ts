@@ -10,8 +10,6 @@ import {
   type TmpDirHandle,
   type CapturedOutput,
 } from "../../__tests__/integration-helpers.js";
-import { readYaml } from "../../lib/fs.js";
-import { IndexSchema } from "../../schemas/index.js";
 import { ProjectNotFoundError, ValidationError } from "../../lib/errors.js";
 import { storyAdd } from "../story.js";
 
@@ -32,38 +30,30 @@ describe("pm remove (integration)", () => {
   it("without --force prints a warning and does not delete", async () => {
     await seedProject({ code: "DEL", name: "Delete Me" });
 
-    await remove("DEL", {});
+    await remove(undefined, {});
 
-    // Project directory should still exist
-    const projectDir = path.join(tmp.projectsDir, "DEL");
-    expect(fs.existsSync(projectDir)).toBe(true);
+    expect(fs.existsSync(tmp.projectsDir)).toBe(true);
 
-    // Output should contain the warning
     const output = out.log().join("\n");
     expect(output).toContain("--force");
     expect(output).toContain("DEL");
   });
 
-  it("with --force deletes the project directory", async () => {
+  it("with --force deletes the .pm directory", async () => {
     await seedProject({ code: "DEL", name: "Delete Me" });
 
-    await remove("DEL", { force: true });
+    await remove(undefined, { force: true });
 
-    const projectDir = path.join(tmp.projectsDir, "DEL");
-    expect(fs.existsSync(projectDir)).toBe(false);
+    expect(fs.existsSync(tmp.projectsDir)).toBe(false);
   });
 
-  it("with --force removes the project from index.yaml", async () => {
-    await seedProject({ code: "KEEP", name: "Keep This" });
-    await seedProject({ code: "DEL", name: "Delete Me" });
+  it("with --force removes index.yaml", async () => {
+    await seedProject({ code: "TEST", name: "Test Project" });
 
-    await remove("DEL", { force: true });
+    await remove(undefined, { force: true });
 
     const indexPath = path.join(tmp.projectsDir, "index.yaml");
-    const index = readYaml(indexPath, IndexSchema);
-
-    expect(index.projects.find((p) => p.code === "DEL")).toBeUndefined();
-    expect(index.projects.find((p) => p.code === "KEEP")).toBeDefined();
+    expect(fs.existsSync(indexPath)).toBe(false);
   });
 
   it("deletes epics and stories along with the project", async () => {
@@ -77,22 +67,24 @@ describe("pm remove (integration)", () => {
       criteria: [],
     });
 
-    await remove("DEL", { force: true });
+    await remove(undefined, { force: true });
 
-    const projectDir = path.join(tmp.projectsDir, "DEL");
-    expect(fs.existsSync(projectDir)).toBe(false);
+    expect(fs.existsSync(tmp.projectsDir)).toBe(false);
   });
 
   it("throws ProjectNotFoundError for nonexistent project", async () => {
-    await expect(remove("NOPE", { force: true })).rejects.toThrow(
+    await expect(remove(undefined, { force: true })).rejects.toThrow(
       ProjectNotFoundError,
     );
   });
 
-  it("throws ValidationError for invalid project code", async () => {
-    await expect(remove("bad", { force: true })).rejects.toThrow(
-      ValidationError,
-    );
+  it("works without project code, using auto-detected code", async () => {
+    await seedProject({ code: "AUTO", name: "Auto Project" });
+
+    await remove(undefined, { force: true });
+
+    const projectYaml = path.join(tmp.projectsDir, "project.yaml");
+    expect(fs.existsSync(projectYaml)).toBe(false);
   });
 
   it("prints summary of deleted epics and stories", async () => {
@@ -113,7 +105,7 @@ describe("pm remove (integration)", () => {
       criteria: [],
     });
 
-    await remove("DEL", { force: true });
+    await remove(undefined, { force: true });
 
     const output = out.log().join("\n");
     expect(output).toContain("1 epic(s)");

@@ -1,0 +1,78 @@
+id: E001
+code: PM-E001
+title: Foundation & Core Infrastructure
+description: >
+  Establish the TypeScript project, core data schemas, YAML file I/O utilities, and ID/code generation helpers that all
+  other epics depend on.
+status: done
+priority: high
+created_at: '2026-03-09'
+stories:
+  - id: S001
+    code: PM-E001-S001
+    title: Initialize TypeScript project
+    description: >
+      Set up package.json, tsconfig.json, and the src/ directory structure. Install core dependencies: typescript,
+      ts-node, zod, js-yaml, commander, chalk, and dev tooling (eslint, prettier). Add a build script and a "pm" bin
+      entry pointing to the compiled CLI entry point.
+    acceptance_criteria:
+      - 'package.json has correct bin entry: { "pm": "./dist/cli.js" }'
+      - npm run build compiles without errors
+      - npm run pm -- --help prints usage
+      - ts-node src/cli.ts --help works during development
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S002
+    code: PM-E001-S002
+    title: Define Zod schemas and TypeScript types
+    description: >
+      Create Zod validation schemas for all three core entities: Project, Epic, and Story. Export inferred TypeScript
+      types. Each schema must cover all fields defined in the PRD data models section, including enums for status and
+      priority, and regex patterns for code fields.
+    acceptance_criteria:
+      - ProjectSchema validates a correct project.yaml fixture
+      - ProjectSchema rejects a fixture with an invalid code (e.g. "pm" lowercase)
+      - EpicSchema validates a correct epic yaml fixture with 2+ stories
+      - StorySchema validates story_points as one of [1,2,3,5,8] only
+      - All TypeScript types are exported from src/schemas/index.ts
+      - No 'any' types used anywhere in schemas
+    status: done
+    priority: high
+    story_points: 3
+    notes: ''
+  - id: S003
+    code: PM-E001-S003
+    title: Implement YAML file I/O utilities
+    description: >
+      Create src/lib/fs.ts with typed helper functions for reading and writing YAML files. Functions must handle
+      file-not-found gracefully, parse with js-yaml, and validate the parsed output against a provided Zod schema before
+      returning. Write helpers must serialize TypeScript objects back to clean YAML with consistent key ordering.
+    acceptance_criteria:
+      - readYaml<T>(path, schema) returns a validated T or throws a typed error
+      - writeYaml(path, data) writes valid YAML and creates parent dirs if needed
+      - readYaml throws YamlNotFoundError when file is missing
+      - readYaml throws ZodValidationError with field details when schema fails
+      - 'Round-trip test: write then read returns identical data'
+    status: done
+    priority: high
+    story_points: 3
+    notes: ''
+  - id: S004
+    code: PM-E001-S004
+    title: Implement code and ID generation utilities
+    description: >
+      Create src/lib/codes.ts with helpers that: (1) derive a project code suggestion from a project name, (2) find the
+      next available epic number for a project, (3) find the next available story number within an epic, (4) generate a
+      kebab-slug from a title for epic filenames, (5) validate that a project code does not already exist.
+    acceptance_criteria:
+      - suggestProjectCode("My Cool App") returns "MCA"
+      - nextEpicNumber("PM") scans projects/PM/epics/ and returns "E004" if E001-E003 exist
+      - nextStoryNumber reads an epic yaml and returns "S003" if S001-S002 exist
+      - toKebabSlug("Authentication & Authorization") returns "authentication-authorization"
+      - isProjectCodeTaken("PM") returns true if projects/PM/ exists
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''

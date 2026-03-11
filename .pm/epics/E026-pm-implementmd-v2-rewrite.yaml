@@ -1,0 +1,48 @@
+id: E026
+code: PM-E026
+title: pm-implement.md v2 Rewrite
+description: >-
+  The current pm-implement.md is entirely hardcoded for the PM project's v1 bootstrapping flow: it references
+  projects/PM/project.yaml, projects/PM/epics/E001-foundation.yaml, and instructs agents to work epics E001-E006 in
+  sequence. This needs a complete rewrite as a generic implementation agent that works for any project, uses pm CLI
+  commands for data access, and operates from any directory. This is a separate epic from E025 (content cleanup) because
+  it requires designing a new workflow, not just find-and-replace fixes.
+status: done
+priority: high
+created_at: "2026-03-10"
+stories:
+  - id: S001
+    code: PM-E026-S001
+    title: Design generic implementation agent workflow
+    description: >-
+      Design a generic implementation workflow to replace the current PM-specific bootstrapping flow. The new workflow
+      must: accept any project code as argument, use pm status and pm work to discover epics/stories dynamically, work
+      from any directory, and not assume any specific project structure. Consider how to handle epic ordering, story
+      dependencies, build verification, and stop conditions.
+    acceptance_criteria:
+      - Workflow design document exists describing the generic implementation agent flow
+      - Design uses pm CLI commands (pm status, pm work, pm story update) for all data access
+      - Design accepts a project code as $ARGUMENTS and works for any project
+      - Design does not reference any hardcoded project codes, epic codes, or file paths
+      - Design includes how to determine epic/story execution order dynamically
+    status: done
+    priority: high
+    story_points: 2
+    notes: ""
+  - id: S002
+    code: PM-E026-S002
+    title: Implement and verify new pm-implement.md
+    description: >-
+      Implement the new pm-implement.md based on the approved workflow design. Replace the current file entirely. Verify
+      it works by testing against a non-PM project (e.g. BLOG) from a different working directory. Ensure it uses pm CLI
+      commands for all data access and follows the execution loop pattern from the design.
+    acceptance_criteria:
+      - pm-implement.md in install/opencode/commands/ (or install/commands/ if E020 is done) is rewritten
+      - Command works with $ARGUMENTS accepting a project code
+      - Running /pm-implement BLOG (or any project) starts the correct workflow
+      - No references to projects/ relative paths, npm run pm --, or hardcoded project codes
+      - Acceptance criteria from the design story are met
+    status: done
+    priority: high
+    story_points: 3
+    notes: ""

@@ -1,0 +1,73 @@
+id: E015
+code: PM-E015
+title: Global CLI Installation
+description: >-
+  Enable the pm CLI to be installed globally via npm install -g or npm link. Ensure package.json bin field is correct,
+  CLI entry has proper shebang, test both installation workflows, and create an install.sh script that installs the CLI
+  plus all OpenCode integration assets (tools, commands, AGENTS.md rules).
+status: done
+priority: high
+created_at: '2026-03-10'
+stories:
+  - id: S001
+    code: PM-E015-S001
+    title: Ensure package.json bin field is correct for global install
+    description: >-
+      Verify and update the package.json bin field so that npm install -g correctly links the pm command to dist/cli.js.
+      Ensure the built output at dist/cli.js preserves the shebang line from src/cli.ts.
+    acceptance_criteria:
+      - package.json bin field maps 'pm' to './dist/cli.js'
+      - 'Built dist/cli.js includes #!/usr/bin/env node shebang'
+      - npm install -g . makes pm available on PATH
+    status: done
+    priority: high
+    story_points: 1
+    notes: ''
+  - id: S002
+    code: PM-E015-S002
+    title: 'Add #!/usr/bin/env node shebang to CLI entry point'
+    description: >-
+      Ensure src/cli.ts has a #!/usr/bin/env node shebang as the first line and that the TypeScript build process
+      preserves it in dist/cli.js. Without this, the global install won't work on Unix systems.
+    acceptance_criteria:
+      - 'src/cli.ts first line is #!/usr/bin/env node'
+      - dist/cli.js preserves the shebang after build
+      - pm command works without explicitly invoking node
+    status: done
+    priority: high
+    story_points: 1
+    notes: ''
+  - id: S003
+    code: PM-E015-S003
+    title: Test npm install -g and npm link workflows
+    description: >-
+      Manually verify both installation methods work end-to-end. Run npm install -g . and npm link from the repo, then
+      test that pm status, pm epic list, and other commands work from an unrelated directory. Document any issues found.
+    acceptance_criteria:
+      - npm install -g . successfully installs pm globally
+      - npm link successfully links pm for development
+      - pm commands work from any directory after installation
+      - pm resolves data from PM_HOME, not cwd
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S004
+    code: PM-E015-S004
+    title: Create install.sh script for complete setup
+    description: >-
+      Create install/install.sh that performs: (1) npm install -g . to install the pm CLI globally, (2) copies
+      install/opencode/tools/* to ~/.config/opencode/tools/, (3) copies install/opencode/commands/* to
+      ~/.config/opencode/commands/, (4) appends PM autonomous filing rules to ~/.config/opencode/AGENTS.md if not
+      already present. Script should be idempotent.
+    acceptance_criteria:
+      - install.sh installs pm CLI globally
+      - install.sh copies custom tools to ~/.config/opencode/tools/
+      - install.sh copies slash commands to ~/.config/opencode/commands/
+      - install.sh appends PM rules to ~/.config/opencode/AGENTS.md
+      - Running install.sh twice does not duplicate AGENTS.md rules
+      - Script is executable and has proper bash shebang
+    status: done
+    priority: high
+    story_points: 3
+    notes: ''

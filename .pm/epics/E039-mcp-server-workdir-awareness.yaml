@@ -1,0 +1,75 @@
+id: E039
+code: PM-E039
+title: MCP Server Workdir Awareness
+description: >-
+  Add a workdir parameter to all MCP tool schemas so the global MCP server process can resolve the correct .pm/
+  directory per agent request. The server passes workdir as cwd to spawnSync when invoking pm CLI commands. Depends on
+  Local-First Storage Engine epic.
+status: backlog
+priority: high
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E039-S001
+    title: Add workdir parameter to all MCP tool schemas
+    description: >-
+      Every MCP tool (pm_status, pm_epic_add, pm_story_add, pm_project_remove, pm_comment_add, pm_comment_list,
+      pm_report_create, pm_report_view, pm_adr_create) gets an optional workdir string parameter. Description explains
+      it should be the repo root containing .pm/.
+    acceptance_criteria:
+      - All 9 MCP tools have a workdir parameter in their JSON schema
+      - workdir is optional (not required) on every tool
+      - Tool descriptions explain workdir should be the repo root containing .pm/
+      - tools/list response reflects the new parameter on all tools
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E039-S002
+    title: Pass workdir as cwd to spawnSync
+    description: >-
+      In runPm(), when workdir is provided, pass it as the cwd option to spawnSync. When absent, use process.cwd() as
+      default.
+    acceptance_criteria:
+      - runPm() accepts optional workdir parameter
+      - 'spawnSync is called with { cwd: workdir } when workdir is provided'
+      - Falls back to process.cwd() when workdir is not provided
+      - Error messages include the resolved working directory for debugging
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E039-S003
+    title: Update MCP tool descriptions for agent guidance
+    description: >-
+      Explain in each tools description that agents should pass their current working directory as workdir. Update
+      AGENTS.md autonomous filing rules to mention passing workdir.
+    acceptance_criteria:
+      - Each MCP tool description mentions workdir parameter purpose
+      - AGENTS.md autonomous filing rules instruct agents to pass workdir
+      - install/agents-rules.md template includes workdir guidance
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E039-S004
+    title: Update MCP server tests for workdir
+    description: >-
+      Test that tools work with explicit workdir pointing to a temp .pm/ directory. Test that missing workdir falls back
+      to cwd.
+    acceptance_criteria:
+      - Tests pass workdir to MCP tools and verify pm operates in the correct directory
+      - Tests verify fallback to process.cwd() when workdir is omitted
+      - Tests verify error when workdir points to a directory without .pm/
+      - All existing MCP tests continue to pass
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''

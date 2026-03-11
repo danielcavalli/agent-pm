@@ -1,6 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
-import type { ProjectNode, TreeNode, FilterMode } from "../types.js";
+import type { EpicNode, TreeNode, FilterMode, StoryNode } from "../types.js";
 
 // ── Status icons ─────────────────────────────────────────────────────────────
 
@@ -51,7 +51,7 @@ export interface FlatRow {
 }
 
 export function flattenTree(
-  projects: ProjectNode[],
+  epics: EpicNode[],
   filter: FilterMode,
   search: string,
 ): FlatRow[] {
@@ -74,22 +74,15 @@ export function flattenTree(
     );
   }
 
-  for (const project of projects) {
-    rows.push({ node: project, depth: 0, key: project.code });
+  for (const epic of epics) {
+    rows.push({ node: epic, depth: 0, key: epic.code });
 
-    if (!project.expanded) continue;
+    if (!epic.expanded) continue;
 
-    for (const epic of project.epics) {
-      rows.push({ node: epic, depth: 1, key: epic.code });
-
-      if (!epic.expanded) continue;
-
-      for (const story of epic.stories) {
-        // Apply filter and search to stories
-        if (!matchesFilter(story.status)) continue;
-        if (!matchesSearch(story.title, story.code)) continue;
-        rows.push({ node: story, depth: 2, key: story.code });
-      }
+    for (const story of epic.stories) {
+      if (!matchesFilter(story.status)) continue;
+      if (!matchesSearch(story.title, story.code)) continue;
+      rows.push({ node: story, depth: 1, key: story.code });
     }
   }
 
@@ -126,14 +119,18 @@ export function TreePanel({ rows, cursor, width, height }: TreePanelProps) {
         >[0]["color"];
 
         let label: string;
-        if (node.kind === "project") {
-          const expandIcon = node.expanded ? "▼" : "▶";
-          label = `${indent}${expandIcon} ${icon} ${node.code} ${node.name}`;
-        } else if (node.kind === "epic") {
+        if (node.kind === "epic") {
           const expandIcon = node.expanded ? "▼" : "▶";
           label = `${indent}${expandIcon} ${icon} ${node.code} ${node.title}`;
         } else {
-          label = `${indent}  ${icon} ${node.code} ${node.title}`;
+          const story = node as StoryNode;
+          let badge = "";
+          if (story.resolution_type === "conflict") {
+            badge = " ≋conflict";
+          } else if (story.resolution_type === "gap") {
+            badge = " ≋gap";
+          }
+          label = `${indent}  ${icon} ${story.code} ${story.title}${badge}`;
         }
 
         // Truncate to panel width

@@ -1,0 +1,61 @@
+id: E025
+code: PM-E025
+title: Slash Command v2 Content Cleanup
+description: >-
+  All install/opencode/commands/ files (the source of truth for global deployment) still contain v1 patterns: npm run pm
+  -- invocations instead of plain pm, relative projects/ path references instead of CLI-based approaches, and
+  .opencode/commands/ references instead of global paths. These must be fixed so commands work correctly when installed
+  globally for agents running from any directory. This epic does NOT cover pm-implement.md (separate epic) or directory
+  restructuring (PM-E020).
+status: done
+priority: high
+created_at: "2026-03-10"
+stories:
+  - id: S001
+    code: PM-E025-S001
+    title: Replace npm run pm -- with plain pm in all command files
+    description: >-
+      Five files in install/opencode/commands/ still use the v1 project-local npm run pm -- invocation syntax instead of
+      the globally-installed pm CLI. Files: pm-add-story.md (lines 10,26), pm-add-epic.md (lines 10,24,32),
+      pm-refine-epic.md (lines 12,26,34,56,120), pm-status.md (lines 11,15), pm-implement.md (lines 18,36). Replace
+      every npm run pm -- occurrence with plain pm.
+    acceptance_criteria:
+      - All npm run pm -- occurrences in install/opencode/commands/ are replaced with pm
+      - No command file references npm run anywhere
+      - Commands still function correctly when deployed to ~/.config/opencode/commands/
+    status: done
+    priority: high
+    story_points: 1
+    notes: ""
+  - id: S002
+    code: PM-E025-S002
+    title: Replace relative projects/ path references with CLI commands
+    description: >-
+      Four command files reference relative projects/ paths (e.g. projects/$ARGUMENTS/project.yaml, projects/PM/epics/)
+      which only work from inside the pm repo. These must be replaced with CLI-based approaches (pm status, pm story
+      list, pm epic list) or absolute ~/.pm/projects/ paths. Files: pm-audit.md (lines 22,23,52,89), pm-refine-epic.md
+      (line 44), pm-implement.md (lines 6,7,9,35), pm-prioritize.md (line 45).
+    acceptance_criteria:
+      - No command file references projects/ as a relative path
+      - All data access goes through pm CLI commands (pm status, pm story list, pm epic list) or uses $PM_HOME/projects/
+      - Commands work correctly when run from any directory on the system
+    status: done
+    priority: high
+    story_points: 2
+    notes: ""
+  - id: S003
+    code: PM-E025-S003
+    title: Replace .opencode/commands/ references with correct global paths
+    description: >-
+      Two command files reference .opencode/commands/ (the v1 project-local path) when instructing agents where to find
+      commands. pm-refine-epic.md line 68 says 'read .opencode/commands/ and any referenced skill files'. pm-audit.md
+      line 29 says 'every .opencode/commands/*.md file'. These should reference ~/.config/opencode/commands/ or be
+      rewritten to not assume a specific path.
+    acceptance_criteria:
+      - .opencode/commands/ is not referenced in any install/opencode/commands/ file
+      - References point to the correct global location or use a client-agnostic description
+      - No assumption about which client (OpenCode vs Claude Code) is running
+    status: done
+    priority: medium
+    story_points: 1
+    notes: ""

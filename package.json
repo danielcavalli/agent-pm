@@ -1,6 +1,6 @@
 {
   "name": "agent-pm",
-  "version": "0.0.5-alpha",
+  "version": "0.0.6-alpha",
   "description": "File-based project management for AI agent workflows — track epics, stories, and progress across multiple agents",
   "type": "module",
   "main": "dist/cli.js",

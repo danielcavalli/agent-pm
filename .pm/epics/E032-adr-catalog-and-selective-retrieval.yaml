@@ -1,0 +1,80 @@
+id: E032
+code: PM-E032
+title: ADR Catalog and Selective Retrieval
+description: >-
+  Implement the ADR-000 index file and the mechanism by which agents query and retrieve only relevant ADR entries at
+  task-start. Includes the ADR entry schema (decision, rationale, alternatives, consequences, originating tasks) and the
+  selective retrieval strategy that avoids loading the full catalog into every agent context.
+status: backlog
+priority: high
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E032-S001
+    title: Define ADR-000 index file and ADR entry schema
+    description: >-
+      Create the ADR-000 index file as the single source of truth for all architectural decisions. The index lists every
+      ADR entry with its ID, title, status, tags, and originating task IDs. Also define the per-entry schema: adr_id
+      (auto-incremented, e.g. ADR-001), title, status (proposed/accepted/superseded/deprecated), decision (the choice
+      made), rationale (why), alternatives (list of rejected options with brief reasoning), consequences (downstream
+      effects), originating_tasks (list of task IDs that contributed to this decision), created_at, superseded_by
+      (optional, reference to newer ADR ID). ADR files live under a top-level `adrs/` directory within the project data
+      directory.
+    acceptance_criteria:
+      - ADR-000 index schema is documented with all fields
+      - Per-entry schema is documented with all fields, types, and required/optional markers
+      - Status lifecycle (proposed → accepted → superseded/deprecated) is defined with valid transitions
+      - Directory layout and file naming convention are specified
+      - Both schemas are validated by the CLI on write
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E032-S002
+    title: Implement `pm adr create` CLI command and custom tool
+    description: >-
+      Implement the `pm adr create` CLI command (and corresponding pm_adr_create custom tool) for creating new ADR
+      entries. The command accepts all fields from the ADR entry schema (PM-E032-S001), validates them, assigns the next
+      available ADR-NNN ID, writes the entry file to `adrs/`, and updates the ADR-000 index. Requires PM-E032-S001 to be
+      complete first.
+    acceptance_criteria:
+      - pm adr create command exists and is documented
+      - '`pm adr create` validates input against the ADR entry schema'
+      - ADR-000 index is updated atomically when a new entry is created
+      - Auto-incremented ID is collision-free across concurrent writes
+      - Output confirms created ADR ID
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E032-S003
+    title: Implement `pm adr query` selective retrieval command and custom tool
+    description: >-
+      Implement the `pm adr query` CLI command (and pm_adr_query custom tool) for selective retrieval of relevant ADR
+      entries. Agents call this at task-start with the tags or topic keywords from their current task to receive only
+      the ADRs relevant to their work — not the full catalog. Query supports filtering by: tags (list of strings, OR
+      semantics), originating_task_id, and status. Results are ranked by relevance score (tag match count + recency),
+      not a flat list. The default result limit is 5 entries (configurable via --max-results, with a hard ceiling to
+      prevent context saturation). The default response format is summary-only: ADR ID + title + one-sentence decision
+      summary. Full ADR text is available via a separate `pm adr get <id>` call. Requires PM-E032-S001 and PM-E032-S002
+      to be complete first.
+    acceptance_criteria:
+      - '`pm adr query` command exists and is documented'
+      - Query accepts at least one filter dimension (tags, topic keywords, originating task ID)
+      - Returns only matching entries, not the full catalog
+      - Results are ranked by relevance score (tag match count + recency), not insertion order
+      - >-
+        Default response format is summary-only (ADR ID + title + one-sentence decision); full text requires `pm adr
+        get`
+      - '--max-results parameter is supported with a documented default (5) and a documented hard ceiling'
+      - pm_adr_query custom tool is exposed and functional
+      - Superseded/deprecated ADRs are excluded from results by default, with an opt-in flag to include them
+    status: done
+    priority: high
+    story_points: 5
+    depends_on: []
+    notes: ''

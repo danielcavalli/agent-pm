@@ -1,33 +1,54 @@
 import { useState, useEffect, useCallback } from "react";
-import { loadTree } from "../loadTree.js";
-import type { ProjectNode } from "../types.js";
+import { loadTree, NoPmDirectoryError } from "../loadTree.js";
+import type { EpicNode } from "../types.js";
 
 export interface UseProjectTreeResult {
-  projects: ProjectNode[];
-  setProjects: React.Dispatch<React.SetStateAction<ProjectNode[]>>;
-  reload: () => ProjectNode[];
+  epics: EpicNode[];
+  projectName: string;
+  error: string | null;
+  setEpics: React.Dispatch<React.SetStateAction<EpicNode[]>>;
+  reload: () => { epics: EpicNode[]; projectName: string } | null;
 }
 
-/**
- * Hook that encapsulates tree loading and state management.
- * Calls loadTree() on mount and exposes a reload function
- * that re-reads the YAML files and returns the new projects array.
- */
 export function useProjectTree(): UseProjectTreeResult {
-  const [projects, setProjects] = useState<ProjectNode[]>([]);
+  const [epics, setEpics] = useState<EpicNode[]>([]);
+  const [projectName, setProjectName] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  // Load tree on initial mount
   useEffect(() => {
-    const data = loadTree();
-    setProjects(data.projects);
+    try {
+      const data = loadTree();
+      setEpics(data.epics);
+      setProjectName(data.projectName);
+      setError(null);
+    } catch (e) {
+      if (e instanceof NoPmDirectoryError) {
+        setError(e.message);
+      } else {
+        setError("Failed to load project data");
+      }
+    }
   }, []);
 
-  // Reload function: re-reads YAML, updates state, and returns new projects
-  const reload = useCallback((): ProjectNode[] => {
-    const data = loadTree();
-    setProjects(data.projects);
-    return data.projects;
+  const reload = useCallback((): {
+    epics: EpicNode[];
+    projectName: string;
+  } | null => {
+    try {
+      const data = loadTree();
+      setEpics(data.epics);
+      setProjectName(data.projectName);
+      setError(null);
+      return { epics: data.epics, projectName: data.projectName };
+    } catch (e) {
+      if (e instanceof NoPmDirectoryError) {
+        setError(e.message);
+      } else {
+        setError("Failed to load project data");
+      }
+      return null;
+    }
   }, []);
 
-  return { projects, setProjects, reload };
+  return { epics, projectName, error, setEpics, reload };
 }

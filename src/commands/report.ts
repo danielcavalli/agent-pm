@@ -1,86 +1,243 @@
 import chalk from "chalk";
-import * as fs from "node:fs";
 import * as path from "node:path";
-import { ReportSchema, ReportListSchema } from "../schemas/index.js";
-import { getProjectsDir } from "../lib/codes.js";
-import { ProjectNotFoundError, ReportNotFoundError } from "../lib/errors.js";
+import { readYaml, writeYaml, fileExists } from "../lib/fs.js";
+import { findEpicFile, getPmDir, parseStoryCode } from "../lib/codes.js";
+import { EpicSchema, AgentExecutionReportSchema } from "../schemas/index.js";
+import type { AgentExecutionReport } from "../schemas/index.js";
+import {
+  EpicNotFoundError,
+  StoryNotFoundError,
+  ValidationError,
+} from "../lib/errors.js";
 
-const STATUS_ICON: Record<string, string> = {
-  success: chalk.green("✓"),
-  failed: chalk.red("✗"),
-  partial: chalk.yellow("●"),
-};
-
-function getReportsDir(projectCode: string): string {
-  return path.join(getProjectsDir(), projectCode, "reports");
+interface ReportCreateOptions {
+  taskId: string;
+  agentId?: string;
+  timestamp?: string;
+  status?: string;
+  decisions?: string[];
+  assumptions?: string[];
+  tradeoffs?: string[];
+  outOfScope?: string[];
+  potentialConflicts?: string[];
+  force?: boolean;
 }
 
-function getReportFile(projectCode: string, reportId: string): string {
-  return path.join(getReportsDir(projectCode), `${reportId}.yaml`);
+function parseDecisionItem(input: string): {
+  type: "episodic" | "semantic";
+  text: string;
+} {
+  const match = input.match(/^(episodic|semantic):(.+)$/);
+  if (!match) {
+    return { type: "episodic", text: input };
+  }
+  return { type: match[1] as "episodic" | "semantic", text: match[2] };
 }
 
-export async function reportView(
-  projectCode: string,
+function parseAssumptionItem(input: string): {
+  type: "episodic" | "semantic";
+  text: string;
+} {
+  const match = input.match(/^(episodic|semantic):(.+)$/);
+  if (!match) {
+    return { type: "episodic", text: input };
+  }
+  return { type: match[1] as "episodic" | "semantic", text: match[2] };
+}
+
+function parseTradeoffItem(input: string): {
+  alternative: string;
+  reason: string;
+} {
+  const parts = input.split("|");
+  return {
+    alternative: parts[0]?.trim() || "",
+    reason: parts[1]?.trim() || "",
+  };
+}
+
+function parseOutOfScopeItem(input: string): {
+  observation: string;
+  note?: string;
+} {
+  const parts = input.split("|");
+  return {
+    observation: parts[0]?.trim() || "",
+    note: parts[1]?.trim() || undefined,
+  };
+}
+
+function parsePotentialConflictItem(input: string): {
+  assumption: string;
+  confidence: "low" | "medium" | "high";
+  note?: string;
+} {
+  const parts = input.split("|");
+  const confidence =
+    (parts[1]?.trim() as "low" | "medium" | "high") || "medium";
+  if (!["low", "medium", "high"].includes(confidence)) {
+    return {
+      assumption: parts[0]?.trim() || "",
+      confidence: "medium",
+      note: parts[1]?.trim(),
+    };
+  }
+  return {
+    assumption: parts[0]?.trim() || "",
+    confidence,
+    note: parts[2]?.trim() || undefined,
+  };
+}
+
+function getReportFilePath(storyCode: string): string {
+  const parsed = parseStoryCode(storyCode);
+  if (!parsed) {
+    throw new ValidationError(`Invalid story code format: ${storyCode}`);
+  }
+  const reportsDir = path.join(getPmDir(), "reports");
+  return path.join(reportsDir, `${storyCode}-report.yaml`);
+}
+
+export async function reportCreate(
   options: Record<string, unknown>,
 ): Promise<void> {
-  const reportsDir = getReportsDir(projectCode);
+  const opts = options as unknown as ReportCreateOptions;
 
-  if (!fs.existsSync(reportsDir)) {
-    throw new ReportNotFoundError(`${projectCode}-R001`);
+  if (!opts.taskId) {
+    throw new ValidationError("--task-id is required");
   }
 
-  const files = fs
-    .readdirSync(reportsDir)
-    .filter((f) => f.endsWith(".yaml"))
-    .sort();
+  const parsed = parseStoryCode(opts.taskId);
+  if (!parsed) {
+    throw new ValidationError(
+      `Invalid task ID '${opts.taskId}': expected format PROJECT-E###-S### (e.g. PM-E030-S001)`,
+    );
+  }
 
-  if (files.length === 0) {
+  const epicFile = findEpicFile(parsed.epicCode);
+  if (!epicFile) {
+    throw new EpicNotFoundError(parsed.epicCode);
+  }
+
+  const epic = readYaml(epicFile, EpicSchema);
+  const story = epic.stories?.find((s) => s.code === opts.taskId);
+  if (!story) {
+    throw new StoryNotFoundError(opts.taskId);
+  }
+
+  const reportFilePath = getReportFilePath(opts.taskId);
+  const existingReport = fileExists(reportFilePath);
+
+  if (existingReport && !opts.force) {
+    throw new ValidationError(
+      `Report already exists for ${opts.taskId}. Use --force to overwrite.`,
+    );
+  }
+
+  if (existingReport && opts.force) {
     console.log(
-      chalk.dim("No reports found") + " in project " + chalk.bold(projectCode),
+      chalk.yellow("⚠") + ` Overwriting existing report for ${opts.taskId}`,
     );
-    return;
   }
 
-  const reports: Array<Record<string, unknown>> = [];
-  for (const file of files) {
-    const filePath = path.join(reportsDir, file);
-    const content = fs.readFileSync(filePath, "utf8");
-    const data = JSON.parse(
-      JSON.stringify(require("js-yaml").load(content) || {}),
+  const reportData: Partial<AgentExecutionReport> = {
+    task_id: opts.taskId,
+    agent_id: opts.agentId || "",
+    timestamp: opts.timestamp || new Date().toISOString(),
+    status: (opts.status as "complete" | "partial") || "complete",
+    decisions: (opts.decisions || []).map(parseDecisionItem),
+    assumptions: (opts.assumptions || []).map(parseAssumptionItem),
+    tradeoffs: (opts.tradeoffs || []).map(parseTradeoffItem),
+    out_of_scope: (opts.outOfScope || []).map(parseOutOfScopeItem),
+    potential_conflicts: (opts.potentialConflicts || []).map(
+      parsePotentialConflictItem,
+    ),
+  };
+
+  const result = AgentExecutionReportSchema.safeParse(reportData);
+  if (!result.success) {
+    const fieldDetails = result.error.issues
+      .map((i) => `  ${i.path.join(".")}: ${i.message}`)
+      .join("\n");
+    throw new ValidationError(
+      `Validation failed:\n${fieldDetails}`,
+      result.error,
     );
-    const result = ReportSchema.safeParse(data);
-    if (result.success) {
-      reports.push(result.data);
+  }
+
+  // Ensure reports directory exists
+  const reportsDir = path.dirname(reportFilePath);
+  const { mkdirSync } = await import("node:fs");
+  mkdirSync(reportsDir, { recursive: true });
+
+  writeYaml(reportFilePath, result.data);
+
+  console.log(chalk.green("✓") + " Report created: " + chalk.bold(opts.taskId));
+  console.log(chalk.dim("  File: ") + reportFilePath);
+}
+
+export async function reportView(taskId: string): Promise<void> {
+  if (!taskId) {
+    throw new ValidationError("task ID is required");
+  }
+
+  const parsed = parseStoryCode(taskId);
+  if (!parsed) {
+    throw new ValidationError(
+      `Invalid task ID '${taskId}': expected format PROJECT-E###-S### (e.g. PM-E030-S001)`,
+    );
+  }
+
+  const reportFilePath = getReportFilePath(taskId);
+
+  if (!fileExists(reportFilePath)) {
+    throw new ValidationError(`No report found for ${taskId}`);
+  }
+
+  const report = readYaml(reportFilePath, AgentExecutionReportSchema);
+
+  console.log(chalk.bold(`\nExecution Report: ${report.task_id}\n`));
+  console.log(chalk.bold("Agent:") + " " + report.agent_id);
+  console.log(chalk.bold("Timestamp:") + " " + report.timestamp);
+  console.log(chalk.bold("Status:") + " " + report.status);
+
+  if (report.decisions && report.decisions.length > 0) {
+    console.log(chalk.bold("\nDecisions:"));
+    for (const d of report.decisions) {
+      console.log(`  [${d.type}] ${d.text}`);
     }
   }
 
-  reports.sort((a, b) => {
-    return (b.code || "").localeCompare(a.code || "");
-  });
-
-  const header = [
-    chalk.bold("Code".padEnd(14)),
-    chalk.bold("Title".padEnd(30)),
-    chalk.bold("Target".padEnd(20)),
-    chalk.bold("Status".padEnd(10)),
-    chalk.bold("Date"),
-  ].join(" ");
-
-  console.log(chalk.dim("─".repeat(90)));
-  console.log(header);
-  console.log(chalk.dim("─".repeat(90)));
-
-  for (const report of reports) {
-    const icon = STATUS_ICON[report.status as string] ?? "?";
-    const row = [
-      (icon + " " + (report.code as string)).padEnd(14),
-      (report.title as string).slice(0, 29).padEnd(30),
-      `${report.target_type}:${report.target_code}`.padEnd(20),
-      (report.status as string).padEnd(10),
-      (report.created_at as string).slice(0, 10),
-    ].join(" ");
-    console.log(row);
+  if (report.assumptions && report.assumptions.length > 0) {
+    console.log(chalk.bold("\nAssumptions:"));
+    for (const a of report.assumptions) {
+      console.log(`  [${a.type}] ${a.text}`);
+    }
   }
-  console.log(chalk.dim("─".repeat(90)));
-  console.log(chalk.dim(`Total: ${reports.length} report(s)`));
+
+  if (report.tradeoffs && report.tradeoffs.length > 0) {
+    console.log(chalk.bold("\nTradeoffs:"));
+    for (const t of report.tradeoffs) {
+      console.log(`  - ${t.alternative}`);
+      console.log(chalk.dim(`    Reason: ${t.reason}`));
+    }
+  }
+
+  if (report.out_of_scope && report.out_of_scope.length > 0) {
+    console.log(chalk.bold("\nOut of Scope:"));
+    for (const o of report.out_of_scope) {
+      console.log(`  - ${o.observation}`);
+      if (o.note) console.log(chalk.dim(`    Note: ${o.note}`));
+    }
+  }
+
+  if (report.potential_conflicts && report.potential_conflicts.length > 0) {
+    console.log(chalk.bold("\nPotential Conflicts:"));
+    for (const p of report.potential_conflicts) {
+      console.log(`  - ${p.assumption} (${p.confidence})`);
+      if (p.note) console.log(chalk.dim(`    Note: ${p.note}`));
+    }
+  }
+
+  console.log();
 }

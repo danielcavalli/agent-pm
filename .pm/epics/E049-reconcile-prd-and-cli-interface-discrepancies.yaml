@@ -1,0 +1,10 @@
+id: E049
+code: PM-E049
+title: Reconcile PRD and CLI Interface Discrepancies
+description: >-
+  The PRD documents 'pm migrate --to-local' and an array-based 'projects/index.yaml', but the implementation uses a
+  'to-local' subcommand and a flat '.pm/index.yaml' object. These specs need to be reconciled.
+status: backlog
+priority: low
+created_at: '2026-03-11'
+stories: []

@@ -1,9 +1,19 @@
-import type { ProjectStatus } from '../schemas/index.js';
-import type { EpicStatus } from '../schemas/index.js';
-import type { StoryStatus, Priority, StoryPoints } from '../schemas/index.js';
+import type { ProjectStatus } from "../schemas/index.js";
+import type { EpicStatus } from "../schemas/index.js";
+import type {
+  StoryStatus,
+  Priority,
+  StoryPoints,
+  ResolutionType,
+} from "../schemas/index.js";
+
+interface ConflictingAssumption {
+  assumption: string;
+  source_report_id: string;
+}
 
 export interface StoryNode {
-  kind: 'story';
+  kind: "story";
   code: string;
   id: string;
   title: string;
@@ -12,10 +22,16 @@ export interface StoryNode {
   story_points: StoryPoints;
   description: string;
   acceptance_criteria: string[];
+  resolution_type?: ResolutionType;
+  conflicting_assumptions?: ConflictingAssumption[];
+  source_reports?: string[];
+  proposed_resolution?: string;
+  undefined_concept?: string;
+  referenced_in?: string[];
 }
 
 export interface EpicNode {
-  kind: 'epic';
+  kind: "epic";
   code: string;
   id: string;
   title: string;
@@ -27,7 +43,7 @@ export interface EpicNode {
 }
 
 export interface ProjectNode {
-  kind: 'project';
+  kind: "project";
   code: string;
   name: string;
   status: ProjectStatus;
@@ -41,7 +57,8 @@ export interface ProjectNode {
 export type TreeNode = ProjectNode | EpicNode | StoryNode;
 
 export interface TreeData {
-  projects: ProjectNode[];
+  epics: EpicNode[];
+  projectName: string;
 }
 
-export type FilterMode = 'all' | 'backlog' | 'in_progress' | 'done';
+export type FilterMode = "all" | "backlog" | "in_progress" | "done";

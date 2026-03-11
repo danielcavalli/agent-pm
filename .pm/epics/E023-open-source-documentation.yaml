@@ -1,0 +1,60 @@
+id: E023
+code: PM-E023
+title: Open Source Documentation
+description: >-
+  Everything needed to publish the repository publicly: a README.md with dual-tool installation instructions (OpenCode
+  and Claude Code), a usage overview, and prerequisites. Add a LICENSE file. Update PRD.md to document the dual-tool
+  architecture, the unified command directory design, and the MCP server as the Claude Code integration layer.
+status: done
+priority: medium
+created_at: '2026-03-10'
+stories:
+  - id: S001
+    code: PM-E023-S001
+    title: Create README.md with dual-client installation and usage guide
+    description: >-
+      Write a comprehensive README.md for the public repository. Must cover: what the tool is, prerequisites (Node.js,
+      npm, OpenCode and/or Claude Code), installation via install.sh with auto-detection of available clients, usage
+      overview (CLI, slash commands, MCP tools, autonomous filing), and a brief architecture summary. Target both
+      OpenCode and Claude Code users as first-class audiences.
+    acceptance_criteria:
+      - README.md exists at project root
+      - Covers prerequisites, installation, CLI usage, slash commands, MCP tools, and autonomous filing
+      - Installation section documents install.sh with auto-detection of OpenCode and Claude Code
+      - No references to deprecated @opencode-ai/plugin custom tools
+      - Renders correctly as GitHub-flavored markdown
+    status: done
+    priority: high
+    story_points: 3
+    notes: ''
+  - id: S002
+    code: PM-E023-S002
+    title: Add LICENSE file
+    description: >-
+      Add an open source LICENSE file to the repository root. Confirm the chosen license with the project owner before
+      creating. Update the license field in package.json to match.
+    acceptance_criteria:
+      - LICENSE file exists at project root
+      - Contains the full text of the chosen license
+      - package.json license field matches the LICENSE file
+    status: done
+    priority: low
+    story_points: 1
+    notes: ''
+  - id: S003
+    code: PM-E023-S003
+    title: Create CONTRIBUTING.md with development setup and workflow guide
+    description: >-
+      Write a CONTRIBUTING.md that covers: development setup (clone, npm install, npm run build, npm link), how to test
+      changes (run tests, manual verification), how to add or modify slash commands, how install.sh works, and the
+      PR/review process. Keep it concise and developer-friendly.
+    acceptance_criteria:
+      - CONTRIBUTING.md exists at project root
+      - Documents how to set up a development environment
+      - Explains the install.sh workflow and how to test changes
+      - Covers the slash command and agent rules contribution workflow
+      - Renders correctly as GitHub-flavored markdown
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ''

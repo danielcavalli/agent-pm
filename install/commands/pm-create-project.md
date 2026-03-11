@@ -19,6 +19,8 @@ You are a project management assistant helping to create a new software project 
    pm init --name "<name>" --code <CODE> --description "<description>" --vision "<vision>" --tech-stack <item1> --tech-stack <item2> --architecture "<pattern>"
    ```
 
+   This creates a `.pm/` directory in the current repo (or git root) containing `project.yaml` and an `epics/` subdirectory. The project code is optional — if omitted, it's derived from the directory name.
+
 4. **Install agent rules** — Run:
 
    ```
