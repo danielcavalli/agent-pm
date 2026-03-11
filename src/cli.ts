@@ -43,7 +43,7 @@ program
     chalk.bold("Project Management Tool") +
       " — file-based project tracking for AI agents and humans",
   )
-  .version("0.1.0")
+  .version("0.0.2-alpha")
   .addHelpText(
     "before",
     chalk.cyan.bold("\n  pm") +
@@ -74,7 +74,21 @@ program
     }),
   );
 
-// ── epic ──────────────────────────────────────────────────────────────────────
+// ── remove ────────────────────────────────────────────────────────────────────
+program
+  .command("remove <projectCode>")
+  .description(
+    "Remove a project and all its epics and stories (e.g. pm remove MYAPP --force)",
+  )
+  .option("--force", "Skip confirmation and delete immediately")
+  .action(
+    action(async (projectCode: string, options: Record<string, unknown>) => {
+      const { remove } = await import("./commands/remove.js");
+      await remove(projectCode, options);
+    }),
+  );
+
+// ── epic ────────────────────────────────────────────────────────────────────
 const epicCmd = program
   .command("epic")
   .description("Manage epics within a project");

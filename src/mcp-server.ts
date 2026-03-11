@@ -8,7 +8,7 @@ import {
 import { spawnSync } from "node:child_process";
 
 const server = new Server(
-  { name: "pm-tools", version: "0.1.0" },
+  { name: "pm-tools", version: "0.0.2-alpha" },
   { capabilities: { tools: {} } },
 );
 
@@ -98,6 +98,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["epic", "title", "description"],
       },
     },
+    {
+      name: "pm_project_remove",
+      description:
+        "Remove a project and all its epics and stories from the project management system. This is a destructive operation — use only when a project is no longer needed. Always confirm with the user before calling this tool.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          project: {
+            type: "string",
+            description: "Project code to remove, e.g. 'PM', 'MYAPP'",
+          },
+        },
+        required: ["project"],
+      },
+    },
   ],
 }));
 
@@ -168,6 +183,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       return runPm(cliArgs);
+    }
+
+    case "pm_project_remove": {
+      const project = args["project"] as string;
+      return runPm(["remove", project, "--force"]);
     }
 
     default:

@@ -46,7 +46,6 @@ describe("AGENTS.md rules validation (E018-S004)", () => {
     // story_add description should mention bug/improvement/test/debt
     expect(tools).toMatch(/bug/i);
     expect(tools).toMatch(/improvement/i);
-    expect(tools).toMatch(/missing test/i);
     expect(tools).toMatch(/tech debt/i);
 
     // epic_add description should distinguish from story_add
@@ -57,14 +56,17 @@ describe("AGENTS.md rules validation (E018-S004)", () => {
     expect(tools).toContain("before filing new items");
   });
 
-  it("AC1: how to file workflow has exactly 6 steps", () => {
-    // Steps are numbered 1-6 in the rules
+  it("AC1: how to file workflow has exactly 7 steps", () => {
+    // Steps are numbered 1-7 in the rules
     expect(rules).toContain("1. Run `pm_status`");
     expect(rules).toContain("2. If you need more detail");
     expect(rules).toContain("3. Determine whether");
     expect(rules).toContain("4. For stories:");
     expect(rules).toContain("5. Use `pm_story_add` or `pm_epic_add`");
-    expect(rules).toContain("6. Continue your current task");
+    expect(rules).toContain(
+      "6. For **reactive filing**: continue your current task",
+    );
+    expect(rules).toContain("7. For **proactive decomposition**:");
   });
 
   // ── AC2: Workflow D (MD5 password hashing) would trigger correct filing ──

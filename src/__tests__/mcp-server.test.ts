@@ -92,11 +92,16 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 describe("MCP PM Server", () => {
-  it("lists all three tools via tools/list", async () => {
+  it("lists all four tools via tools/list", async () => {
     const result = await client.listTools();
     const names = result.tools.map((t) => t.name).sort();
 
-    expect(names).toEqual(["pm_epic_add", "pm_status", "pm_story_add"]);
+    expect(names).toEqual([
+      "pm_epic_add",
+      "pm_project_remove",
+      "pm_status",
+      "pm_story_add",
+    ]);
 
     // Verify each tool has a description and inputSchema
     for (const tool of result.tools) {
