@@ -1,0 +1,111 @@
+# PM Autonomous Filing Rules
+
+## Project Management — Autonomous Filing
+
+You have access to a project management system via the `pm_epic_add`, `pm_story_add`,
+and `pm_status` tools. Use these to **proactively decompose work** into trackable items
+and to **capture issues you discover** during your tasks. This enables parallel agents
+to pick up and execute work independently.
+
+### When to file
+
+**Reactive — issues discovered while working:**
+
+- You discover a **bug or regression** unrelated to your current task
+- You notice **tech debt** (duplicated code, missing error handling, outdated patterns)
+- You identify a **missing feature** or **improvement opportunity** that is out of scope
+- You find **missing or inadequate test coverage** in code you're reading
+- You encounter a **performance concern** that warrants investigation
+
+**Proactive — decomposing work you've been given:**
+
+- You're given a goal that spans **multiple independent deliverables** — create an epic,
+  then break it into stories before you start implementing
+- You identify a piece of work that is **independently completable** and could be handed
+  to another agent — file it as a story with clear acceptance criteria
+- You're planning implementation and see **natural boundaries** between components,
+  layers, or features — each boundary is likely a separate story
+
+### When NOT to file
+
+- The issue is directly related to your current task (just fix it)
+- The issue is trivial and can be fixed in under 2 minutes (just fix it)
+- You're unsure whether it's actually a problem (mention it to the user instead)
+- The work is a **sub-step within a story** you're already executing — use your internal
+  task tracking (e.g., todo lists) for steps like "read the code," "write the test,"
+  "update the import." These are implementation details, not stories.
+
+### Work Decomposition — Epic vs Story vs Sub-task
+
+Use this hierarchy to decide what level of tracking a piece of work needs:
+
+- **Epic** — A theme or goal with multiple independent deliverables. Examples: "Add user
+  authentication," "Migrate database to PostgreSQL," "Implement export system." Create an
+  epic when you can see 3+ stories that could be worked on in parallel or in any order.
+  An epic is a container, not a task — you don't "do" an epic, you complete its stories.
+
+- **Story** — A specific, independently completable unit of work. A story should be
+  something one agent can finish in a single focused session. It must have a clear
+  definition of done (acceptance criteria) that another agent or human can verify without
+  asking the author what they meant. Examples: "Add password hashing to registration
+  endpoint," "Create CSV export for project status," "Write integration tests for
+  the MCP server."
+
+- **Sub-task** — A step within a story that only makes sense in the context of that
+  story. Do NOT file sub-tasks as stories. Handle them with your internal task tracking.
+  Examples: "Read existing validation code," "Add the new field to the schema,"
+  "Update the test fixture." If you can't write meaningful acceptance criteria for it
+  independent of the parent story, it's a sub-task.
+
+### Writing Stories for Parallel Execution
+
+Stories may be picked up by different agents working in parallel. Write them so that
+any agent can execute them without prior context:
+
+- **Title**: Specific and actionable. "Add input validation to user registration
+  endpoint" — not "Fix validation" or "Registration stuff."
+- **Description**: State what needs to be done, why it matters, and where in the codebase
+  the work lives. Include enough context that an agent starting fresh can begin
+  without reading the full epic history or asking clarifying questions.
+- **Acceptance criteria**: List concrete, verifiable conditions. Each criterion should
+  be checkable by running a command, reading a file, or observing a behavior. Avoid
+  vague criteria like "code is clean" or "works correctly."
+- **Dependencies**: If a story depends on another story being completed first, say so in
+  the description (e.g., "Requires PM-E005-S002 to be done first"). Prefer structuring
+  stories to **minimize dependencies** — independent stories can run in parallel.
+- **Points**: Estimate complexity honestly. 1 = trivial rename or config change,
+  3 = typical feature or fix, 5 = complex with multiple files, 8 = significant
+  effort spanning a subsystem.
+
+### How to file
+
+1. Run `pm_status` to see existing projects and find the right project code.
+   The status output lists **all epics** with their codes, titles, and story counts —
+   use this to identify the right epic for your story.
+2. If you need more detail on a specific epic, run `pm_status` with the project code
+   to see the full epic breakdown including individual story statuses.
+3. Determine whether this is a new epic (large theme) or a new story (specific task)
+4. For stories: identify the most relevant existing epic from the status output, or file an epic first
+5. Use `pm_story_add` or `pm_epic_add` with a clear, actionable title and description
+6. For **reactive filing**: continue your current task — do not switch context to work
+   on the filed item
+7. For **proactive decomposition**: file all stories first, then begin working through
+   them (or leave them for parallel agents to pick up)
+
+### IMPORTANT: Use CLI tools, not filesystem exploration
+
+**NEVER** use `find`, `grep`, `ls`, or other filesystem commands to discover or read
+project, epic, or story data. The PM CLI tools provide all the information you need:
+
+- `pm_status` (no args) → lists all projects with every epic code, title, and story count
+- `pm_status` (with project code) → full project detail with active/completed epic sections
+- `pm epic list <PROJECT>` → tabular epic listing with status and progress
+- `pm story list <EPIC>` → all stories in an epic with status and criteria
+
+The project YAML files on disk are an implementation detail. Reading them directly
+creates fragile workflows and bypasses validation. Always go through the CLI.
+
+**Note:** If no relevant project exists and you need to create one, always notify the user
+first — creating a new project is a higher-impact action than adding to an existing one.
+
+# END PM Autonomous Filing Rules

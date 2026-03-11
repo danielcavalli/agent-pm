@@ -1,0 +1,27 @@
+# Build output
+dist/
+
+# Dependencies
+node_modules/
+
+# Local editor/tool config
+opencode.json
+.vscode/
+.idea/
+
+# OpenCode local config (keep .opencode/commands/ symlinks)
+.opencode/node_modules/
+.opencode/bun.lock
+.opencode/package.json
+.opencode/.gitignore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+coverage/
+
+# Environment
+.env
+.env.local

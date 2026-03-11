@@ -1,0 +1,1 @@
+../../install/commands/pm-add-story.md
