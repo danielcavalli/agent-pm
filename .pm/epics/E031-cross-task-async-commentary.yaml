@@ -1,0 +1,122 @@
+id: E031
+code: PM-E031
+title: Cross-Task Async Commentary
+description: >-
+  Agents can write targeted comments on existing tasks when their own execution surfaces a relevant constraint,
+  dependency, or conflict. This epic defines the comment schema, targeting rules, and the distinction between
+  human-facing and agent-facing comments, enabling asynchronous signal propagation across tasks without blocking
+  execution.
+status: backlog
+priority: high
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E031-S001
+    title: Define cross-task comment schema
+    description: >-
+      Specify the YAML schema for comments that agents (or humans) attach to existing tasks. Fields: comment_id
+      (auto-generated), author (agent ID or "human"), target_task_id, comment_type ("agent" or "human"), content (free
+      text), timestamp, tags (optional list for retrieval filtering), consolidated (boolean, default false — set to true
+      by the consolidation agent after this comment is ingested), consumed_by (list of agent IDs that have read this
+      comment — enables dependency-based GC in PM-E035: a comment is eligible for expiry when consolidated is true AND
+      either the target agent ID appears in consumed_by or the target task status is completed). Comments are stored as
+      a list within the target task's directory or as an append-only sidecar file. The schema must distinguish
+      agent-facing comments (consumed by future agents working on or near that task) from human-facing comments
+      (surfaced in the TUI/status output for human review).
+    acceptance_criteria:
+      - Schema is documented as a YAML spec with all fields, types, and required/optional markers
+      - comment_type enum is clearly defined with behavioural difference documented
+      - consumed_by field is included as a list of agent IDs (default empty list)
+      - consumed_by field purpose (dependency-based GC eligibility for PM-E035) is documented in the schema spec
+      - Storage location and file naming convention are defined
+      - Schema is validated by the CLI on write
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E031-S002
+    title: Define comment targeting rules and index design
+    description: >-
+      Define the rules governing where and when comments can be targeted. Targeting rules must specify: (1) which task
+      states are valid targets (active, backlog, completed — not archived/deleted), (2) how comments reference a task
+      (by story ID such as PM-E031-S001), (3) how comments are indexed for retrieval — a per-task sidecar index file
+      mapping task ID to list of comment IDs, (4) ordering guarantees (append-only, timestamp-ordered). The rules must
+      prevent comments from targeting non-existent tasks or tasks in terminal states. This story depends on PM-E031-S001
+      being complete.
+    acceptance_criteria:
+      - Comment targeting rules are documented (which task states can receive comments)
+      - Comments are indexed by target_task_id for O(1) lookup
+      - Ordering guarantee is defined (e.g. append-only, insertion-ordered)
+      - Rules are enforced by the CLI (rejects comments targeting non-existent tasks)
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E031-S003
+    title: Implement `pm comment add` CLI command and custom tool
+    description: >-
+      Implement the `pm comment add` CLI command (and pm_comment_add custom tool) that creates a new comment on a target
+      task. The command accepts: target_task_id, comment_type (agent/human), content, optional tags. It validates the
+      target task exists and is in a targetable state (per PM-E031-S002), generates a comment ID, timestamps the entry,
+      and appends it to the per-task comment index. Requires PM-E031-S001 and PM-E031-S002 to be complete first.
+    acceptance_criteria:
+      - '`pm comment add` command exists and is documented'
+      - Command validates target task ID (rejects non-existent or invalid-state targets)
+      - comment_type must be one of the valid enum values
+      - Comment is appended to the per-task sidecar index
+      - Custom tool pm_comment_add is exposed and functional
+      - Exit code is non-zero on validation failure
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E031-S004
+    title: Implement `pm comment list` CLI command and custom tool
+    description: >-
+      Implement the `pm comment list` CLI command (and pm_comment_list custom tool) for retrieving comments filtered by
+      target task, comment type, or author. Filters: --task (task ID), --type (agent/human), --author (agent ID). Output
+      renders each comment with its ID, author, type, timestamp, and content. Requires PM-E031-S003 to be complete
+      first.
+    acceptance_criteria:
+      - '`pm comment list` command exists and is documented'
+      - Supports --task, --type, and --author filters independently and in combination
+      - Output is human-readable with comment ID, author, type, timestamp, and truncated content
+      - pm_comment_list custom tool is exposed and functional
+      - Returns a clear message when no comments match the filter
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S005
+    code: PM-E031-S005
+    title: Define task-start retrieval contract for agent-facing comments
+    description: >-
+      Codify the mandatory retrieval contract that requires any agent beginning work on a story to first call `pm
+      comment list --task <story-id> --type agent` and load the results into working context before taking any actions.
+      This is a CoALA retrieval action: an explicit, agent-initiated pull from external long-term memory into working
+      memory. The contract must specify: (1) retrieval is mandatory, not optional — it is a precondition to beginning
+      story work; (2) when no comments exist, the agent proceeds normally; (3) when comments exceed the agent's context
+      budget, load the most recent N comments and note that truncation occurred; (4) the agent must record its own
+      agent_id in the consumed_by field of each comment it reads (enabling dependency-based GC in PM-E035). The contract
+      is codified in AGENTS.md alongside the existing report-writing contract from PM-E030-S002. Requires PM-E031-S004
+      (list command must exist) and PM-E030-S002 (AGENTS.md contract must exist to co-locate with).
+    acceptance_criteria:
+      - AGENTS.md contains the task-start comment retrieval contract alongside the report-writing contract
+      - Contract specifies that retrieval is mandatory before beginning any story work
+      - Contract specifies the exact CLI command and tool call to use (pm comment list --task <id> --type agent)
+      - Contract specifies behaviour when no comments exist (proceed normally)
+      - Contract specifies behaviour when comments exceed context budget (load most recent N, note truncation)
+      - Contract specifies that the agent must add its agent_id to consumed_by for each comment it reads
+      - A worked example of task-start retrieval is included in the contract
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''

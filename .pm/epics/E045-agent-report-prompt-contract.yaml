@@ -1,0 +1,59 @@
+id: E045
+code: PM-E045
+title: Agent Report Prompt Contract
+description: >-
+  Fix E030-S002 NOT MET — the execution report schema and CLI exist but agents have zero instructions to use them. Add
+  report-writing contract to agents-rules.md, add report step to pm-work-on.md workflow, and fix the
+  execution-report-contract doc to reference the correct schema.
+status: backlog
+priority: high
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E045-S001
+    title: Add report-writing contract to agents-rules.md
+    description: >-
+      Add a report-writing contract to install/agents-rules.md that instructs agents to file an execution report after
+      completing a story. Include a worked example showing the pm report create command with realistic field values.
+    acceptance_criteria:
+      - agents-rules.md contains a report-writing section
+      - Section specifies when agents must file reports (after completing a story)
+      - Section includes the exact pm report create command syntax
+      - A worked example with realistic field values is included
+      - AgentExecutionReportSchema fields (decisions, assumptions, tradeoffs, conflicts) are explained
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E045-S002
+    title: Add report step to pm-work-on.md workflow
+    description: >-
+      Add a file execution report step to the pm-work-on.md slash command workflow so agents are prompted to create a
+      report after completing story work.
+    acceptance_criteria:
+      - pm-work-on.md includes a step to file an execution report
+      - Step comes after marking the story as done
+      - Step uses pm report create or pm_report_create MCP tool
+      - Step explains which fields to populate and why
+    status: backlog
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E045-S003
+    title: Fix execution-report-contract.md schema reference
+    description: >-
+      Fix doc/execution-report-contract.md to reference AgentExecutionReportSchema (not ExecutionReportSchema). The
+      current doc describes the wrong schema.
+    acceptance_criteria:
+      - doc/execution-report-contract.md references AgentExecutionReportSchema
+      - Schema fields match what is defined in src/schemas/agent-report.schema.ts
+      - No references to the wrong ExecutionReportSchema remain
+    status: backlog
+    priority: medium
+    story_points: 1
+    depends_on: []
+    notes: ''

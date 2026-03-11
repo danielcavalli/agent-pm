@@ -25,6 +25,9 @@ export const StoryCodeSchema = z.string().regex(/^[A-Z]{2,6}-E\d{3}-S\d{3}$/, {
     "Story code must match pattern PROJECT-ENNN-SNNN (e.g. PM-E001-S001)",
 });
 
+export const ResolutionTypeSchema = z.enum(["conflict", "gap"]);
+export type ResolutionType = z.infer<typeof ResolutionTypeSchema>;
+
 export const StorySchema = z.object({
   id: z.string().regex(/^S\d{3}$/, "Story ID must match S###"),
   code: StoryCodeSchema,
@@ -36,5 +39,18 @@ export const StorySchema = z.object({
   story_points: StoryPointsSchema,
   depends_on: z.array(StoryCodeSchema).optional().default([]),
   notes: z.string().optional().default(""),
+  resolution_type: ResolutionTypeSchema.optional(),
+  conflicting_assumptions: z
+    .array(
+      z.object({
+        assumption: z.string(),
+        source_report_id: z.string(),
+      }),
+    )
+    .optional(),
+  source_reports: z.array(z.string()).optional(),
+  proposed_resolution: z.string().optional(),
+  undefined_concept: z.string().optional(),
+  referenced_in: z.array(z.string()).optional(),
 });
 export type Story = z.infer<typeof StorySchema>;

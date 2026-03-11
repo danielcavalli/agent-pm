@@ -2,87 +2,92 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { readYaml } from "../lib/fs.js";
 import { ProjectSchema, EpicSchema } from "../schemas/index.js";
-import { getProjectsDir } from "../lib/codes.js";
-import type { ProjectNode, EpicNode, StoryNode, TreeData } from "./types.js";
+import { getPmDir } from "../lib/codes.js";
+import { PmError } from "../lib/errors.js";
+import type { EpicNode, StoryNode, TreeData } from "./types.js";
+
+export class NoPmDirectoryError extends PmError {
+  constructor() {
+    super(
+      "PM_DIR_NOT_FOUND",
+      "No .pm directory found. Run 'pm init' to create one, or run 'pm tui' from a project directory.",
+    );
+  }
+}
 
 export function loadTree(): TreeData {
-  const projectsDir = getProjectsDir();
-  if (!fs.existsSync(projectsDir)) return { projects: [] };
+  let pmDir: string;
+  try {
+    pmDir = getPmDir();
+  } catch {
+    throw new NoPmDirectoryError();
+  }
 
-  const entries = fs.readdirSync(projectsDir).filter((name) => {
-    if (name === "index.yaml") return false;
-    return fs.statSync(path.join(projectsDir, name)).isDirectory();
-  });
+  if (!fs.existsSync(pmDir)) {
+    throw new NoPmDirectoryError();
+  }
 
-  const projects: ProjectNode[] = [];
+  const projectFile = path.join(pmDir, "project.yaml");
+  if (!fs.existsSync(projectFile)) {
+    throw new NoPmDirectoryError();
+  }
 
-  for (const code of entries) {
-    const projectFile = path.join(projectsDir, code, "project.yaml");
-    if (!fs.existsSync(projectFile)) continue;
+  let project;
+  try {
+    project = readYaml(projectFile, ProjectSchema);
+  } catch {
+    throw new NoPmDirectoryError();
+  }
 
-    let project;
+  const epicsDir = path.join(pmDir, "epics");
+  const epicFiles = fs.existsSync(epicsDir)
+    ? fs
+        .readdirSync(epicsDir)
+        .filter((f) => /^E\d{3}-.+\.yaml$/.test(f))
+        .sort()
+        .map((f) => path.join(epicsDir, f))
+    : [];
+
+  const epics: EpicNode[] = [];
+
+  for (const epicFile of epicFiles) {
+    let epic;
     try {
-      project = readYaml(projectFile, ProjectSchema);
+      epic = readYaml(epicFile, EpicSchema);
     } catch {
       continue;
     }
 
-    const epicsDir = path.join(projectsDir, code, "epics");
-    const epicFiles = fs.existsSync(epicsDir)
-      ? fs
-          .readdirSync(epicsDir)
-          .filter((f) => /^E\d{3}-.+\.yaml$/.test(f))
-          .sort()
-          .map((f) => path.join(epicsDir, f))
-      : [];
+    const stories: StoryNode[] = (epic.stories ?? []).map((s) => ({
+      kind: "story" as const,
+      code: s.code,
+      id: s.id,
+      title: s.title,
+      status: s.status,
+      priority: s.priority,
+      story_points: s.story_points,
+      description: s.description ?? "",
+      acceptance_criteria: s.acceptance_criteria ?? [],
+      resolution_type: s.resolution_type,
+      conflicting_assumptions: s.conflicting_assumptions,
+      source_reports: s.source_reports,
+      proposed_resolution: s.proposed_resolution,
+      undefined_concept: s.undefined_concept,
+      referenced_in: s.referenced_in,
+    }));
 
-    const epics: EpicNode[] = [];
-
-    for (const epicFile of epicFiles) {
-      let epic;
-      try {
-        epic = readYaml(epicFile, EpicSchema);
-      } catch {
-        continue;
-      }
-
-      const stories: StoryNode[] = (epic.stories ?? []).map((s) => ({
-        kind: "story" as const,
-        code: s.code,
-        id: s.id,
-        title: s.title,
-        status: s.status,
-        priority: s.priority,
-        story_points: s.story_points,
-        description: s.description ?? "",
-        acceptance_criteria: s.acceptance_criteria ?? [],
-      }));
-
-      epics.push({
-        kind: "epic" as const,
-        code: epic.code,
-        id: epic.code,
-        title: epic.title,
-        status: epic.status,
-        priority: epic.priority,
-        description: epic.description ?? "",
-        stories,
-        expanded: true,
-      });
-    }
-
-    projects.push({
-      kind: "project" as const,
-      code: project.code,
-      name: project.name,
-      status: project.status,
-      description: project.description ?? "",
-      vision: project.vision ?? "",
-      tech_stack: project.tech_stack ?? [],
-      epics,
+    epics.push({
+      kind: "epic" as const,
+      code: epic.code,
+      id: epic.code,
+      title: epic.title,
+      status: epic.status,
+      priority: epic.priority,
+      description: epic.description ?? "",
+      stories,
       expanded: true,
     });
   }
 
-  return { projects };
+  return { epics, projectName: project.name };
 }

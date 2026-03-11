@@ -1,54 +1,45 @@
 import * as path from "node:path";
 import * as fs from "node:fs";
 import chalk from "chalk";
-import { ProjectCodeSchema, ProjectSchema } from "../schemas/index.js";
-import { readYaml } from "../lib/fs.js";
-import { getProjectsDir, isProjectCodeTaken } from "../lib/codes.js";
-import { ProjectNotFoundError, ValidationError } from "../lib/errors.js";
-import { rebuildIndex } from "../lib/index.js";
+import { ProjectSchema } from "../schemas/index.js";
+import { readYaml, listFiles } from "../lib/fs.js";
+import { getPmDir, getProjectCode } from "../lib/codes.js";
+import { ProjectNotFoundError, PmError } from "../lib/errors.js";
 import { EpicSchema } from "../schemas/index.js";
-import { listFiles } from "../lib/fs.js";
 
 export async function remove(
-  projectCode: string,
+  projectCode: string | undefined,
   options: Record<string, unknown>,
 ): Promise<void> {
-  // Validate code format
-  const codeResult = ProjectCodeSchema.safeParse(projectCode);
-  if (!codeResult.success) {
-    throw new ValidationError(
-      `Invalid project code '${projectCode}': ${codeResult.error.issues[0]?.message ?? "invalid format"}`,
+  const actualProjectCode = getProjectCode();
+  if (!actualProjectCode) {
+    throw new PmError(
+      "PROJECT_CODE_NOT_FOUND",
+      "Cannot determine project code. Run 'pm init' first or specify project code explicitly.",
     );
   }
 
-  const upperCode = codeResult.data;
+  const upperCode = actualProjectCode;
 
-  // Check that the project exists
-  if (!isProjectCodeTaken(upperCode)) {
+  const pmDir = getPmDir();
+  const projectYaml = path.join(pmDir, "project.yaml");
+
+  if (!fs.existsSync(projectYaml)) {
     throw new ProjectNotFoundError(upperCode);
   }
 
-  const projectsDir = getProjectsDir();
-  const projectDir = path.join(projectsDir, upperCode);
-
-  // Read project metadata for confirmation output
-  const projectYaml = path.join(projectDir, "project.yaml");
   const project = readYaml(projectYaml, ProjectSchema);
 
-  // Count epics and stories for the summary
-  const epicsDir = path.join(projectDir, "epics");
+  const epicsDir = path.join(pmDir, "epics");
   const epicFiles = listFiles(epicsDir, ".yaml");
   let storyCount = 0;
   for (const epicFile of epicFiles) {
     try {
       const epic = readYaml(epicFile, EpicSchema);
       storyCount += epic.stories?.length ?? 0;
-    } catch {
-      // skip unreadable epic files
-    }
+    } catch {}
   }
 
-  // Require --force for safety (destructive operation)
   if (!options["force"]) {
     console.log(
       chalk.yellow("⚠ ") +
@@ -58,7 +49,7 @@ export async function remove(
       chalk.dim("  ") +
         `${epicFiles.length} epic(s), ${storyCount} story/stories`,
     );
-    console.log(chalk.dim("  ") + `Path: ${projectDir}`);
+    console.log(chalk.dim("  ") + `Path: ${pmDir}`);
     console.log(
       chalk.dim("  ") +
         `Re-run with ${chalk.cyan("--force")} to confirm deletion.`,
@@ -66,11 +57,23 @@ export async function remove(
     return;
   }
 
-  // Delete the project directory
-  fs.rmSync(projectDir, { recursive: true, force: true });
+  const subdirs = ["epics", "comments", "adrs", "reports"];
+  for (const subdir of subdirs) {
+    const subdirPath = path.join(pmDir, subdir);
+    if (fs.existsSync(subdirPath)) {
+      fs.rmSync(subdirPath, { recursive: true, force: true });
+    }
+  }
 
-  // Rebuild the index (full rebuild — directory is gone, entry will be excluded)
-  rebuildIndex();
+  const filesToRemove = ["project.yaml", "index.yaml", "ADR-000.yaml"];
+  for (const file of filesToRemove) {
+    const filePath = path.join(pmDir, file);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+
+  fs.rmdirSync(pmDir);
 
   console.log(
     chalk.green("✓") +
@@ -80,4 +83,5 @@ export async function remove(
     chalk.dim("  ") +
       `Deleted ${epicFiles.length} epic(s), ${storyCount} story/stories`,
   );
+  console.log(chalk.dim("  ") + `Removed ${pmDir}`);
 }

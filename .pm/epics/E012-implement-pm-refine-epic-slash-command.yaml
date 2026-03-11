@@ -1,0 +1,70 @@
+id: E012
+code: PM-E012
+title: Implement /pm-refine-epic slash command
+description: >-
+  Create .opencode/commands/pm-refine-epic.md — a slash command that instructs an orchestrator agent to autonomously
+  take the goal of an epic and break it into well-researched stories and tasks. The command operates in plan-only mode:
+  it thoroughly researches the project before proposing a decomposition, and makes no edits or CLI mutations until the
+  user approves.
+status: done
+priority: high
+created_at: '2026-03-09'
+stories:
+  - id: S001
+    code: PM-E012-S001
+    title: Research existing command patterns and plan-mode primitives
+    description: >-
+      Read all existing .opencode/commands/*.md files and the workflow-primitives skill to understand the conventions,
+      argument patterns, CLI flag usage, and plan/apply mode behaviours that pm-refine-epic must follow. Document
+      findings as the design basis for S002.
+    acceptance_criteria:
+      - All existing slash command files have been read and their argument/workflow patterns noted
+      - The workflow-primitives skill (plan mode) has been read and its constraints understood
+      - The pm story add CLI interface (all flags) has been verified against the actual CLI
+      - A design outline for pm-refine-epic exists (workflow steps, argument interface, plan-only enforcement strategy)
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S002
+    code: PM-E012-S002
+    title: Implement the pm-refine-epic command file
+    description: >-
+      Write .opencode/commands/pm-refine-epic.md — a slash command that accepts an epic code, thoroughly researches the
+      project codebase and existing stories, then proposes a detailed story decomposition in plan-only mode. No pm story
+      add calls are made until the user explicitly approves the plan.
+    acceptance_criteria:
+      - File .opencode/commands/pm-refine-epic.md exists
+      - Command accepts an epic code argument and falls back to prompting if none given
+      - >-
+        Workflow includes a mandatory research phase: reads epic YAML, project YAML, existing stories, and relevant
+        source files
+      - >-
+        Plan output includes for each proposed story: title, description, acceptance criteria, story points, and
+        priority
+      - >-
+        No pm story add commands are issued until the user approves the plan (plan-only enforcement is explicit in the
+        workflow)
+      - On approval, the command runs pm story add for each approved story and reports the created codes
+    status: done
+    priority: high
+    story_points: 3
+    notes: ''
+  - id: S003
+    code: PM-E012-S003
+    title: Validate command completeness and self-consistency
+    description: >-
+      Review the completed pm-refine-epic.md command file against the epic's requirements: confirm plan-only mode is
+      correctly enforced, all pm CLI flags used are accurate, the research phase is thorough enough to produce
+      meaningful decompositions, and the overall workflow is coherent end-to-end.
+    acceptance_criteria:
+      - Every pm CLI command referenced in the file uses correct flags (verified against actual CLI help output)
+      - The file contains an explicit rule preventing any mutations before user approval
+      - The research phase lists specific files/commands the agent must read before proposing stories
+      - >-
+        The command workflow is complete: argument handling → research → plan output → approval gate → story creation →
+        report
+    status: done
+    priority: medium
+    story_points: 1
+    notes: ''

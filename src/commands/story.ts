@@ -8,10 +8,12 @@ import {
 import type { Story } from "../schemas/index.js";
 import { readYaml, writeYaml } from "../lib/fs.js";
 import {
-  getProjectsDir,
+  getPmDir,
   findEpicFile,
   nextStoryNumber,
-  parseStoryCode,
+  resolveStoryCode,
+  resolveEpicCode,
+  getProjectCode,
 } from "../lib/codes.js";
 import {
   EpicNotFoundError,
@@ -19,7 +21,6 @@ import {
   ValidationError,
 } from "../lib/errors.js";
 import { rebuildIndex } from "../lib/index.js";
-import * as path from "node:path";
 
 const STATUS_ICON: Record<string, string> = {
   backlog: chalk.dim("○"),
@@ -35,6 +36,7 @@ interface StoryAddOptions {
   priority?: string;
   criteria?: string[];
   dependsOn?: string[];
+  resolution_type?: string;
 }
 
 interface StoryUpdateOptions {
@@ -49,13 +51,19 @@ export async function storyAdd(
 ): Promise<void> {
   const opts = options as unknown as StoryAddOptions;
 
-  // Find epic file
-  const epicFile = findEpicFile(epicCode);
-  if (!epicFile) {
-    throw new EpicNotFoundError(epicCode);
+  if (opts.resolution_type !== undefined) {
+    throw new ValidationError(
+      "resolution_type is reserved for conflict/gap tasks created by the consolidation agent. Use --type conflict or --type gap via the consolidation agent instead.",
+    );
   }
 
-  // Validate points
+  const resolvedEpicCode = resolveEpicCode(epicCode);
+
+  const epicFile = findEpicFile(resolvedEpicCode);
+  if (!epicFile) {
+    throw new EpicNotFoundError(resolvedEpicCode);
+  }
+
   const pointsRaw = opts.points ? parseInt(opts.points, 10) : 3;
   const pointsResult = StoryPointsSchema.safeParse(pointsRaw);
   if (!pointsResult.success) {
@@ -64,7 +72,6 @@ export async function storyAdd(
     );
   }
 
-  // Validate priority
   const priorityInput = opts.priority ?? "medium";
   const priorityResult = PrioritySchema.safeParse(priorityInput);
   if (!priorityResult.success) {
@@ -73,10 +80,9 @@ export async function storyAdd(
     );
   }
 
-  // Read existing epic
   const epic = readYaml(epicFile, EpicSchema);
   const storyId = nextStoryNumber(epicFile);
-  const storyCode = `${epicCode}-${storyId}`;
+  const storyCode = `${resolvedEpicCode}-${storyId}`;
 
   const story: Story = {
     id: storyId,
@@ -98,9 +104,7 @@ export async function storyAdd(
 
   writeYaml(epicFile, updatedEpic);
 
-  // Get project code from epic code for index rebuild
-  const parts = epicCode.split("-");
-  if (parts[0]) rebuildIndex(parts[0]);
+  rebuildIndex();
 
   console.log(chalk.green("✓") + " Story created: " + chalk.bold(storyCode));
   console.log(chalk.dim("  Title: ") + opts.title);
@@ -118,9 +122,11 @@ export async function storyList(
 ): Promise<void> {
   const showDeps = !!options?.deps;
 
-  const epicFile = findEpicFile(epicCode);
+  const resolvedEpicCode = resolveEpicCode(epicCode);
+
+  const epicFile = findEpicFile(resolvedEpicCode);
   if (!epicFile) {
-    throw new EpicNotFoundError(epicCode);
+    throw new EpicNotFoundError(resolvedEpicCode);
   }
 
   const epic = readYaml(epicFile, EpicSchema);
@@ -128,7 +134,9 @@ export async function storyList(
 
   if (stories.length === 0) {
     console.log(
-      chalk.dim("No stories found") + " in epic " + chalk.bold(epicCode),
+      chalk.dim("No stories found") +
+        " in epic " +
+        chalk.bold(resolvedEpicCode),
     );
     return;
   }
@@ -179,20 +187,13 @@ export async function storyUpdate(
     );
   }
 
-  // Parse story code to find epic
-  const parsed = parseStoryCode(storyCode);
-  if (!parsed) {
-    throw new ValidationError(
-      `Invalid story code '${storyCode}': expected format PROJECT-E###-S### (e.g. PM-E001-S001)`,
-    );
-  }
+  const parsed = resolveStoryCode(storyCode);
 
   const epicFile = findEpicFile(parsed.epicCode);
   if (!epicFile) {
     throw new EpicNotFoundError(parsed.epicCode);
   }
 
-  // Validate status if provided
   if (opts.status) {
     const statusResult = StoryStatusSchema.safeParse(opts.status);
     if (!statusResult.success) {
@@ -202,7 +203,6 @@ export async function storyUpdate(
     }
   }
 
-  // Validate priority if provided
   if (opts.priority) {
     const priorityResult = PrioritySchema.safeParse(opts.priority);
     if (!priorityResult.success) {
@@ -212,18 +212,18 @@ export async function storyUpdate(
     }
   }
 
-  // Read and update epic
   const epic = readYaml(epicFile, EpicSchema);
   const stories = epic.stories ?? [];
-  const storyIdx = stories.findIndex((s) => s.code === storyCode);
+  const fullStoryCode = `${parsed.projectCode}-${parsed.epicId}-${parsed.storyId}`;
+  const storyIdx = stories.findIndex((s) => s.code === fullStoryCode);
 
   if (storyIdx === -1) {
-    throw new StoryNotFoundError(storyCode);
+    throw new StoryNotFoundError(fullStoryCode);
   }
 
   const existingStory = stories[storyIdx];
   if (!existingStory) {
-    throw new StoryNotFoundError(storyCode);
+    throw new StoryNotFoundError(fullStoryCode);
   }
 
   const updatedStory: Story = {
@@ -237,7 +237,7 @@ export async function storyUpdate(
   updatedStories[storyIdx] = updatedStory;
 
   writeYaml(epicFile, { ...epic, stories: updatedStories });
-  rebuildIndex(parsed.projectCode);
+  rebuildIndex();
 
   const changes: string[] = [];
   if (opts.status) changes.push(`status → ${opts.status}`);
@@ -248,7 +248,7 @@ export async function storyUpdate(
   console.log(
     chalk.green("✓") +
       " Updated " +
-      chalk.bold(storyCode) +
+      chalk.bold(fullStoryCode) +
       ": " +
       changes.join(", "),
   );

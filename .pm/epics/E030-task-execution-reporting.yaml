@@ -1,0 +1,103 @@
+id: E030
+code: PM-E030
+title: Task Execution Reporting
+description: >-
+  Agents produce a structured post-execution report co-located with the task they completed. Reports capture decisions
+  taken, assumptions made, tradeoffs considered, and out-of-scope observations. This epic defines the report schema and
+  the prompt contract governing when and how reports are written.
+status: backlog
+priority: high
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E030-S001
+    title: Define execution report schema
+    description: >-
+      Specify the YAML schema for execution reports produced by agents after completing a story. The schema must cover:
+      task_id (reference to the completed story), agent_id, timestamp, decisions (list of choices made and why),
+      assumptions (list of priors the agent relied on that were not validated), tradeoffs (alternatives considered and
+      rejected), out_of_scope (observations that surfaced but were not acted on), potential_conflicts (self-flagged
+      assumptions the agent knows are uncertain or likely to conflict with other agents' work — implements the Reflexion
+      verbal self-reflection pattern, converting episodic uncertainty into a prior signal for the consolidation agent),
+      and status (complete/partial). Each item in decisions and assumptions must carry a type tag: "episodic"
+      (historical narrative, for consolidation context only) or "semantic" (ADR candidate, eligible for promotion). All
+      list fields (decisions, assumptions, tradeoffs, out_of_scope, potential_conflicts) must specify a max_items limit
+      and each text entry a max_chars limit in the schema definition — these bounds prevent context saturation during
+      consolidation runs. Report files should be stored co-located with the task YAML as a sidecar (e.g.,
+      `<story-id>-report.yaml`).
+    acceptance_criteria:
+      - Schema is documented as a YAML spec with field names, types, and required/optional markers
+      - Each field includes a 1-sentence description of what belongs there
+      - potential_conflicts field is included; its purpose (Reflexion self-reflection pattern) is documented
+      - decisions and assumptions items each carry a required type tag with valid values "episodic" and "semantic"
+      - >-
+        All list fields specify a max_items constraint and all text entry fields specify a max_chars constraint in the
+        schema definition
+      - Sidecar file naming convention is defined and consistent with existing task file conventions
+      - Schema is validated by the CLI on write (no unknown fields, required fields present, bounds enforced)
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E030-S002
+    title: Define agent prompt contract for report writing
+    description: >-
+      Write the prompt contract that governs when and how agents write execution reports. The contract must be codified
+      in AGENTS.md (or a dedicated skill file) so it is automatically injected into every agent session. It must
+      specify: (1) reports are mandatory when a story is marked complete, (2) reports are optional but encouraged for
+      partial completions or abandonment, (3) minimum required fields for each trigger condition, (4) guidance on what
+      counts as a decision vs an assumption vs an out-of-scope observation, (5) a worked example. This story depends on
+      PM-E030-S001 being complete first.
+    acceptance_criteria:
+      - AGENTS.md or a dedicated skill file contains the report-writing contract
+      - Contract specifies mandatory trigger (story marked complete)
+      - >-
+        Contract specifies which fields are always required vs conditionally required (e.g. tradeoffs only if
+        alternatives were considered)
+      - Contract includes a worked example report
+      - Agents following the contract produce schema-valid reports
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E030-S003
+    title: Implement `pm report create` CLI command and custom tool
+    description: >-
+      Implement the `pm report create` CLI command (and corresponding pm_report_create custom tool for agent use) that
+      accepts a task ID and structured inputs for each report field, validates them against the schema from
+      PM-E030-S001, and writes the report sidecar file co-located with the task. Requires PM-E030-S001 to be complete
+      first.
+    acceptance_criteria:
+      - '`pm report create` command exists and is documented'
+      - Command validates input against the execution report schema (PM-E030-S001)
+      - Report is written co-located with the task YAML as a sidecar file
+      - Command is idempotent — re-running with same task ID overwrites and warns
+      - Exit code is non-zero on validation failure
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E030-S004
+    title: Implement `pm report view` CLI command and custom tool
+    description: >-
+      Implement the `pm report view` CLI command (and pm_report_view custom tool) for retrieving and displaying an
+      execution report by task ID. Output renders each field with a clear section header in human-readable format (not
+      raw YAML). If no report exists for the given task ID, the command prints a clear message and exits non-zero.
+      Requires PM-E030-S003 to be complete first.
+    acceptance_criteria:
+      - '`pm report view` command exists and is documented'
+      - Output is human-readable (not raw YAML)
+      - All fields are rendered with section headers
+      - Command returns a clear error when no report exists for the given task ID
+      - pm_report_view custom tool is exposed and functional
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''

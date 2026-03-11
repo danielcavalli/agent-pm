@@ -1,0 +1,125 @@
+id: E003
+code: PM-E003
+title: OpenCode Slash Commands
+description: >
+  Create the six OpenCode slash command files in .opencode/commands/. Each
+  command is a Markdown file containing a system prompt that primes an agent
+  to perform a specific PM workflow using the CLI commands from E002.
+status: done
+priority: high
+created_at: "2026-03-09"
+stories:
+  - id: S001
+    code: PM-E003-S001
+    title: Implement /pm-create-project slash command
+    description: >
+      Create .opencode/commands/pm-create-project.md. The prompt should instruct
+      the agent to: (1) gather project name, description, vision, tech stack, and
+      architecture from the user, (2) suggest a project code derived from the name,
+      (3) confirm with the user, (4) call pm init, (5) propose 3-5 initial epics,
+      (6) offer to immediately create them with pm epic add.
+    acceptance_criteria:
+      - File exists at .opencode/commands/pm-create-project.md
+      - Prompt instructs agent to gather all required project fields
+      - Prompt instructs agent to suggest and confirm a project code
+      - Prompt instructs agent to call pm init with gathered data
+      - Prompt instructs agent to propose and create initial epics
+    status: done
+    priority: high
+    story_points: 2
+    notes: ""
+
+  - id: S002
+    code: PM-E003-S002
+    title: Implement /pm-add-epic slash command
+    description: >
+      Create .opencode/commands/pm-add-epic.md. Prompt instructs agent to: ask
+      which project, ask for epic title and description and priority, call
+      pm epic add, then offer to immediately decompose the epic into stories
+      by asking for a breakdown count and calling pm story add for each.
+    acceptance_criteria:
+      - File exists at .opencode/commands/pm-add-epic.md
+      - Prompt covers project selection, title, description, priority
+      - Prompt covers calling pm epic add
+      - Prompt offers story decomposition follow-up
+    status: done
+    priority: high
+    story_points: 2
+    notes: ""
+
+  - id: S003
+    code: PM-E003-S003
+    title: Implement /pm-add-story slash command
+    description: >
+      Create .opencode/commands/pm-add-story.md. Prompt instructs agent to: ask
+      which epic (accept code argument if passed), gather story title, description,
+      acceptance criteria (as a list), story points, and priority, then call
+      pm story add. Instructs the agent to suggest acceptance criteria if the user
+      hasn't provided them.
+    acceptance_criteria:
+      - File exists at .opencode/commands/pm-add-story.md
+      - Prompt covers all story fields including acceptance criteria
+      - Prompt instructs agent to suggest criteria if not provided
+      - Prompt covers calling pm story add
+    status: done
+    priority: high
+    story_points: 2
+    notes: ""
+
+  - id: S004
+    code: PM-E003-S004
+    title: Implement /pm-work-on slash command
+    description: >
+      Create .opencode/commands/pm-work-on.md. This is the most critical command.
+      Prompt instructs the agent to: (1) if a story code is passed use it, else
+      call pm status and identify the next highest-priority backlog story, (2) call
+      pm work <STORY_CODE> to load context and mark in_progress, (3) execute the
+      work described in the story, (4) verify each acceptance criterion is met,
+      (5) call pm story update --status done, (6) report completion and offer to
+      continue to the next story.
+    acceptance_criteria:
+      - File exists at .opencode/commands/pm-work-on.md
+      - Prompt covers story selection logic (arg or auto-detect)
+      - Prompt covers calling pm work to load context
+      - Prompt covers executing work against acceptance criteria
+      - Prompt covers marking done and offering continuation
+    status: done
+    priority: high
+    story_points: 3
+    notes: ""
+
+  - id: S005
+    code: PM-E003-S005
+    title: Implement /pm-prioritize slash command
+    description: >
+      Create .opencode/commands/pm-prioritize.md. Prompt instructs agent to:
+      ask which project/epic, ask for prioritization strategy in natural language,
+      call pm prioritize to get current order, then re-order the stories in the
+      YAML file by updating priority fields and rewriting story order within the
+      stories array, and explain the rationale.
+    acceptance_criteria:
+      - File exists at .opencode/commands/pm-prioritize.md
+      - Prompt covers strategy elicitation
+      - Prompt instructs agent to actually edit the YAML files to reflect new order
+      - Prompt instructs agent to explain prioritization rationale
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ""
+
+  - id: S006
+    code: PM-E003-S006
+    title: Implement /pm-status slash command
+    description: >
+      Create .opencode/commands/pm-status.md. Prompt instructs the agent to call
+      pm status (with optional project code argument if passed), format the output
+      cleanly, and highlight any in-progress stories, blockers, or epics with no
+      backlog stories remaining.
+    acceptance_criteria:
+      - File exists at .opencode/commands/pm-status.md
+      - Prompt covers calling pm status
+      - Prompt instructs agent to highlight in_progress work and blockers
+    status: done
+    priority: medium
+    story_points: 1
+    notes: ""

@@ -1,0 +1,113 @@
+id: E037
+code: PM-E037
+title: Local-First Storage Engine
+description: >-
+  Rewrite the core storage resolution from global ~/.pm/ to per-project .pm/ at the repository root. Changes
+  getProjectsDir() to detect .pm/ via git root, reworks the index to single-project scope, adds auto-detection of
+  project code from .pm/project.yaml, and preserves PM_HOME as a test/CI override. This is the foundation for
+  git-trackable project management data.
+status: backlog
+priority: high
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E037-S001
+    title: Rewrite getProjectsDir() for local-first resolution
+    description: >-
+      Change the storage resolution order to: (1) PM_HOME env if set (test/CI override), (2) .pm/ at the git repo root
+      detected via git rev-parse --show-toplevel, (3) .pm/ in cwd as fallback if not in a git repo. Return the .pm/
+      directory itself (not .pm/projects/).
+    acceptance_criteria:
+      - getProjectsDir() checks PM_HOME first, then git root .pm/, then cwd .pm/
+      - Git root detection uses git rev-parse --show-toplevel
+      - Returns .pm/ path directly, not .pm/projects/ subdirectory
+      - PM_HOME override still works for all test files
+      - Throws clear error when no .pm/ directory can be resolved
+    status: done
+    priority: high
+    story_points: 5
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E037-S002
+    title: Rework directory structure for single-project .pm/
+    description: >-
+      Change from ~/.pm/projects/{CODE}/ to {repo-root}/.pm/. A single project.yaml at .pm/project.yaml. Epics at
+      .pm/epics/. Comments at .pm/comments/. ADRs at .pm/adrs/. No projects/ subdirectory needed since there is one
+      project per .pm/.
+    acceptance_criteria:
+      - project.yaml lives at .pm/project.yaml (not .pm/projects/{CODE}/project.yaml)
+      - Epics stored at .pm/epics/ directly
+      - Comments stored at .pm/comments/
+      - ADRs stored at .pm/adrs/
+      - No projects/ subdirectory exists in the .pm/ structure
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E037-S003
+    title: Rework index to single-project scope
+    description: >-
+      Replace the global multi-project index.yaml with a single-project index at .pm/index.yaml containing epic count,
+      story count, and status. Or eliminate the index entirely and derive counts at read time if simpler.
+    acceptance_criteria:
+      - index.yaml contains data for only one project
+      - rebuildIndex() works with the new single-project .pm/ structure
+      - Epic and story counts are accurate in the index
+      - No references to multiple project directories in index logic
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E037-S004
+    title: Auto-detect project code from .pm/project.yaml
+    description: >-
+      Add getProjectCode() that reads .pm/project.yaml and returns the project code. CLI commands that currently require
+      a project code argument use this as the default when no argument is given.
+    acceptance_criteria:
+      - getProjectCode() reads .pm/project.yaml and returns the code field
+      - Function is exported from src/lib/codes.ts
+      - Returns null or throws descriptive error when .pm/project.yaml does not exist
+      - Caches the result to avoid repeated file reads within a single CLI invocation
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S005
+    code: PM-E037-S005
+    title: Update ensureProjectsDir() for local creation
+    description: >-
+      Create .pm/ at the detected repo root (not ~/.pm/). Guard against creating .pm/ in / or HOME directly — require
+      either a git repo or explicit pm init invocation.
+    acceptance_criteria:
+      - ensureProjectsDir() creates .pm/ at git root or cwd
+      - Refuses to create .pm/ in / or /home/dan without explicit pm init
+      - Creates .pm/epics/, .pm/comments/, .pm/adrs/ subdirectories
+      - Idempotent — does not error if .pm/ already exists
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S006
+    code: PM-E037-S006
+    title: Preserve PM_HOME for test isolation
+    description: >-
+      All test files continue using PM_HOME to isolate to temp directories. Verify setupTmpDir() still works. Add tests
+      for the new resolution order (PM_HOME > git root > cwd).
+    acceptance_criteria:
+      - All existing tests pass with PM_HOME override mechanism
+      - setupTmpDir() creates a valid .pm/ structure in the temp directory
+      - 'New tests verify resolution order: PM_HOME takes precedence over git root'
+      - New tests verify git root detection when PM_HOME is not set
+      - New tests verify cwd fallback when not in a git repo
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''

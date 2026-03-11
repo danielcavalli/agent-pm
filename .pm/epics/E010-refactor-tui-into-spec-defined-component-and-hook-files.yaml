@@ -1,0 +1,85 @@
+id: E010
+code: PM-E010
+title: Refactor TUI into spec-defined component and hook files
+description: >-
+  The PRD architecture specifies Tree.tsx, DetailPanel.tsx, and StatusBar.tsx as separate component files under
+  src/tui/components/, and useProjectTree.ts as a hook under src/tui/hooks/. The current implementation consolidates all
+  TUI logic inline in a single 571-line index.tsx and uses a non-hook loadTree.ts instead of the specified
+  useProjectTree hook. Extracting components into the specified file structure improves maintainability, enables
+  isolated testing, and aligns the codebase with the architectural contract in the PRD.
+status: done
+priority: low
+created_at: '2026-03-09'
+stories:
+  - id: S001
+    code: PM-E010-S001
+    title: Extract Tree.tsx component
+    description: >-
+      Create src/tui/components/Tree.tsx and move all tree-panel concerns into it: the FlatRow interface, flattenTree
+      function, statusIcon/statusColor utilities, and the TreePanel component. Update index.tsx to import TreePanel and
+      flattenTree from the new module. This is the largest extraction and aligns the primary tree view with the PRD's
+      Tree.tsx specification.
+    acceptance_criteria:
+      - src/tui/components/Tree.tsx exists and exports TreePanel, flattenTree, FlatRow, statusIcon, and statusColor
+      - index.tsx contains no TreePanel function definition and no flattenTree function definition
+      - index.tsx imports TreePanel and flattenTree from ./components/Tree.js
+      - npm run build completes without TypeScript errors
+      - pm tui launches and the tree panel renders and responds to keyboard navigation
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S002
+    code: PM-E010-S002
+    title: Extract DetailPanel.tsx component
+    description: >-
+      Create src/tui/components/DetailPanel.tsx and move the DetailPanel component — including its internal wrapText,
+      addLine, and addField helpers — into it. Export DetailPanel and its DetailPanelProps type. Update index.tsx
+      imports. This aligns the right-panel detail view with the PRD's DetailPanel.tsx specification.
+    acceptance_criteria:
+      - src/tui/components/DetailPanel.tsx exists and exports DetailPanel and DetailPanelProps
+      - index.tsx contains no DetailPanel function definition
+      - index.tsx imports DetailPanel from ./components/DetailPanel.js
+      - npm run build completes without TypeScript errors
+      - Selecting a story, epic, and project in pm tui each render the correct details in the right panel
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S003
+    code: PM-E010-S003
+    title: Extract StatusBar.tsx component
+    description: >-
+      Create src/tui/components/StatusBar.tsx and move the StatusBar component and its StatusBarProps interface into it.
+      Update index.tsx to import from the new location. This is the smallest extraction and completes the
+      three-component split specified in the PRD.
+    acceptance_criteria:
+      - src/tui/components/StatusBar.tsx exists and exports StatusBar and StatusBarProps
+      - index.tsx contains no StatusBar function definition
+      - index.tsx imports StatusBar from ./components/StatusBar.js
+      - npm run build completes without TypeScript errors
+      - The status bar renders correctly in pm tui, showing the item code, filter, and keybind legend
+    status: done
+    priority: medium
+    story_points: 1
+    notes: ''
+  - id: S004
+    code: PM-E010-S004
+    title: Create useProjectTree.ts hook
+    description: >-
+      Create src/tui/hooks/useProjectTree.ts — a proper React hook that encapsulates tree loading and state. The hook
+      calls loadTree() internally, exposes projects state, and returns a reload function that re-reads the YAML files.
+      Update App in index.tsx to use useProjectTree() instead of a bare useEffect calling loadTree. The loadTree.ts
+      module may remain as an internal implementation detail called by the hook. This replaces the ad-hoc useEffect in
+      App with the useProjectTree hook specified in the PRD.
+    acceptance_criteria:
+      - src/tui/hooks/useProjectTree.ts exists and exports a useProjectTree hook
+      - The hook returns at minimum { projects, setProjects, reload } or equivalent
+      - index.tsx App component does not contain a bare useEffect calling loadTree() directly
+      - index.tsx imports and uses useProjectTree from ./hooks/useProjectTree.js
+      - npm run build completes without TypeScript errors
+      - pm tui launches with the tree loaded and live-reload still triggers correctly when a YAML file is edited
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ''

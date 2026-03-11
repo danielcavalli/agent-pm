@@ -1,43 +1,37 @@
 import chalk from "chalk";
 import { EpicSchema, ProjectSchema } from "../schemas/index.js";
 import { readYaml, writeYaml } from "../lib/fs.js";
-import { parseStoryCode, findEpicFile, getProjectsDir } from "../lib/codes.js";
-import { StoryNotFoundError, ValidationError } from "../lib/errors.js";
+import { resolveStoryCode, findEpicFile, getPmDir } from "../lib/codes.js";
+import { StoryNotFoundError } from "../lib/errors.js";
 import * as path from "node:path";
 
 export async function work(storyCode: string): Promise<void> {
-  // Parse the story code
-  const parsed = parseStoryCode(storyCode);
-  if (!parsed) {
-    throw new ValidationError(
-      `Invalid story code '${storyCode}': expected format PROJECT-E###-S### (e.g. PM-E001-S001)`,
+  const parsed = resolveStoryCode(storyCode);
+
+  const epicFile = findEpicFile(parsed.epicCode);
+  if (!epicFile) {
+    throw new StoryNotFoundError(
+      `${parsed.projectCode}-${parsed.epicId}-${parsed.storyId}`,
     );
   }
 
-  // Find the epic file
-  const epicFile = findEpicFile(parsed.epicCode);
-  if (!epicFile) {
-    throw new StoryNotFoundError(storyCode);
-  }
-
-  // Read epic
   const epic = readYaml(epicFile, EpicSchema);
   const stories = epic.stories ?? [];
-  const storyIdx = stories.findIndex((s) => s.code === storyCode);
+  const fullStoryCode = `${parsed.projectCode}-${parsed.epicId}-${parsed.storyId}`;
+  const storyIdx = stories.findIndex((s) => s.code === fullStoryCode);
 
   if (storyIdx === -1) {
-    throw new StoryNotFoundError(storyCode);
+    throw new StoryNotFoundError(fullStoryCode);
   }
 
   const story = stories[storyIdx];
   if (!story) {
-    throw new StoryNotFoundError(storyCode);
+    throw new StoryNotFoundError(fullStoryCode);
   }
 
-  // Handle already-done stories
   if (story.status === "done") {
     console.log(
-      chalk.yellow(`⚠  Warning: story ${storyCode} is already done.`),
+      chalk.yellow(`⚠  Warning: story ${fullStoryCode} is already done.`),
     );
     console.log(
       chalk.dim("  No changes made. Use pm story update to change status."),
@@ -45,41 +39,33 @@ export async function work(storyCode: string): Promise<void> {
     return;
   }
 
-  // Print warning if already in_progress, but continue
   if (story.status === "in_progress") {
     console.log(
-      chalk.yellow(`⚠  Warning: story ${storyCode} is already in_progress.`),
+      chalk.yellow(
+        `⚠  Warning: story ${fullStoryCode} is already in_progress.`,
+      ),
     );
   }
 
-  // Mark as in_progress if not already
   if (story.status !== "in_progress") {
     const updatedStories = [...stories];
     updatedStories[storyIdx] = { ...story, status: "in_progress" };
     writeYaml(epicFile, { ...epic, stories: updatedStories });
   }
 
-  // Try to read parent project for context
-  const projectYaml = path.join(
-    getProjectsDir(),
-    parsed.projectCode,
-    "project.yaml",
-  );
+  const projectYaml = path.join(getPmDir(), "project.yaml");
   let projectName = parsed.projectCode;
   try {
     const project = readYaml(projectYaml, ProjectSchema);
     projectName = project.name;
-  } catch {
-    // non-fatal, project context is optional
-  }
+  } catch {}
 
-  // Print structured summary
   console.log("");
   console.log(chalk.cyan.bold("━".repeat(72)));
   console.log(chalk.cyan.bold("  STORY CONTEXT"));
   console.log(chalk.cyan.bold("━".repeat(72)));
   console.log("");
-  console.log(chalk.bold("  Code:    ") + chalk.cyan(storyCode));
+  console.log(chalk.bold("  Code:    ") + chalk.cyan(fullStoryCode));
   console.log(chalk.bold("  Title:   ") + story.title);
   console.log(
     chalk.bold("  Epic:    ") + epic.code + chalk.dim(" — ") + epic.title,
@@ -134,7 +120,7 @@ export async function work(storyCode: string): Promise<void> {
   console.log(chalk.cyan.bold("━".repeat(72)));
   console.log(
     chalk.dim("  When done, run: ") +
-      chalk.cyan(`pm story update ${storyCode} --status done`),
+      chalk.cyan(`pm story update ${fullStoryCode} --status done`),
   );
   console.log(chalk.cyan.bold("━".repeat(72)));
   console.log("");

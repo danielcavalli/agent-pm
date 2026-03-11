@@ -1,0 +1,59 @@
+id: E046
+code: PM-E046
+title: Resolution Task Board Integration
+description: >-
+  Fix E034 PARTIAL — schema is solid but pm status and pm story list are unaware of resolution tasks. Add
+  resolution_type to status output with conflict/gap badges, add --type filter to story list, and enforce priority
+  defaults in consolidation output.
+status: backlog
+priority: medium
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E046-S001
+    title: Include resolution_type in pm status output
+    description: >-
+      Add resolution_type to StoryData mapping in status.ts. Display conflict/gap badges in status output so resolution
+      tasks are visually distinct.
+    acceptance_criteria:
+      - StoryData type includes resolution_type field
+      - 'Status output shows a conflict badge for resolution_type: conflict'
+      - 'Status output shows a gap badge for resolution_type: gap'
+      - Regular stories without resolution_type display normally
+      - JSON output includes resolution_type when present
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E042-S006
+    notes: ''
+  - id: S002
+    code: PM-E046-S002
+    title: Add --type filter to pm story list
+    description: Add --type conflict|gap filter to pm story list CLI so users and agents can filter stories by resolution type.
+    acceptance_criteria:
+      - pm story list <EPIC> --type conflict shows only conflict stories
+      - pm story list <EPIC> --type gap shows only gap stories
+      - Without --type flag, all stories are shown (existing behavior)
+      - Flag is documented in --help output
+    status: backlog
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E046-S003
+    title: Enforce priority defaults for resolution tasks
+    description: >-
+      Ensure consolidation output creates conflict tasks with priority: high and gap tasks with priority: medium, as
+      documented in the resolution task schema.
+    acceptance_criteria:
+      - 'Conflict tasks created by consolidation have priority: high'
+      - 'Gap tasks created by consolidation have priority: medium'
+      - Priority is set explicitly, not left to default
+    status: backlog
+    priority: medium
+    story_points: 2
+    depends_on:
+      - PM-E042-S006
+    notes: ''

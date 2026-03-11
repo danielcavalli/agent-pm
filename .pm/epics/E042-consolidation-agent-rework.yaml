@@ -1,0 +1,136 @@
+id: E042
+code: PM-E042
+title: Consolidation Agent Rework
+description: >-
+  Fix the consolidation pipeline (E033 FAIL — 8/30 criteria met). Implement the two-phase pipeline (structural dedup
+  then LLM semantic clustering), add comment ingestion, enforce idempotency via consolidated markers, make --dry-run
+  functional, load config at runtime, and create conflict/gap resolution tasks during output routing.
+status: backlog
+priority: high
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E042-S001
+    title: Load consolidation config at runtime
+    description: >-
+      Load consolidation config from project YAML at runtime. Enforce max_reports_per_run. Validate trigger conditions.
+      Currently pm consolidate config prints not yet implemented.
+    acceptance_criteria:
+      - Consolidation config is read from project.yaml at runtime
+      - max_reports_per_run is enforced during ingestion
+      - Trigger conditions (manual, threshold, scheduled) are validated
+      - pm consolidate config prints the current configuration
+      - Invalid config values produce clear error messages
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E042-S002
+    title: Ingest reports AND comments with consolidated marking
+    description: >-
+      Ingest both reports and comments during consolidation. Filter by last_consolidated_at to avoid reprocessing. Mark
+      processed items consolidated: true. Produce an ingestion summary.
+    acceptance_criteria:
+      - Both execution reports and cross-task comments are ingested
+      - 'Items with consolidated: true are skipped'
+      - last_consolidated_at timestamp is used to filter items
+      - 'Processed items are marked consolidated: true after successful consolidation'
+      - Ingestion summary lists count of reports and comments processed
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E042-S001
+    notes: ''
+  - id: S003
+    code: PM-E042-S003
+    title: Implement structural deduplication phase
+    description: >-
+      Add a structural deduplication phase before LLM: exact and fuzzy string matching on decisions/assumptions. Detect
+      conflicts via contradicting decisions. This phase runs before the LLM semantic clustering.
+    acceptance_criteria:
+      - Exact string matching identifies duplicate decisions across reports
+      - Fuzzy matching catches near-duplicate decisions with minor wording differences
+      - Contradicting decisions are flagged as conflicts
+      - Matched items are grouped into synthesis candidates
+      - Unmatched items are passed to the LLM semantic phase
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E042-S002
+    notes: ''
+  - id: S004
+    code: PM-E042-S004
+    title: Make --dry-run functional
+    description: >-
+      Currently --dry-run is accepted but ignored. Make it print what would be created (ADRs, tasks, updated items)
+      without writing any files.
+    acceptance_criteria:
+      - '--dry-run prints proposed ADRs that would be created'
+      - '--dry-run prints proposed resolution tasks that would be created'
+      - '--dry-run prints items that would be marked consolidated'
+      - No files are written when --dry-run is active
+      - Output clearly labels everything as dry-run
+    status: backlog
+    priority: medium
+    story_points: 2
+    depends_on:
+      - PM-E042-S003
+    notes: ''
+  - id: S005
+    code: PM-E042-S005
+    title: Ensure consolidation idempotency
+    description: >-
+      Skip items already marked consolidated: true. Do not create duplicate ADRs or tasks on re-run. Use content hashing
+      or dedup keys to detect already-created outputs.
+    acceptance_criteria:
+      - Re-running consolidation does not process already-consolidated items
+      - Re-running does not create duplicate ADRs
+      - Re-running does not create duplicate resolution tasks
+      - Idempotency is verified by running consolidation twice and comparing output
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E042-S002
+    notes: ''
+  - id: S006
+    code: PM-E042-S006
+    title: Create conflict and gap resolution tasks
+    description: >-
+      During output routing, create conflict tasks with resolution_type: conflict and priority: high, and gap tasks with
+      resolution_type: gap and priority: medium.
+    acceptance_criteria:
+      - 'Contradicting decisions create stories with resolution_type: conflict'
+      - 'Conflict tasks are created with priority: high'
+      - 'Identified gaps create stories with resolution_type: gap'
+      - 'Gap tasks are created with priority: medium'
+      - Each resolution task includes source_reports references
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E042-S003
+    notes: ''
+  - id: S007
+    code: PM-E042-S007
+    title: Merge structural and LLM results into two-phase pipeline
+    description: >-
+      Merge structural dedup results with LLM semantic clustering results before output routing. The pipeline is: ingest
+      -> structural dedup -> LLM semantic clustering of remainder -> merge -> route to outputs.
+    acceptance_criteria:
+      - Structural dedup runs first and produces grouped findings
+      - LLM semantic clustering receives only unmatched items from structural phase
+      - Results from both phases are merged into a unified finding set
+      - Output routing operates on the merged set, not separate sets
+      - Pipeline order is documented in code comments
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E042-S003
+      - PM-E042-S005
+    notes: ''

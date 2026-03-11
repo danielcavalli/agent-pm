@@ -1,0 +1,53 @@
+id: E024
+code: PM-E024
+title: Status command enhancements and data hygiene
+description: >-
+  Follow-up improvements identified during the status command rewrite: auto-derive epic status from story completion,
+  exclude cancelled stories from progress totals, warn on corrupt YAML files, and update stale epic statuses in existing
+  data.
+status: done
+priority: medium
+created_at: '2026-03-10'
+stories:
+  - id: S001
+    code: PM-E024-S001
+    title: Auto-derive epic status from story completion
+    description: >-
+      Epics E007-E019 have all stories marked done but their own status field remains 'backlog'. Write a migration or
+      one-time script to auto-derive epic status: if all stories are done/cancelled, set epic status to 'done'.
+    acceptance_criteria:
+      - Epics with all stories done or cancelled have their status set to 'done'
+      - A CLI command or build-time check enforces status consistency going forward
+      - Existing tests continue to pass
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ''
+  - id: S002
+    code: PM-E024-S002
+    title: Exclude cancelled stories from progress bar totals
+    description: >-
+      The progress bar counts cancelled stories toward the total, making projects appear incomplete when all actionable
+      work is done. Exclude cancelled stories from the denominator so the bar accurately reflects remaining work.
+    acceptance_criteria:
+      - Progress bar shows done/(total - cancelled) instead of done/total
+      - A project with 3 done + 2 cancelled shows 3/3 (100%) not 3/5 (60%)
+      - JSON output story_count excludes cancelled stories
+    status: done
+    priority: low
+    story_points: 2
+    notes: ''
+  - id: S003
+    code: PM-E024-S003
+    title: Warn on stderr when YAML files fail to parse in status command
+    description: >-
+      The status command silently swallows YAML parse errors, causing corrupted epics to disappear from output with no
+      indication. Log a warning to stderr so users know a file is broken.
+    acceptance_criteria:
+      - When a YAML file fails to parse, a warning is printed to stderr in human-readable mode
+      - The warning includes the file path and a brief error reason
+      - JSON mode silently omits unparseable files (no change to current behavior)
+    status: done
+    priority: low
+    story_points: 1
+    notes: ''

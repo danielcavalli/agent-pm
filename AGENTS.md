@@ -95,6 +95,16 @@ any agent can execute them without prior context:
 7. For **proactive decomposition**: file all stories first, then begin working through
    them (or leave them for parallel agents to pick up)
 
+### Passing workdir to MCP tools
+
+All PM MCP tools accept a `workdir` parameter. **Always pass your current working directory
+as workdir** to ensure commands execute in the correct project context. This is especially
+important when working across multiple projects or when your process cwd differs from the
+target project's root directory.
+
+Example: If you're working in `/home/user/projects/myapp`, pass `workdir: "/home/user/projects/myapp"`
+to each MCP tool call.
+
 ### IMPORTANT: Use CLI tools, not filesystem exploration
 
 **NEVER** use `find`, `grep`, `ls`, or other filesystem commands to discover or read
@@ -112,5 +122,81 @@ creates fragile workflows and bypasses validation. Always go through the CLI.
 
 **Note:** If no relevant project exists and you need to create one, always notify the user
 first — creating a new project is a higher-impact action than adding to an existing one.
+
+## Task-Start Comment Retrieval Contract
+
+Before beginning work on any story, an agent **MUST** retrieve any existing agent-authored
+comments for that story as a CoALA retrieval action — an explicit, agent-initiated pull
+from external long-term memory into working memory.
+
+### Mandatory Retrieval Rule
+
+When you start working on a story (either directly or via `/pm-work-on`), you **MUST**
+first execute:
+
+```
+pm comment list --project <PROJECT> --task <STORY-ID> --type agent
+```
+
+Where:
+
+- `<PROJECT>` is the project code (e.g., `PM`, `BLOG`)
+- `<STORY-ID>` is the story code (e.g., `PM-E031-S005`)
+
+This retrieval is **mandatory, not optional** — it is a precondition to beginning any
+story work.
+
+### Behaviour When No Comments Exist
+
+If the command returns no comments, proceed normally with your work. There is no
+additional action required.
+
+### Behaviour When Comments Exceed Context Budget
+
+If the returned comments exceed your context budget:
+
+1. Load the most recent N comments that fit within your context limit
+2. Note that truncation occurred in your working memory
+3. Continue with the truncated set, prioritizing the most recent comments
+
+### Consumed-By Tracking
+
+After reading each comment, you **MUST** record your own `agent_id` in the comment's
+`consumed_by` field. This enables dependency-based garbage collection (see
+PM-E035: ADR Lifecycle and Garbage Collection).
+
+To update consumed_by, you would typically:
+
+- Read the comment file from `.pm/comments/`
+- Add your agent_id to the `consumed_by` array
+- Write the updated comment back
+
+### Worked Example
+
+Suppose you start working on story `PM-E031-S005`:
+
+```
+$ pm comment list --project PM --task PM-E031-S005 --type agent
+
+[comment-id]
+  Type: agent | Author: agent:prior-agent-001 | Target: PM-E031-S005
+  2026-03-10T14:30:00Z
+  Started implementation but ran into schema conflict. The comment schema
+  needs a `references` field for cross-task linking. See comment C000001.
+  Tags: schema, blocking
+```
+
+You must:
+
+1. Load this comment into your working context
+2. Understand the schema conflict mentioned
+3. Add your agent_id to the comment's `consumed_by` field (e.g., `["prior-agent-001", "your-agent-id"]`)
+4. Then proceed with your work, taking the prior agent's note into account
+
+### Contract Location
+
+This contract is co-located with the execution report contract defined in
+`doc/execution-report-contract.md`. Both contracts define agent responsibilities
+for cross-task communication patterns.
 
 # END PM Autonomous Filing Rules

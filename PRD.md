@@ -63,18 +63,19 @@ Without this, work is ephemeral, context is lost between sessions, and discovere
 
 ## 4. Architecture
 
-The system has three layers: a **data layer** (YAML files in a global data directory), a **CLI layer** (globally-installed `pm` binary), and an **integration layer** (MCP server, global slash commands, and AGENTS.md rules that make PM available to every agent session in both OpenCode and Claude Code).
+The system has three layers: a **data layer** (YAML files in a `.pm/` directory at the repository root), a **CLI layer** (globally-installed `pm` binary), and an **integration layer** (MCP server, global slash commands, and AGENTS.md rules that make PM available to every agent session in both OpenCode and Claude Code).
 
 ```
-~/.pm/                                   # Global data directory (PM_HOME)
-├── projects/
-│   ├── index.yaml                       # Auto-maintained project index
-│   └── {PROJECT_CODE}/
-│       ├── project.yaml
-│       └── epics/
-│           └── E{NNN}-{slug}.yaml
+your-repo/                               # Your repository
+├── .pm/                                 # Local project data (git-trackable)
+│   ├── project.yaml                     # Project definition
+│   ├── index.yaml                       # Auto-maintained index
+│   ├── epics/
+│   │   └── E{NNN}-{slug}.yaml           # Epic with embedded stories
+│   ├── comments/                        # Cross-task agent commentary
+│   └── adrs/                            # Architecture Decision Records
 
-project-management/                      # Source repo (development only)
+agent-pm/                                # Source repo (this repo, development only)
 ├── PRD.md                               # This document
 ├── package.json                         # TypeScript CLI, "bin": { "pm": ... }
 ├── tsconfig.json
@@ -85,13 +86,13 @@ project-management/                      # Source repo (development only)
 │   │   ├── index.tsx                    # ink app entry point (pm tui)
 │   │   ├── components/
 │   │   │   ├── Tree.tsx                 # Navigable project/epic/story tree
-│   │   │   ├── DetailPanel.tsx          # Selected item details
-│   │   │   └── StatusBar.tsx            # Bottom bar: code, filter, keybinds
+│   │   │   ├── DetailPanel.tsx         # Selected item details
+│   │   │   └── StatusBar.tsx           # Bottom bar: code, filter, keybinds
 │   │   └── hooks/
-│   │       ├── useProjectTree.ts        # Builds in-memory tree from YAML files
-│   │       └── useFileWatcher.ts        # Watches projects/ and triggers reload
+│   │       ├── useProjectTree.ts       # Builds in-memory tree from YAML files
+│   │       └── useFileWatcher.ts        # Watches .pm/ and triggers reload
 │   ├── schemas/
-│   │   ├── project.schema.ts            # Zod schemas + TS types
+│   │   ├── project.schema.ts           # Zod schemas + TS types
 │   │   ├── epic.schema.ts
 │   │   └── story.schema.ts
 │   ├── commands/
@@ -124,10 +125,10 @@ project-management/                      # Source repo (development only)
 ### Design Principles
 
 1. **Files are the API.** Agents read and write YAML files directly. The CLI is a convenience wrapper with validation.
-2. **Flat over nested.** Epics are separate files; stories live inside epic files. Projects are top-level directories.
+2. **Flat over nested.** Epics are separate files; stories live inside epic files. One project per `.pm/` directory.
 3. **Codes are stable identifiers.** `PM-E001-S003` uniquely identifies a story across all agents and sessions.
 4. **Status is the source of truth.** Agents update story status as they work. No external state server needed.
-5. **Global by default.** The data directory, CLI, MCP tools, and commands all resolve to fixed global paths — never relative to `cwd()`.
+5. **Local-first.** Data lives in `.pm/` at the repository root, versioned alongside your code. The global `~/.pm/` directory is deprecated.
 6. **Available everywhere.** An agent in any repository can read PM state and file new work items without switching context.
 7. **Client-agnostic.** The MCP server provides a universal tool interface that works identically in OpenCode and Claude Code. Slash commands are installed to both clients from a single canonical source.
 
@@ -225,15 +226,16 @@ projects:
 
 ### Data Directory
 
-All project data lives in a **fixed global directory** that does not depend on the current working directory. The default is `~/.pm/`, overridable via the `PM_HOME` environment variable.
+All project data lives in a `.pm/` directory at the **repository root**, making project management data git-trackable alongside your code.
 
 ```
 Resolution order:
-1. PM_HOME environment variable (if set)
-2. ~/.pm/                        (default)
+1. PM_HOME environment variable (if set) — test/CI override only
+2. .pm/ at git repo root (detected via git rev-parse --show-toplevel)
+3. .pm/ in current working directory (fallback if not in a git repo)
 ```
 
-The `getProjectsDir()` function in `lib/codes.ts` resolves to `$PM_HOME/projects/` (or `~/.pm/projects/`). It must **never** fall back to `process.cwd()`.
+The `getProjectsDir()` function in `lib/codes.ts` resolves to the `.pm/` directory. `PM_HOME` is intended for test isolation and CI workflows — in normal usage, PM auto-detects `.pm/` via git root resolution.
 
 ### CLI Installation
 
@@ -247,13 +249,13 @@ npm install -g .
 npm link
 ```
 
-After installation, `pm` is on `$PATH` and works from any directory:
+After installation, `pm` is on `$PATH` and works from within any repository that has a `.pm/` directory:
 
 ```bash
-# These all work from any directory:
-pm status
-pm epic add PM --title "New feature"
-pm story add PM-E005 --title "Fix edge case" --points 2
+cd /path/to/your/repo
+pm status              # Shows the local project
+pm epic add --title "New feature"
+pm story add E001 --title "Fix edge case" --points 2
 ```
 
 ### Client Integration Installation
@@ -282,13 +284,17 @@ After installation:
 - `pm_epic_add`, `pm_story_add`, `pm_status` MCP tools are available to every agent
 - AGENTS.md rules instruct agents when and how to file discovered work
 
-### Migration from v1
+### Migration from Global Storage
 
-Existing data in `project-management/projects/` should be moved to `~/.pm/projects/`:
+> **Deprecated:** The global `~/.pm/` directory is legacy. New projects should use local `.pm/` storage.
+
+If you have existing data in the legacy global `~/.pm/` directory, use the migration command:
 
 ```bash
-pm migrate    # Copies projects/ to ~/.pm/projects/ and updates index
+pm migrate --to-local --code MYAPP --target /path/to/your/repo
 ```
+
+This copies the project data to `.pm/` in the target repository and flattens the directory structure.
 
 ---
 
@@ -493,10 +499,10 @@ The CLI is invoked as `pm <command>` from any directory. The `pm` binary is inst
 pm init --name "My App" --code MYAPP --description "..."
 ```
 
-- Validates the code doesn't already exist
-- Creates `$PM_HOME/projects/MYAPP/project.yaml`
-- Creates `$PM_HOME/projects/MYAPP/epics/` directory
-- Updates `$PM_HOME/projects/index.yaml`
+- Validates the code doesn't already exist in the local `.pm/`
+- Creates `.pm/project.yaml` at the repository root
+- Creates `.pm/epics/` directory
+- Creates `.pm/index.yaml`
 - Outputs the created project code
 
 ### `pm epic add <PROJECT_CODE>`
@@ -572,13 +578,13 @@ pm work PM-E001-S001
 ### `pm migrate`
 
 ```
-pm migrate [--source <path>]
+pm migrate --to-local --code MYAPP --target /path/to/repo
 ```
 
-- Copies project data from a legacy location (default: `./projects/`) to `$PM_HOME/projects/`
-- Skips projects that already exist in the target
-- Rebuilds the global index after migration
-- Prints a summary of migrated projects
+- Copies project data from the legacy global `~/.pm/projects/{CODE}/` to `.pm/` in the target repository
+- Flattens the directory structure (removes the `projects/{CODE}/` nesting)
+- Rebuilds the local index after migration
+- Prints a summary of migrated data
 
 ---
 
@@ -783,25 +789,25 @@ pm tui
 
 ### Live reload
 
-The TUI watches `~/.pm/projects/**/*.yaml` for file changes. When an agent updates a story status (e.g. marks `in_progress` -> `done`), the tree updates within ~1 second. The cursor holds position on the selected item across reloads.
+The TUI watches `.pm/**/*.yaml` for file changes. When an agent updates a story status (e.g. marks `in_progress` -> `done`), the tree updates within ~1 second. The cursor holds position on the selected item across reloads.
 
 ---
 
 ## 12. Naming Conventions
 
-| Entity        | Format                      | Example                |
-| ------------- | --------------------------- | ---------------------- |
-| Project Code  | `[A-Z]{2,6}`                | `PM`, `DOTS`, `MYAPP`  |
-| Epic Code     | `{PROJECT}-E{NNN}`          | `PM-E001`              |
-| Story Code    | `{EPIC}-S{NNN}`             | `PM-E001-S003`         |
-| Epic filename | `E{NNN}-{kebab-slug}.yaml`  | `E001-foundation.yaml` |
-| Project dir   | `$PM_HOME/projects/{CODE}/` | `~/.pm/projects/PM/`   |
+| Entity        | Format                     | Example                |
+| ------------- | -------------------------- | ---------------------- |
+| Project Code  | `[A-Z]{2,6}`               | `PM`, `DOTS`, `MYAPP`  |
+| Epic Code     | `{PROJECT}-E{NNN}`         | `PM-E001`              |
+| Story Code    | `{EPIC}-S{NNN}`            | `PM-E001-S003`         |
+| Epic filename | `E{NNN}-{kebab-slug}.yaml` | `E001-foundation.yaml` |
+| Project dir   | `{repo-root}/.pm/`         | `/myapp/.pm/`          |
 
 ---
 
 ## 13. Implementation Roadmap
 
-The project tracks itself. All epics and stories are defined in `~/.pm/projects/PM/`.
+The project tracks itself. All epics and stories are defined in `.pm/epics/`.
 
 ### Completed (v1)
 
@@ -840,7 +846,9 @@ The project tracks itself. All epics and stories are defined in `~/.pm/projects/
 | PM-E028 | Unified Installation Experience             | High     |
 | PM-E029 | Source Code & Build Legacy Cleanup          | Low      |
 
-#### PM-E013: Global Data Directory (Complete)
+#### PM-E013: Global Data Directory (Complete — Deprecated)
+
+> **Note:** This epic implemented global `~/.pm/` storage, which has been superseded by local-first `.pm/` storage (PM-E037). The global directory is now legacy.
 
 - S001: Replace `process.cwd()/projects` with `PM_HOME` resolution in `getProjectsDir()`
 - S002: Default `PM_HOME` to `~/.pm/` using `os.homedir()`
@@ -886,7 +894,7 @@ The project tracks itself. All epics and stories are defined in `~/.pm/projects/
 
 #### v2.1 Epics (PM-E020 through PM-E029)
 
-Detailed story breakdowns for v2.1 epics are tracked in `~/.pm/projects/PM/epics/` and viewable via `pm status PM`.
+Detailed story breakdowns for v2.1 epics are tracked in `.pm/epics/` and viewable via `pm status`.
 
 ---
 
@@ -907,14 +915,14 @@ Detailed story breakdowns for v2.1 epics are tracked in `~/.pm/projects/PM/epics
 ### v2 (Global + Autonomous Filing)
 
 - [x] `pm` CLI works from any directory on the system (not just the project-management repo)
-- [x] Project data lives in `~/.pm/` (or `$PM_HOME`) — never relative to `cwd()`
+- [x] Project data lives in `.pm/` at the repository root (git-trackable)
 - [x] `/pm-*` slash commands are available in every OpenCode session
 - [x] `pm_epic_add` and `pm_story_add` MCP tools are available to all agents
 - [x] An agent working in an unrelated project can file a story without switching context
 - [x] An agent working in an unrelated project can file an epic without switching context
 - [x] Agents follow the autonomous filing rules (file when appropriate, don't file trivially)
-- [x] `pm migrate` successfully moves v1 project data to the global directory
-- [x] The TUI watches the global data directory, not a local `projects/` folder
+- [x] `pm migrate --to-local` successfully moves legacy global data to local `.pm/`
+- [x] The TUI watches the local `.pm/` directory
 - [ ] `install.sh` performs a complete setup for both OpenCode and Claude Code (CLI + MCP server + commands + AGENTS.md rules)
 
 ### v2.1 (Multi-Client + MCP)

@@ -1,0 +1,52 @@
+id: E034
+code: PM-E034
+title: Conflict and Gap Resolution Tasks
+description: >-
+  The structured output of the consolidation agent when it detects incompatible assumptions or unvalidated priors.
+  Defines how conflict and gap tasks are schema'd, prioritized, and distinguished from normal implementation tasks on
+  the board so that agents and humans can triage them correctly.
+status: backlog
+priority: medium
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E034-S001
+    title: Define conflict task and gap task schemas
+    description: >-
+      Specify the schemas for the two resolution task types produced by the consolidation agent. Conflict task fields:
+      task_type="conflict", conflicting_assumptions (list of assumption strings with their source report IDs),
+      source_reports (list of report IDs), context (narrative description of the conflict), proposed_resolution
+      (optional). Gap task fields: task_type="gap", undefined_concept (name of the concept or assumption), referenced_in
+      (list of report/comment IDs that reference it), context (narrative). Both types are stored as stories but with a
+      reserved `resolution_type` field so the CLI and TUI can distinguish them from implementation stories.
+    acceptance_criteria:
+      - Both schemas are documented with all fields, types, and required/optional markers
+      - resolution_type field is reserved and validated so it cannot appear on normal implementation stories
+      - The difference between a conflict and a gap is clearly articulated in the schema docs
+      - At least one example of each type is included in the spec
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E034-S002
+    title: Implement board distinction for conflict and gap tasks
+    description: >-
+      Make conflict and gap resolution tasks visually and structurally distinct from implementation stories so that
+      agents and humans can triage them correctly. Work covers: (1) TUI rendering — add colour coding or type prefix
+      ([CONFLICT] / [GAP]) in the story list view, (2) `pm status` output — surface conflict/gap tasks in a dedicated
+      section or with inline type markers, (3) CLI filter — add `--type conflict|gap` filter to `pm story list`, (4)
+      default priority rules — conflicts default to high, gaps to medium, overridable. Requires PM-E034-S001 to be
+      complete first.
+    acceptance_criteria:
+      - Conflict/gap tasks are visually distinct from implementation stories in TUI (different colour or prefix)
+      - '`pm status` output groups conflict/gap tasks separately or marks them with a type indicator'
+      - Prioritisation rules are documented (conflicts default to high priority; gaps default to medium)
+      - Filtering by resolution_type works in CLI (`pm story list --type conflict`)
+      - Normal story creation cannot set resolution_type (field is reserved for consolidation agent)
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on: []
+    notes: ''

@@ -1,0 +1,60 @@
+id: E019
+code: PM-E019
+title: Migration Tooling (v1 to v2)
+description: >-
+  Implement the pm migrate command that copies project data from a legacy location (default: ./projects/ or a --source
+  path) to the global PM_HOME/projects/ directory. Handle duplicate project codes gracefully, rebuild the global index
+  after migration, and print a summary of migrated projects.
+status: done
+priority: medium
+created_at: '2026-03-10'
+stories:
+  - id: S001
+    code: PM-E019-S001
+    title: Implement pm migrate command
+    description: >-
+      Add a new pm migrate command to the CLI. It copies project directories from a source location (default:
+      ./projects/, overridable with --source <path>) to PM_HOME/projects/. Recursively copies all project.yaml and
+      epics/*.yaml files. Prints a summary of what was migrated.
+    acceptance_criteria:
+      - pm migrate command is registered in the CLI
+      - Copies project directories from source to PM_HOME/projects/
+      - Default source is ./projects/ in current directory
+      - '--source flag allows specifying an alternate source path'
+      - 'Prints summary: number of projects migrated and their codes'
+    status: done
+    priority: high
+    story_points: 3
+    notes: ''
+  - id: S002
+    code: PM-E019-S002
+    title: Handle duplicate project codes gracefully during migration
+    description: >-
+      When pm migrate encounters a project code that already exists in PM_HOME/projects/, skip it instead of
+      overwriting. Print a warning message listing skipped projects so the user knows what was not migrated and can
+      resolve conflicts manually.
+    acceptance_criteria:
+      - Projects that already exist in target are skipped, not overwritten
+      - A warning is printed for each skipped project
+      - Non-conflicting projects are still migrated successfully
+      - Exit code is 0 even when some projects are skipped (warning, not error)
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S003
+    code: PM-E019-S003
+    title: Rebuild global index after migration
+    description: >-
+      After all projects are copied, rebuild the PM_HOME/projects/index.yaml to include the newly migrated projects.
+      Reuse the existing index rebuild logic from the status/index commands. The index should accurately reflect all
+      projects, epic counts, story counts, and done counts.
+    acceptance_criteria:
+      - index.yaml is rebuilt after migration completes
+      - Migrated projects appear in the index with correct counts
+      - Existing projects in the index are preserved
+      - index.yaml last_updated timestamp is refreshed
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''

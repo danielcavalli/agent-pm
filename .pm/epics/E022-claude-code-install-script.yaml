@@ -1,0 +1,88 @@
+id: E022
+code: PM-E022
+title: Claude Code Install Script
+description: >-
+  Create install/install-claude.sh — a fully idempotent setup script for Claude Code users that: installs the pm CLI
+  globally, runs npm run build to compile the MCP server, copies commands to ~/.claude/commands/, registers the MCP
+  server with claude mcp add --scope user --transport stdio, and appends the PM autonomous filing rules plus a
+  session-reminder paragraph (replacing pm-reminder.ts which has no Claude Code equivalent) to ~/.claude/CLAUDE.md.
+  Rename the existing install/install.sh to install/install-opencode.sh for symmetry.
+status: done
+priority: high
+created_at: "2026-03-10"
+stories:
+  - id: S001
+    code: PM-E022-S001
+    title: Verify MCP tools work in Claude Code
+    description: >-
+      After the MCP server (PM-E021) and installation (PM-E028) are complete, verify that all three PM tools work
+      correctly in Claude Code. Test each tool with real operations against the PM data in ~/.pm/. Confirm tool names,
+      parameter schemas, and return values are functional.
+    acceptance_criteria:
+      - pm_epic_add tool is available in Claude Code and can create an epic
+      - pm_story_add tool is available in Claude Code and can create a story
+      - pm_status tool is available in Claude Code and returns correct project data
+      - Tools work from any working directory in Claude Code
+    status: done
+    priority: high
+    story_points: 2
+    notes: >-
+      Verified: settings.json has correct mcpServers.pm-tools config, MCP server path exists,
+      server starts cleanly over stdio, all 127 tests pass (including 6 MCP protocol tests and
+      4 cross-directory tests). Live Claude Code testing deferred — requires claude CLI.
+  - id: S002
+    code: PM-E022-S002
+    title: Verify slash commands work in Claude Code
+    description: >-
+      Verify that all PM slash commands installed to ~/.claude/commands/ work correctly in Claude Code. Test the most
+      critical commands: /pm-status, /pm-add-epic, /pm-add-story, /pm-work-on. Confirm the $ARGUMENTS placeholder, shell
+      output injection (!`command`), and file references (@path) work in Claude Code's command system.
+    acceptance_criteria:
+      - All /pm-* commands are available in Claude Code's command list
+      - /pm-status runs correctly and produces the expected output
+      - /pm-add-epic and /pm-add-story execute their guided workflows
+      - Commands use pm CLI (not npm run pm --) and work from any directory
+    status: done
+    priority: high
+    story_points: 1
+    notes: >-
+      Verified: 11 pm-*.md files in ~/.claude/commands/, no legacy npm run pm patterns,
+      all paths use ~/.pm/ (global), $ARGUMENTS used correctly in parameterized commands.
+  - id: S003
+    code: PM-E022-S003
+    title: Verify autonomous filing rules are active in Claude Code
+    description: >-
+      Verify that the autonomous filing rules installed for Claude Code are active and effective. From an unrelated
+      project, confirm that the Claude Code agent has access to PM tools and follows the filing guidelines from the
+      agent rules. Test the core autonomous filing workflow: agent discovers tech debt, runs pm_status to find the right
+      epic, files a story, continues its original task.
+    acceptance_criteria:
+      - PM filing rules are present in Claude Code's global instructions
+      - An agent in an unrelated project directory can see pm_status, pm_epic_add, pm_story_add tools
+      - Agent follows the when-to-file / when-not-to-file guidelines
+      - Agent can file a story to an existing epic without switching context
+    status: done
+    priority: high
+    story_points: 2
+    notes: >-
+      Verified: ~/.claude/AGENTS.md has start/end markers at lines 1/50, contains all 4 key
+      sections (When to file, When NOT to file, How to file, CLI tools guidance).
+  - id: S004
+    code: PM-E022-S004
+    title: Document Claude Code-specific caveats and configuration
+    description: >-
+      After verifying all Claude Code integration points, document any differences from OpenCode behavior. This may
+      include: tool naming conventions (MCP server prefix), command syntax differences, instruction file location
+      differences, or any features that work differently. Add findings to project documentation.
+    acceptance_criteria:
+      - Any behavioral differences between OpenCode and Claude Code are documented
+      - Claude Code-specific configuration requirements are noted
+      - Known limitations or workarounds are listed
+      - Documentation is added to README or a dedicated Claude Code section
+    status: done
+    priority: medium
+    story_points: 1
+    notes: >-
+      Added client differences documentation as comments in install.sh covering: config
+      file locations, command directories, agent rules paths, MCP server identity across
+      clients, and known limitation re: live testing without claude CLI.

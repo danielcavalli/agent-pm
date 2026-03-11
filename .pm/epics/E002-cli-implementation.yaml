@@ -1,0 +1,131 @@
+id: E002
+code: PM-E002
+title: CLI Implementation
+description: >
+  Implement all CLI commands using commander.js: init, epic add/list,
+  story add/list/update, work, prioritize, and status. Each command reads
+  and writes the YAML files defined in E001 using the validated I/O helpers.
+status: done
+priority: high
+created_at: "2026-03-09"
+stories:
+  - id: S001
+    code: PM-E002-S001
+    title: Implement CLI entry point and command scaffolding
+    description: >
+      Create src/cli.ts as the main entry point using commander.js.
+      Register all top-level commands (init, epic, story, work, prioritize,
+      status) as sub-commands with --help documentation for each.
+      The CLI should print a styled header with chalk and exit gracefully
+      on unknown commands.
+    acceptance_criteria:
+      - pm --help lists all commands with descriptions
+      - pm init --help shows all init options
+      - pm epic --help lists epic sub-commands
+      - pm story --help lists story sub-commands
+      - Unknown commands print an error and exit with code 1
+    status: done
+    priority: high
+    story_points: 2
+    notes: ""
+
+  - id: S002
+    code: PM-E002-S002
+    title: Implement "pm init" command
+    description: >
+      Implement the project initialization command. Accept --name, --code,
+      --description, --vision, --tech-stack (repeatable), and optional
+      --architecture flags. Validate the code is not already taken. Create
+      the directory structure and project.yaml. Update projects/index.yaml.
+      Print a success summary with the created project code.
+    acceptance_criteria:
+      - pm init --name "Test App" --code TEST creates projects/TEST/project.yaml
+      - pm init with duplicate --code prints error and exits code 1
+      - pm init with invalid --code (lowercase/special chars) prints validation error
+      - projects/index.yaml is updated with the new project entry
+      - projects/TEST/epics/ directory is created
+    status: done
+    priority: high
+    story_points: 3
+    notes: ""
+
+  - id: S003
+    code: PM-E002-S003
+    title: Implement "pm epic add" and "pm epic list" commands
+    description: >
+      Implement epic management commands. "pm epic add <PROJECT_CODE>" accepts
+      --title, --description, --priority flags. Auto-assigns next epic number,
+      generates kebab slug filename, creates the YAML file with empty stories
+      array. "pm epic list <PROJECT_CODE>" reads all epic files and prints a
+      formatted table showing code, title, status, priority, and story count.
+    acceptance_criteria:
+      - pm epic add PM --title "Auth" creates projects/PM/epics/E001-auth.yaml (or next)
+      - pm epic add with missing --title prints validation error
+      - pm epic add for non-existent project code prints error
+      - pm epic list PM outputs a table with all epics
+      - pm epic list on empty project prints "No epics found"
+    status: done
+    priority: high
+    story_points: 3
+    notes: ""
+
+  - id: S004
+    code: PM-E002-S004
+    title: Implement "pm story add", "pm story list", "pm story update" commands
+    description: >
+      Implement story management commands. "pm story add <EPIC_CODE>" accepts
+      --title, --description, --points, --priority, and repeatable
+      --criteria flags. Appends to the epic's stories array. "pm story list
+      <EPIC_CODE>" prints a table. "pm story update <STORY_CODE>" accepts
+      --status and --priority to patch a single story in-place in the YAML.
+    acceptance_criteria:
+      - pm story add PM-E001 --title "..." --points 3 appends to E001 yaml
+      - pm story add with invalid --points (e.g. 4) prints validation error
+      - pm story list PM-E001 shows all stories in a table
+      - pm story update PM-E001-S001 --status done updates status in yaml
+      - pm story update with invalid status prints validation error
+      - Updating a non-existent story code prints a clear error
+    status: done
+    priority: high
+    story_points: 5
+    notes: ""
+
+  - id: S005
+    code: PM-E002-S005
+    title: Implement "pm work" command
+    description: >
+      Implement "pm work <STORY_CODE>". Read the specified story's full
+      definition, mark it as in_progress, and print a structured summary
+      containing: story code, title, description, acceptance criteria (as
+      a numbered list), current status, and parent epic context. Format
+      output to be maximally useful for an AI agent picking up the work.
+    acceptance_criteria:
+      - pm work PM-E001-S001 prints all story fields in readable format
+      - Story status is updated to in_progress in the YAML file
+      - pm work on a story already in_progress prints a warning but continues
+      - pm work on a done story prints a warning and exits
+      - pm work on non-existent code prints error and exits code 1
+    status: done
+    priority: high
+    story_points: 3
+    notes: ""
+
+  - id: S006
+    code: PM-E002-S006
+    title: Implement "pm status" and "pm prioritize" commands
+    description: >
+      "pm status" with no args reads projects/index.yaml and prints a summary
+      table for all projects. "pm status <PROJECT_CODE>" prints a full breakdown:
+      project details, then each epic with its stories grouped by status.
+      "pm prioritize <PROJECT_CODE> [--epic <EPIC_CODE>] [--strategy <text>]"
+      prints current story order and emits a structured prompt suggesting the
+      agent re-order them based on the strategy string.
+    acceptance_criteria:
+      - pm status prints a table of all projects with story counts and progress
+      - pm status PM prints project details and all epics/stories
+      - pm status for non-existent code prints error
+      - pm prioritize PM outputs current backlog order + a prioritization context block
+    status: done
+    priority: medium
+    story_points: 3
+    notes: ""

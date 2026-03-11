@@ -35,7 +35,7 @@ The build compiles `src/` to `dist/` using `tsc`. The CLI entry point is `dist/c
 npm test          # Run all tests with vitest
 ```
 
-Tests are in `src/__tests__/`. They use `vitest` and typically create temporary directories to avoid touching real data in `~/.pm/`.
+Tests are in `src/__tests__/`. They use `vitest` and set the `PM_HOME` environment variable to temporary directories for test isolation. This ensures tests never touch real project data in `.pm/`.
 
 ### Manual Verification
 

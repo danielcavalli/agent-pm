@@ -36,7 +36,7 @@ describe("pm epic add / epic list (integration)", () => {
       description: "Authentication",
     });
 
-    const epicsDir = path.join(tmp.projectsDir, "TEST", "epics");
+    const epicsDir = path.join(tmp.projectsDir, "epics");
     const files = fs.readdirSync(epicsDir);
     expect(files.length).toBe(1);
     expect(files[0]).toMatch(/^E001-auth-flow\.yaml$/);
@@ -53,7 +53,7 @@ describe("pm epic add / epic list (integration)", () => {
     await epicAdd("TEST", { title: "First Epic" });
     await epicAdd("TEST", { title: "Second Epic" });
 
-    const epicsDir = path.join(tmp.projectsDir, "TEST", "epics");
+    const epicsDir = path.join(tmp.projectsDir, "epics");
     const files = fs.readdirSync(epicsDir).sort();
     expect(files.length).toBe(2);
     expect(files[0]).toMatch(/^E001-/);
@@ -70,8 +70,12 @@ describe("pm epic add / epic list (integration)", () => {
     ).rejects.toThrow(ValidationError);
   });
 
-  it("AC4: non-existent project throws ProjectNotFoundError", async () => {
-    await expect(epicAdd("NOPE", { title: "Orphan Epic" })).rejects.toThrow(
+  it("AC4: throws ProjectNotFoundError when no project.yaml exists", async () => {
+    // Remove the project.yaml to simulate no project
+    const projectYaml = path.join(tmp.projectsDir, "project.yaml");
+    fs.unlinkSync(projectYaml);
+
+    await expect(epicAdd("TEST", { title: "Orphan Epic" })).rejects.toThrow(
       ProjectNotFoundError,
     );
   });

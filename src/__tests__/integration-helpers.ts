@@ -18,26 +18,24 @@ import { epicAdd } from "../commands/epic.js";
 export interface TmpDirHandle {
   /** Absolute path to the temp PM_HOME directory */
   dir: string;
-  /** Absolute path to the projects sub-directory inside PM_HOME */
+  /** Absolute path to the .pm directory inside PM_HOME */
   projectsDir: string;
   /** Remove the temp directory and restore env vars */
   teardown: () => void;
 }
 
-/**
- * Creates a temp directory, sets PM_HOME to point at it, and returns a handle
- * with a teardown() callback that cleans everything up.
- */
 export function setupTmpDir(): TmpDirHandle {
   const origPmHome = process.env["PM_HOME"];
+  const origCwd = process.cwd();
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pm-integ-"));
-  const projectsDir = path.join(dir, "projects");
-  fs.mkdirSync(projectsDir, { recursive: true });
+  const projectsDir = path.join(dir, ".pm");
 
-  process.env["PM_HOME"] = dir;
+  process.env["PM_HOME"] = projectsDir;
+  process.chdir(dir);
 
   const teardown = () => {
+    process.chdir(origCwd);
     fs.rmSync(dir, { recursive: true, force: true });
     if (origPmHome === undefined) {
       delete process.env["PM_HOME"];

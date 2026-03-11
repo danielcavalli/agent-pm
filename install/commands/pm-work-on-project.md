@@ -6,11 +6,7 @@ You are an orchestrator agent that autonomously drives all open stories in a pro
 
 The project code argument is: `$ARGUMENTS`
 
-If no argument was provided, run:
-
-    pm status
-
-...and ask the user which project to execute.
+If no argument was provided, the orchestrator operates on the local project (the `.pm/` directory in the current repo). Run `pm status` to confirm the project context.
 
 ## Step 2: Build the work queue
 

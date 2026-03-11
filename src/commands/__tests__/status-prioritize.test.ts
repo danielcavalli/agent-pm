@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { status } from "../status.js";
 import { prioritize } from "../prioritize.js";
 import { storyAdd, storyUpdate } from "../story.js";
@@ -10,7 +12,6 @@ import {
   type TmpDirHandle,
   type CapturedOutput,
 } from "../../__tests__/integration-helpers.js";
-import { ProjectNotFoundError } from "../../lib/errors.js";
 
 describe("pm status / pm prioritize (integration)", () => {
   let tmp: TmpDirHandle;
@@ -83,17 +84,27 @@ describe("pm status / pm prioritize (integration)", () => {
     expect(data.next_recommended).not.toBeNull();
   });
 
-  it("AC4: status('NONEXISTENT', {}) throws ProjectNotFoundError", async () => {
-    await expect(status("NONEXISTENT", {})).rejects.toThrow(
-      ProjectNotFoundError,
-    );
+  it("AC4: throws helpful error when no project.yaml exists", async () => {
+    // Remove the project.yaml to simulate no project
+    const projectYaml = path.join(tmp.projectsDir, "project.yaml");
+    fs.unlinkSync(projectYaml);
+
+    await expect(status("TEST", {})).rejects.toThrow("No project.yaml found");
   });
 
   // ── status: epic visibility ───────────────────────────────────────
 
-  it("AC7: status shows epics with no stories in the all-projects view", async () => {
-    // Create an empty epic (no stories)
+  it("AC7: status shows epics with no stories in completed section", async () => {
+    // Create an empty epic and mark it as done by editing the file
     const emptyEpicCode = await seedEpic("TEST", { title: "Empty Epic" });
+    const { readYaml, writeYaml } = await import("../../lib/fs.js");
+    const { EpicSchema } = await import("../../schemas/index.js");
+    const { getPmDir } = await import("../../lib/codes.js");
+    const pmDir = getPmDir();
+    const epicPath = path.join(pmDir, "epics", "E002-empty-epic.yaml");
+    const epic = readYaml(epicPath, EpicSchema);
+    epic.status = "done";
+    writeYaml(epicPath, epic);
 
     out.restore();
     out = captureOutput();
@@ -106,7 +117,7 @@ describe("pm status / pm prioritize (integration)", () => {
     expect(lines).toContain("(no stories)");
   });
 
-  it("AC8: status shows epics with all stories done in the all-projects view", async () => {
+  it("AC8: status shows epics with all stories done in completed section", async () => {
     // Mark both stories as done
     await storyUpdate(`${epicCode}-S001`, { status: "done" });
     await storyUpdate(`${epicCode}-S002`, { status: "done" });
@@ -118,8 +129,8 @@ describe("pm status / pm prioritize (integration)", () => {
 
     const lines = out.log().join("\n");
     expect(lines).toContain(epicCode);
-    // Should show the done count
-    expect(lines).toContain("(2/2)");
+    // Should show the done count in completed section
+    expect(lines).toContain("(2/2 stories)");
   });
 
   it("AC9: single-project view separates active from completed epics", async () => {
@@ -163,7 +174,7 @@ describe("pm status / pm prioritize (integration)", () => {
     expect(lines).toContain("Needs Refinement");
   });
 
-  it("AC11: all-projects JSON view includes full epic data with stories", async () => {
+  it("AC11: JSON view includes full epic data with stories", async () => {
     out.restore();
     out = captureOutput();
 
@@ -172,16 +183,15 @@ describe("pm status / pm prioritize (integration)", () => {
     const jsonStr = out.log().join("\n");
     const data = JSON.parse(jsonStr);
 
-    expect(data).toHaveProperty("projects");
-    expect(data.projects).toHaveLength(1);
-    expect(data.projects[0].code).toBe("TEST");
-    expect(data.projects[0]).toHaveProperty("summary");
-    expect(data.projects[0].summary.epic_count).toBe(1);
-    expect(data.projects[0].summary.story_count).toBe(2);
-    expect(data.projects[0]).toHaveProperty("epics");
-    expect(data.projects[0].epics).toHaveLength(1);
-    expect(data.projects[0].epics[0].code).toBe(epicCode);
-    expect(data.projects[0].epics[0].stories).toHaveLength(2);
+    expect(data).toHaveProperty("project");
+    expect(data.project.code).toBe("TEST");
+    expect(data).toHaveProperty("summary");
+    expect(data.summary.epic_count).toBe(1);
+    expect(data.summary.story_count).toBe(2);
+    expect(data).toHaveProperty("epics");
+    expect(data.epics).toHaveLength(1);
+    expect(data.epics[0].code).toBe(epicCode);
+    expect(data.epics[0].stories).toHaveLength(2);
   });
 
   it("AC12: single-project JSON view includes epic description field", async () => {

@@ -1,0 +1,121 @@
+id: E006
+code: PM-E006
+title: Interactive TUI Dashboard
+description: >
+  A full-screen interactive terminal UI (pm tui) built with ink (React for
+  terminals). Displays a navigable tree of all projects, epics, and stories.
+  Intended to run in a tmux split pane or a second terminal window alongside
+  OpenCode, giving a live project board while prompting agents in the main pane.
+status: done
+priority: high
+created_at: "2026-03-09"
+stories:
+  - id: S001
+    code: PM-E006-S001
+    title: Set up ink and TUI entry point
+    description: >
+      Install ink, react, @types/react, and ink-spinner as dependencies.
+      Create src/tui/index.tsx as the TUI entry point (separate from the
+      CLI entry). Register "pm tui" as a CLI sub-command that launches the
+      ink app full-screen. The app should initialize by reading all project
+      and epic YAML files and building an in-memory tree, then render the
+      layout shell (left tree panel + right detail panel + bottom status bar).
+    acceptance_criteria:
+      - pm tui launches without crashing
+      - Full-screen layout renders with two panels and a status bar
+      - Pressing q exits cleanly and restores the terminal
+      - App reads and builds the project tree on startup
+    status: done
+    priority: high
+    story_points: 3
+    notes: ""
+
+  - id: S002
+    code: PM-E006-S002
+    title: Implement navigable project/epic/story tree
+    description: >
+      Build the left panel tree component. The tree is three levels deep:
+      Project > Epic > Story. All projects are shown; epics are expandable
+      per project (expanded by default); stories are listed under each epic.
+      Arrow key navigation moves the cursor up/down through visible rows.
+      Enter toggles expand/collapse on Project and Epic nodes. Each row
+      shows: indentation, a status icon (○ backlog, ● in_progress, ✓ done,
+      ✗ cancelled), the item code, and the title truncated to fit.
+    acceptance_criteria:
+      - Up/down arrows move cursor through all visible rows
+      - Enter on an Epic collapses its stories; Enter again expands them
+      - Enter on a Project collapses all its epics
+      - Status icons render correctly for all four statuses
+      - Cursor wraps from last row to first and vice versa
+    status: done
+    priority: high
+    story_points: 5
+    notes: ""
+
+  - id: S003
+    code: PM-E006-S003
+    title: Implement detail panel for selected item
+    description: >
+      Build the right panel that renders the full details of the currently
+      selected tree node. For a Story: show code, title, status, priority,
+      story_points, description, and acceptance criteria as a numbered list.
+      For an Epic: show code, title, status, priority, description, and
+      story count breakdown (N backlog / N in_progress / N done).
+      For a Project: show code, name, status, description, tech_stack, and
+      epic summary. All text wraps to fit the panel width.
+    acceptance_criteria:
+      - Selecting a Story in the tree renders all story fields in the detail panel
+      - Selecting an Epic renders epic fields and story count breakdown
+      - Selecting a Project renders project fields and epic summary
+      - Long descriptions and criteria wrap within the panel width
+      - Detail panel updates immediately on cursor move
+    status: done
+    priority: high
+    story_points: 3
+    notes: ""
+
+  - id: S004
+    code: PM-E006-S004
+    title: Implement file watcher and live reload
+    description: >
+      Use Node.js fs.watch (or chokidar) to watch the projects/ directory
+      for changes to any *.yaml file. When a change is detected, re-read
+      the affected file, rebuild the in-memory tree, and trigger a re-render.
+      The cursor position should be preserved if the currently selected item
+      still exists after reload. Show a brief "Reloading..." indicator in the
+      status bar during reload. This enables the TUI to reflect story status
+      changes made by agents in real time.
+    acceptance_criteria:
+      - Editing a story status in a yaml file updates the TUI within 1 second
+      - Cursor stays on the same item after reload if the item still exists
+      - Adding a new story to a yaml file adds it to the tree
+      - Reloading indicator appears briefly in status bar during reload
+      - No crash if a yaml file is temporarily empty during an edit
+    status: done
+    priority: high
+    story_points: 3
+    notes: ""
+
+  - id: S005
+    code: PM-E006-S005
+    title: Add filter, copy-code, and keybind help bar
+    description: >
+      Add the following keyboard shortcuts: (f) cycle status filter —
+      show All / Backlog / In Progress / Done stories; (c or y) copy the
+      code of the currently selected item to the system clipboard using
+      clipboardy; (/) open an inline search that filters tree rows by
+      title substring; (Escape) clear search/filter and return to full tree.
+      The bottom status bar must always show: current item code, active
+      filter label, and a one-line keybind legend (arrows navigate, enter
+      expand, f filter, / search, c copy, q quit).
+    acceptance_criteria:
+      - f cycles through All / Backlog / In Progress / Done filters
+      - Filtered tree only shows stories matching the filter (epics/projects always visible)
+      - c copies current item code to clipboard (e.g. PM-E001-S002)
+      - / opens search; typing filters visible tree rows by title
+      - Escape clears search and restores full tree
+      - Status bar shows item code, filter, and keybind legend at all times
+    status: done
+    priority: medium
+    story_points: 5
+    notes: ""

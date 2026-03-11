@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { ProjectSchema } from "../project.schema.js";
 import { EpicSchema } from "../epic.schema.js";
-import { StorySchema, StoryPointsSchema } from "../story.schema.js";
+import {
+  StorySchema,
+  StoryPointsSchema,
+  ResolutionTypeSchema,
+} from "../story.schema.js";
 
 // ── Project schema ────────────────────────────────────────────────────────────
 
@@ -194,6 +198,73 @@ describe("StorySchema", () => {
       depends_on: ["invalid-code"],
     });
     expect(result.success).toBe(false);
+  });
+
+  it("accepts a conflict resolution task with all fields", () => {
+    const conflictTask = {
+      ...validStory,
+      code: "PM-E034-S001",
+      title: "[CONFLICT] Authentication method conflict",
+      resolution_type: "conflict",
+      conflicting_assumptions: [
+        { assumption: "Use OAuth 2.0", source_report_id: "R001" },
+        { assumption: "Use API keys", source_report_id: "R002" },
+      ],
+      source_reports: ["R001", "R002"],
+    };
+    const result = StorySchema.safeParse(conflictTask);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.resolution_type).toBe("conflict");
+      expect(result.data.conflicting_assumptions).toHaveLength(2);
+      expect(result.data.source_reports).toEqual(["R001", "R002"]);
+    }
+  });
+
+  it("accepts a gap resolution task with all fields", () => {
+    const gapTask = {
+      ...validStory,
+      code: "PM-E034-S002",
+      title: "[GAP] Missing user_permissions definition",
+      resolution_type: "gap",
+      undefined_concept: "user_permissions",
+      referenced_in: ["R001", "C003"],
+    };
+    const result = StorySchema.safeParse(gapTask);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.resolution_type).toBe("gap");
+      expect(result.data.undefined_concept).toBe("user_permissions");
+      expect(result.data.referenced_in).toEqual(["R001", "C003"]);
+    }
+  });
+
+  it("rejects invalid resolution_type value", () => {
+    const result = StorySchema.safeParse({
+      ...validStory,
+      resolution_type: "invalid",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("ResolutionTypeSchema", () => {
+  it("accepts conflict", () => {
+    expect(ResolutionTypeSchema.safeParse("conflict").success).toBe(true);
+  });
+
+  it("accepts gap", () => {
+    expect(ResolutionTypeSchema.safeParse("gap").success).toBe(true);
+  });
+
+  it("rejects implementation", () => {
+    expect(ResolutionTypeSchema.safeParse("implementation").success).toBe(
+      false,
+    );
+  });
+
+  it("rejects empty string", () => {
+    expect(ResolutionTypeSchema.safeParse("").success).toBe(false);
   });
 });
 

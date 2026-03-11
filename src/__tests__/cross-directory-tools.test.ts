@@ -28,11 +28,13 @@ function pm(args: string, env: Record<string, string>): string {
 
 describe("Cross-directory PM tool usage (E018-S003)", () => {
   let tmpHome: string;
+  let pmDir: string;
   let env: Record<string, string>;
 
   beforeEach(() => {
     tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "pm-e2e-"));
-    env = { PM_HOME: tmpHome };
+    pmDir = path.join(tmpHome, ".pm");
+    env = { PM_HOME: pmDir };
 
     // Initialize a test project
     pm(

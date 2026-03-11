@@ -1,11 +1,12 @@
 # pm -- Project Management for AI Agents
 
-A file-based project management tool that enables AI agents in **OpenCode** and **Claude Code** to autonomously create, track, and execute software projects from any working directory. Data is stored as YAML files in `~/.pm/`, accessible via a global CLI, MCP tools, and slash commands.
+A file-based project management tool that enables AI agents in **OpenCode** and **Claude Code** to autonomously create, track, and execute software projects. Data is stored as YAML files in a `.pm/` directory at the repository root, making project management data git-trackable alongside your code.
 
 A key differentiator: agents can **autonomously file work they discover** during unrelated tasks. An agent fixing a bug in one repository can notice tech debt and file it as a story in PM without leaving its current context.
 
 ## Features
 
+- **Local-First Storage** -- `.pm/` directory at repo root, git-trackable alongside your code
 - **Global CLI** (`pm`) -- works from any directory on the system
 - **MCP Server** -- exposes `pm_status`, `pm_epic_add`, `pm_story_add` as tools available in every agent session
 - **Slash Commands** -- 11 `/pm-*` commands for interactive workflows
@@ -43,9 +44,26 @@ The installer performs the following steps:
 
 If neither client is detected, the CLI is still installed globally -- you can re-run `install.sh` after setting up a client.
 
+### Initializing a Project
+
+After installation, initialize PM in your repository:
+
+```bash
+cd /path/to/your/repo
+pm init --name "My App" --code MYAPP --description "A web application"
+```
+
+This creates a `.pm/` directory at the repository root containing:
+
+- `project.yaml` -- project definition
+- `epics/` -- epic files with embedded stories
+- `index.yaml` -- auto-maintained project index
+
+The `.pm/` directory should be committed to git so project data is versioned alongside your code.
+
 ### Per-Project Agent Rules
 
-Agent rules (autonomous filing instructions) are opt-in per repository. After creating a project, run:
+Agent rules (autonomous filing instructions) are opt-in per repository. After running `pm init`, run:
 
 ```bash
 pm rules init
@@ -57,7 +75,8 @@ This writes the PM filing rules into the current repo's `AGENTS.md`. Agents work
 
 ```bash
 pm --version          # Should print 0.0.1-alpha
-pm status             # Should show project overview (empty if no projects yet)
+cd /path/to/your/repo
+pm status             # Should show project overview (after pm init)
 ```
 
 In OpenCode or Claude Code, the MCP tools should be available immediately:
@@ -70,39 +89,38 @@ In OpenCode or Claude Code, the MCP tools should be available immediately:
 
 ### CLI
 
-The `pm` CLI works from any directory. All data is stored in `~/.pm/` (configurable via `PM_HOME`).
+The `pm` CLI works from within a repository that has a `.pm/` directory. All data is stored locally in `.pm/`.
 
 ```bash
-# Create a project
+# Initialize a project in the current repo
 pm init --name "My App" --code MYAPP --description "A web application"
 
-# Add an epic
-pm epic add MYAPP --title "Authentication" --description "User auth system"
+# Add an epic (project code auto-detected from .pm/project.yaml)
+pm epic add --title "Authentication" --description "User auth system"
 
-# Add a story to the epic
-pm story add MYAPP-E001 --title "JWT middleware" --points 3 --priority high \
+# Add a story to the epic (epic number auto-detected if only one epic)
+pm story add --title "JWT middleware" --points 3 --priority high \
   --criteria "JWT tokens are validated on every request" \
   --criteria "Expired tokens return 401"
 
 # View status
-pm status              # All projects
-pm status MYAPP        # Single project detail
+pm status              # Shows the local project
 
 # List epics and stories
-pm epic list MYAPP
-pm story list MYAPP-E001
+pm epic list
+pm story list E001
 
 # Start working on a story (marks it in_progress)
-pm work MYAPP-E001-S001
+pm work E001-S001
 
 # Update story status
-pm story update MYAPP-E001-S001 --status done
+pm story update E001-S001 --status done
 
 # Re-prioritize
-pm prioritize MYAPP --strategy "by business value"
+pm prioritize --strategy "by business value"
 
-# Migrate data from a legacy location
-pm migrate --source ./projects/
+# Migrate from global ~/.pm/ storage (legacy)
+pm migrate --to-local --code MYAPP --target /path/to/repo
 
 # Launch interactive TUI dashboard
 pm tui
@@ -168,27 +186,29 @@ Features:
 ## Architecture
 
 ```
-~/.pm/                                    # Global data directory
-  projects/
-    index.yaml                            # Auto-maintained project index
-    {CODE}/
-      project.yaml                        # Project definition
-      epics/
-        E{NNN}-{slug}.yaml                # Epic with embedded stories
+your-repo/                                 # Your repository
+  .pm/                                     # Local project data (git-trackable)
+    project.yaml                           # Project definition
+    index.yaml                             # Auto-maintained index
+    epics/
+      E{NNN}-{slug}.yaml                   # Epic with embedded stories
+    comments/                              # Cross-task agent commentary
+    adrs/                                  # Architecture Decision Records
+    reports/                               # Execution reports
 
-agent-pm/                                 # Source repository
+agent-pm/                                  # Source repository (this repo)
   src/
     cli.ts                                # CLI entry point (commander.js)
-    mcp-server.ts                         # MCP server (3 tools over stdio)
+    mcp-server.ts                          # MCP server (3 tools over stdio)
     commands/                             # CLI command implementations
-      rules.ts                            # Per-project agent rules (init/remove)
-    schemas/                              # Zod validation schemas
-    lib/                                  # Helpers (codes, fs, index)
-    tui/                                  # ink-based TUI components
+      rules.ts                             # Per-project agent rules (init/remove)
+    schemas/                               # Zod validation schemas
+    lib/                                   # Helpers (codes, fs, index)
+    tui/                                   # ink-based TUI components
   install/
-    install.sh                            # Multi-client installer
-    commands/                             # Canonical slash command files
-    agents-rules.md                       # Autonomous filing rules template
+    install.sh                             # Multi-client installer
+    commands/                              # Canonical slash command files
+    agents-rules.md                        # Autonomous filing rules template
 ```
 
 ### Design Principles
@@ -196,7 +216,7 @@ agent-pm/                                 # Source repository
 1. **Files are the API.** Agents read and write YAML files directly. The CLI is a convenience wrapper with validation.
 2. **Flat over nested.** Epics are separate files; stories live inside epic files.
 3. **Codes are stable identifiers.** `PM-E001-S003` uniquely identifies a story across all agents and sessions.
-4. **Global by default.** Data, CLI, MCP tools, and commands all resolve to fixed global paths -- never relative to `cwd()`.
+4. **Local-first.** Data lives in `.pm/` at the repository root, versioned alongside your code.
 5. **Client-agnostic.** The MCP server provides a universal tool interface that works identically in OpenCode and Claude Code.
 
 ### Naming Conventions
@@ -210,12 +230,26 @@ agent-pm/                                 # Source repository
 
 ## Data Directory
 
-All project data lives in `~/.pm/` by default. Override with the `PM_HOME` environment variable:
+All project data lives in `.pm/` at the repository root. This makes project management data git-trackable alongside your code.
+
+For testing and CI environments, you can override the data directory location with the `PM_HOME` environment variable:
 
 ```bash
-export PM_HOME=/custom/path
-pm status    # Uses /custom/path/projects/
+export PM_HOME=/tmp/test-pm
+pm status    # Uses /tmp/test-pm/.pm/
 ```
+
+**Note:** `PM_HOME` is intended for test isolation and CI workflows. In normal usage, PM auto-detects the `.pm/` directory via git root resolution.
+
+### Migration from Global Storage
+
+If you have existing data in the legacy global `~/.pm/` directory, use the migration command:
+
+```bash
+pm migrate --to-local --code MYAPP --target /path/to/your/repo
+```
+
+This copies the project data to `.pm/` in the target repository and flattens the directory structure.
 
 ## License
 

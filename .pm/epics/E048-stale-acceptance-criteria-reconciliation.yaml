@@ -1,0 +1,100 @@
+id: E048
+code: PM-E048
+title: Stale Acceptance Criteria Reconciliation
+description: >-
+  Housekeeping epic — 9 stories across 6 completed epics have acceptance criteria that no longer match the architecture
+  due to the OpenCode plugin-to-MCP migration and global-to-per-project rules shift. Update criteria to reflect reality,
+  mark cancelled items, and fix minor issues (schema re-export, test description, index count, doc typo).
+status: backlog
+priority: low
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E048-S001
+    title: Update E015-S004 and E016-S001 for MCP migration
+    description: >-
+      Update acceptance criteria on E015-S004 and E016-S001 to reflect that the MCP server replaced the OpenCode plugin
+      tools approach. The functionality works via MCP; the criteria should reflect that.
+    acceptance_criteria:
+      - E015-S004 criteria reference MCP server registration instead of custom tools copy
+      - E016-S001 criteria reference src/mcp-server.ts instead of install/opencode/tools/pm.ts
+      - Both stories remain marked as done
+    status: backlog
+    priority: low
+    story_points: 1
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E048-S002
+    title: Mark E018-S002 pm-reminder as cancelled
+    description: >-
+      Mark the pm-reminder compaction plugin story (E018-S002) as cancelled/wont-do since the OpenCode plugin system was
+      deprecated in favor of MCP.
+    acceptance_criteria:
+      - E018-S002 status is updated to cancelled
+      - A note is added explaining the plugin system was deprecated
+    status: backlog
+    priority: low
+    story_points: 1
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E048-S003
+    title: Update E022-S003 and E028-S005 for per-project rules
+    description: >-
+      Update acceptance criteria on E022-S003 and E028-S005 to reflect that agent rules are now per-project (via pm
+      rules init) instead of globally injected into AGENTS.md.
+    acceptance_criteria:
+      - E022-S003 criteria reference per-project pm rules init instead of global AGENTS.md injection
+      - E028-S005 criteria reference per-project rules model
+      - Both stories remain marked as done
+    status: backlog
+    priority: low
+    story_points: 1
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E048-S004
+    title: Update E003-S005 criterion for CLI commands
+    description: >-
+      Update E003-S005 acceptance criterion 3 to specify that the prioritize slash command uses pm story update CLI
+      commands instead of direct YAML editing.
+    acceptance_criteria:
+      - E003-S005 criterion 3 references pm story update --priority CLI command
+      - No reference to direct YAML file editing
+    status: backlog
+    priority: low
+    story_points: 1
+    depends_on: []
+    notes: ''
+  - id: S005
+    code: PM-E048-S005
+    title: Resolve E020-S003 .claude/commands/ symlinks
+    description: >-
+      Either create .claude/commands/ symlinks in the repo mirroring .opencode/commands/ structure, or update E020-S003
+      to document why it was intentionally skipped (install.sh handles global install).
+    acceptance_criteria:
+      - Either .claude/commands/ directory exists with symlinks OR E020-S003 is annotated explaining the skip
+      - Decision is documented
+    status: backlog
+    priority: low
+    story_points: 1
+    depends_on: []
+    notes: ''
+  - id: S006
+    code: PM-E048-S006
+    title: Fix minor code and doc issues
+    description: >-
+      Fix: (1) re-export task-start.schema from schemas/index.ts, (2) update MCP test description from six to nine
+      tools, (3) fix rebuildIndex() to exclude cancelled stories from count, (4) fix typo in
+      doc/cross-task-comment-schema.md consumed: -> consumed_by:.
+    acceptance_criteria:
+      - task-start.schema.ts types are re-exported from src/schemas/index.ts
+      - mcp-server.test.ts description matches actual tool count
+      - rebuildIndex() excludes cancelled stories from story_count
+      - 'doc/cross-task-comment-schema.md typo consumed: fixed to consumed_by:'
+    status: in_progress
+    priority: low
+    story_points: 2
+    depends_on: []
+    notes: ''

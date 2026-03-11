@@ -1,0 +1,96 @@
+id: E041
+code: PM-E041
+title: Local-First Documentation
+description: >-
+  Update all documentation to reflect the local-first .pm/ storage architecture. Covers README, PRD, CONTRIBUTING,
+  AGENTS.md, agent-rules template, and all 11 slash commands. Replaces ~/.pm/ references with .pm/, documents PM_HOME as
+  test/CI-only override. Depends on all other local-first epics.
+status: backlog
+priority: high
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E041-S001
+    title: Update README.md for local-first storage
+    description: >-
+      Replace all ~/.pm/ references with .pm/. Update directory tree example. Update installation and usage sections.
+      Document that PM_HOME is now a test/CI override only.
+    acceptance_criteria:
+      - Zero ~/.pm/ references in README.md (except in migration/history section)
+      - Directory tree example shows .pm/ at repo root
+      - PM_HOME documented as test/CI override, not primary config
+      - Installation section reflects new pm init behavior
+    status: done
+    priority: high
+    story_points: 2
+    depends_on:
+      - PM-E037-S001
+    notes: ''
+  - id: S002
+    code: PM-E041-S002
+    title: Update PRD.md for local-first architecture
+    description: >-
+      Revise architecture section, storage spec, directory tree, and migration instructions. Mark global storage as
+      deprecated. Update all path references.
+    acceptance_criteria:
+      - Architecture section describes .pm/ at repo root as primary storage
+      - Global ~/.pm/ marked as deprecated/legacy
+      - Directory tree examples updated to .pm/ structure
+      - Migration instructions reference pm migrate --to-local
+    status: done
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E037-S001
+    notes: ''
+  - id: S003
+    code: PM-E041-S003
+    title: Update CONTRIBUTING.md and AGENTS.md
+    description: >-
+      Update developer setup, test isolation docs, and agent rules. Fix consumed-by tracking section that references
+      PROJECT/comments/. Update all path references to .pm/ local structure.
+    acceptance_criteria:
+      - CONTRIBUTING.md references .pm/ local structure
+      - AGENTS.md consumed-by section uses correct local paths
+      - Test isolation docs explain PM_HOME override for local .pm/
+      - Zero stale ~/.pm/ references in agent-facing sections
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on:
+      - PM-E037-S001
+    notes: ''
+  - id: S004
+    code: PM-E041-S004
+    title: Update agents-rules.md template
+    description: >-
+      Ensure the autonomous filing rules reference local .pm/ discovery and optional project codes. Update pm_status and
+      other tool references to mention workdir.
+    acceptance_criteria:
+      - agents-rules.md references .pm/ at repo root, not ~/.pm/
+      - Tool usage examples show optional project codes
+      - MCP tool usage mentions workdir parameter
+      - No stale global storage references
+    status: done
+    priority: medium
+    story_points: 1
+    depends_on:
+      - PM-E039-S003
+    notes: ''
+  - id: S005
+    code: PM-E041-S005
+    title: Review and update all 11 slash commands
+    description: >-
+      Review all slash commands in install/commands/ for global storage assumptions. Update pm-create-project.md to
+      reflect pm init creating .pm/ locally. Verify no commands assume multi-project global registry.
+    acceptance_criteria:
+      - pm-create-project.md describes pm init creating .pm/ locally
+      - No slash command references ~/.pm/ or global project registry
+      - Commands that take project codes note they are optional
+      - All 11 commands reviewed and updated where needed
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on:
+      - PM-E038-S001
+    notes: ''

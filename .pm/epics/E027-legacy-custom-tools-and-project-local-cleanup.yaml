@@ -1,0 +1,82 @@
+id: E027
+code: PM-E027
+title: Legacy Custom Tools and Project-Local Cleanup
+description: >-
+  The custom tools layer (install/opencode/tools/pm.ts using @opencode-ai/plugin SDK) is being replaced by the PM MCP
+  Server (PM-E021) as the universal tool interface for both OpenCode and Claude Code. This epic removes all artifacts of
+  the custom tools approach: the tool file itself, the tools-copy step in install.sh, the .opencode/ project-local
+  directory (package.json, bun.lock, node_modules/ that only served the plugin SDK), the orphaned global config
+  artifacts, and migrates the pm-reminder plugin to an MCP-compatible approach.   Depends on PM-E021 (MCP server) being
+  completed first.
+status: done
+priority: high
+created_at: "2026-03-10"
+stories:
+  - id: S001
+    code: PM-E027-S001
+    title: Remove install/opencode/tools/pm.ts and tools-copy step from install.sh
+    description: >-
+      Delete install/opencode/tools/pm.ts (the @opencode-ai/plugin custom tool that shells out to pm CLI). Remove the
+      Step 2 tools-copy block from install/install.sh that copies tools to ~/.config/opencode/tools/. This file is
+      replaced by the MCP server from PM-E021.
+    acceptance_criteria:
+      - install/opencode/tools/pm.ts is deleted
+      - install.sh no longer copies files to ~/.config/opencode/tools/
+      - The tools-copy step in install.sh is replaced or removed
+    status: done
+    priority: high
+    story_points: 1
+    notes: ""
+  - id: S002
+    code: PM-E027-S002
+    title: Delete .opencode/ project-local legacy artifacts
+    description: >-
+      The .opencode/ project-local directory contains legacy artifacts that only served the @opencode-ai/plugin custom
+      tools layer: package.json (depends on @opencode-ai/plugin 1.1.51), bun.lock, .gitignore, and node_modules/
+      (containing zod, @opencode-ai/sdk, @opencode-ai/plugin). Delete all of these. The .opencode/commands/ directory is
+      handled separately by PM-E020 (symlinks or removal).
+    acceptance_criteria:
+      - .opencode/package.json is deleted
+      - .opencode/bun.lock is deleted
+      - .opencode/.gitignore is deleted
+      - .opencode/node_modules/ is deleted
+      - .opencode/ directory only contains commands/ (if symlinks from E020 exist) or is fully removed
+    status: done
+    priority: high
+    story_points: 1
+    notes: ""
+  - id: S003
+    code: PM-E027-S003
+    title: Clean up @opencode-ai/plugin artifacts from global config
+    description: >-
+      After the MCP server replaces custom tools, the globally-deployed artifacts at ~/.config/opencode/ need cleanup:
+      tools/pm.ts (orphaned tool file), package.json (only dependency was @opencode-ai/plugin), and associated
+      node_modules/. The install.sh should handle this cleanup, or document it as a manual step. Verify OpenCode doesn't
+      error on startup after removal.
+    acceptance_criteria:
+      - /home/dan/.config/opencode/tools/pm.ts is removed
+      - /home/dan/.config/opencode/package.json no longer depends on @opencode-ai/plugin
+      - /home/dan/.config/opencode/node_modules/ is cleaned up or removed if no other dependencies remain
+      - OpenCode still functions correctly (no errors from missing tool file)
+    status: done
+    priority: medium
+    story_points: 1
+    notes: ""
+  - id: S004
+    code: PM-E027-S004
+    title: Migrate pm-reminder plugin to MCP-compatible approach
+    description: >-
+      The pm-reminder.ts plugin uses the @opencode-ai/plugin SDK to hook into experimental.session.compacting events,
+      reminding agents to file discovered work before context is lost. Since we are removing the @opencode-ai/plugin
+      dependency in favor of MCP, this plugin needs to be either: (a) migrated to an MCP-compatible approach (e.g., MCP
+      prompt that gets injected into context), or (b) removed with a note that AGENTS.md rules provide the primary
+      autonomous filing guidance.
+    acceptance_criteria:
+      - install/opencode/plugins/pm-reminder.ts is removed or replaced with MCP-compatible version
+      - "If migrated: the reminder functionality works via MCP (e.g., as an MCP prompt or resource)"
+      - "If deferred: the file is removed and a note is added to documentation about future implementation"
+      - No references to @opencode-ai/plugin remain in the install/ directory
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ""

@@ -1,0 +1,77 @@
+id: E018
+code: PM-E018
+title: AGENTS.md Rules and Plugin Hook
+description: >-
+  Write autonomous filing rules for ~/.config/opencode/AGENTS.md that instruct agents when and how to file discovered
+  work using PM custom tools. Create an optional pm-reminder compaction plugin that reminds agents to file discoveries
+  before context is lost. Validate that agents in unrelated projects can see and use PM tools correctly.
+status: done
+priority: medium
+created_at: '2026-03-10'
+stories:
+  - id: S001
+    code: PM-E018-S001
+    title: Write PM autonomous filing rules for ~/.config/opencode/AGENTS.md
+    description: >-
+      Create the AGENTS.md rules content that will be appended to ~/.config/opencode/AGENTS.md by install.sh. Rules
+      should cover: when to file (bugs, tech debt, missing features, missing tests, performance concerns), when NOT to
+      file (related to current task, trivial, uncertain), and how to file (check status first, choose epic vs story, use
+      clear titles, continue current task). Content should match PRD Section 7.3.
+    acceptance_criteria:
+      - Rules cover all 5 'when to file' scenarios from PRD
+      - Rules cover all 3 'when NOT to file' scenarios from PRD
+      - Rules include the 5-step 'how to file' workflow from PRD
+      - Content is stored in install/ directory for install.sh to use
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S002
+    code: PM-E018-S002
+    title: Create optional pm-reminder compaction plugin
+    description: >-
+      Create install/opencode/plugins/pm-reminder.ts that implements the experimental.session.compacting hook. When
+      context is being compacted, inject a reminder for agents to file any discovered but unfiled bugs, tech debt, or
+      improvements using pm_story_add or pm_epic_add. Plugin should follow the structure in PRD Section 7.4.
+    acceptance_criteria:
+      - Plugin implements experimental.session.compacting hook
+      - Reminder text mentions pm_story_add and pm_epic_add tools
+      - Plugin follows PRD Section 7.4 structure
+      - install.sh copies plugin to ~/.config/opencode/plugins/
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ''
+  - id: S003
+    code: PM-E018-S003
+    title: Test that agents in unrelated projects can see and use PM tools
+    description: >-
+      End-to-end validation that an agent working in a completely different codebase can: (1) call pm_status to see
+      existing projects, (2) call pm_story_add to file a story, (3) call pm_epic_add to file an epic. This validates the
+      full autonomous filing workflow from PRD Workflow D.
+    acceptance_criteria:
+      - Agent in unrelated directory can call pm_status and see projects
+      - Agent in unrelated directory can file a story via pm_story_add
+      - Agent in unrelated directory can file an epic via pm_epic_add
+      - Filed items appear in pm status output
+    status: done
+    priority: medium
+    story_points: 3
+    notes: ''
+  - id: S004
+    code: PM-E018-S004
+    title: Validate agents follow the when to file / when not to file guidelines
+    description: >-
+      Review the AGENTS.md rules and custom tool descriptions holistically to ensure they provide clear,
+      non-contradictory guidance. Verify that the 'when to file' and 'when NOT to file' boundaries are crisp — agents
+      should not file trivially, but should capture genuine discoveries. Test with example scenarios from PRD Section 10
+      (Workflow D and E).
+    acceptance_criteria:
+      - Rules are clear and non-contradictory
+      - PRD Workflow D scenario (MD5 password hashing) would trigger correct filing
+      - PRD Workflow E scenario (new project creation) includes user notification
+      - Trivial issues (under 2 min fix) would NOT trigger filing per the rules
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ''

@@ -1,0 +1,74 @@
+id: E016
+code: PM-E016
+title: OpenCode Custom Tools for Autonomous Filing
+description: >-
+  Create OpenCode custom tools (pm_epic_add, pm_story_add, pm_status) that allow agents to autonomously file epics and
+  stories from any project context. Tools are installed to ~/.config/opencode/tools/pm.ts and invoke the
+  globally-installed pm CLI. Agent-guiding descriptions tell agents when and how to file items.
+status: done
+priority: high
+created_at: '2026-03-10'
+stories:
+  - id: S001
+    code: PM-E016-S001
+    title: Create install/opencode/tools/pm.ts with epic_add, story_add, status tools
+    description: >-
+      Create the custom tools file at install/opencode/tools/pm.ts. Implement three exported tools: epic_add (files a
+      new epic), story_add (files a new story to an existing epic), and status (shows PM status). Each tool should use
+      the OpenCode tool() API with proper schema definitions for arguments.
+    acceptance_criteria:
+      - install/opencode/tools/pm.ts exports epic_add, story_add, and status tools
+      - Each tool has a Zod schema for its arguments
+      - Tools use the @opencode-ai/plugin tool() API
+      - File follows the exact structure from PRD Section 7.1
+    status: done
+    priority: high
+    story_points: 3
+    notes: ''
+  - id: S002
+    code: PM-E016-S002
+    title: Ensure tools call pm CLI (not import TS modules) for clean separation
+    description: >-
+      Custom tools must invoke the globally-installed pm CLI binary (e.g. via Bun.$ or child_process.exec), not import
+      internal TypeScript modules directly. This ensures tools work regardless of where they are installed and maintains
+      clean separation between the tool layer and the CLI implementation.
+    acceptance_criteria:
+      - Tools execute pm CLI commands via shell (Bun.$ or exec)
+      - No direct TypeScript imports from src/ modules
+      - Tools work when installed to ~/.config/opencode/tools/ (outside the repo)
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S003
+    code: PM-E016-S003
+    title: Add tool descriptions that guide agents on when/how to file items
+    description: >-
+      Write clear, prescriptive description strings for each tool that teach agents: (1) what the tool does, (2) when to
+      use it vs not, (3) the difference between filing an epic vs a story. Descriptions should match the guidance in PRD
+      Section 7.1 and 7.3.
+    acceptance_criteria:
+      - epic_add description explains when to file epics vs stories
+      - story_add description explains it is for specific actionable work items
+      - status description explains to check existing projects before filing
+      - Descriptions match PRD Section 7.1 spec wording
+    status: done
+    priority: high
+    story_points: 2
+    notes: ''
+  - id: S004
+    code: PM-E016-S004
+    title: Test tools work from a different project directory
+    description: >-
+      Verify the custom tools function correctly when invoked from a working directory that is NOT the
+      project-management repo. Test that epic_add, story_add, and status all resolve data from PM_HOME and return
+      correct results. This validates the end-to-end autonomous filing workflow.
+    acceptance_criteria:
+      - pm_status returns correct project data from any directory
+      - pm_story_add creates a story when invoked from an unrelated project
+      - pm_epic_add creates an epic when invoked from an unrelated project
+      - Tools report clear errors if pm CLI is not installed
+    status: done
+    priority: medium
+    story_points: 2
+    notes: ''

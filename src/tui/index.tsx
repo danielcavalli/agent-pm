@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useMemo } from "react";
 import { render, Box, Text, useInput, useApp, useStdout } from "ink";
 import type { Key } from "ink";
 import clipboard from "clipboardy";
@@ -8,12 +8,14 @@ import {
   restoreCursor,
 } from "./hooks/useFileWatcher.js";
 import { useProjectTree } from "./hooks/useProjectTree.js";
-import { getProjectsDir } from "../lib/codes.js";
+import { getPmDir } from "../lib/codes.js";
+import { PmError } from "../lib/errors.js";
 import { TreePanel, flattenTree } from "./components/Tree.js";
 import type { FlatRow } from "./components/Tree.js";
 import { DetailPanel } from "./components/DetailPanel.js";
 import { StatusBar } from "./components/StatusBar.js";
-import type { ProjectNode, TreeNode, FilterMode } from "./types.js";
+import type { EpicNode, TreeNode, FilterMode } from "./types.js";
+import { NoPmDirectoryError } from "./loadTree.js";
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
@@ -25,10 +27,10 @@ function App() {
   const termHeight = stdout?.rows ?? 40;
 
   const leftWidth = Math.floor(termWidth * 0.4);
-  const rightWidth = termWidth - leftWidth - 1; // -1 for divider
-  const bodyHeight = termHeight - 3; // -1 title, -1 status bar, -1 border
+  const rightWidth = termWidth - leftWidth - 1;
+  const bodyHeight = termHeight - 3;
 
-  const { projects, setProjects, reload } = useProjectTree();
+  const { epics, projectName, error, setEpics, reload } = useProjectTree();
   const [cursor, setCursor] = useState(0);
   const [filter, setFilter] = useState<FilterMode>("all");
   const [search, setSearch] = useState("");
@@ -36,10 +38,9 @@ function App() {
   const [statusMessage, setStatusMessage] = useState("");
   const [reloading, setReloading] = useState(false);
 
-  // Stable ref to current rows for cursor preservation during reload
   const rowsRef = useRef<Array<{ key: string }>>([]);
 
-  const rows = flattenTree(projects, filter, search);
+  const rows = flattenTree(epics, filter, search);
   rowsRef.current = rows;
 
   const selectedNode = rows[cursor]?.node ?? null;
@@ -51,6 +52,13 @@ function App() {
   }, []);
 
   useInput((input: string, key: Key) => {
+    if (error) {
+      if (input === "q" || (key.ctrl && input === "c")) {
+        exit();
+      }
+      return;
+    }
+
     if (searching) {
       if (key.escape) {
         setSearching(false);
@@ -90,20 +98,11 @@ function App() {
     if (key.return) {
       const row = rows[cursor];
       if (!row) return;
-      if (row.node.kind === "project") {
-        setProjects((prev) =>
-          prev.map((p) =>
-            p.code === row.node.code ? { ...p, expanded: !p.expanded } : p,
+      if (row.node.kind === "epic") {
+        setEpics((prev) =>
+          prev.map((e) =>
+            e.code === row.node.code ? { ...e, expanded: !e.expanded } : e,
           ),
-        );
-      } else if (row.node.kind === "epic") {
-        setProjects((prev) =>
-          prev.map((p) => ({
-            ...p,
-            epics: p.epics.map((e) =>
-              e.code === row.node.code ? { ...e, expanded: !e.expanded } : e,
-            ),
-          })),
         );
       }
       return;
@@ -144,7 +143,6 @@ function App() {
     }
   });
 
-  // File watcher: live reload when any project YAML changes
   const handleReload = useCallback(() => {
     const currentKey = findCursorKey(rowsRef.current, cursor);
     setReloading(true);
@@ -153,11 +151,9 @@ function App() {
     try {
       reload();
 
-      // Restore cursor after state update (use a micro-task so rows re-compute first)
       setTimeout(() => {
         setReloading(false);
         setStatusMessage("");
-        // We need the new rows to find the cursor — do it after next render via another timeout
         setTimeout(() => {
           const newRows = rowsRef.current;
           const newCursor = restoreCursor(newRows, currentKey);
@@ -170,27 +166,49 @@ function App() {
     }
   }, [cursor, reload]);
 
+  const pmDir = useMemo(() => {
+    try {
+      return getPmDir();
+    } catch {
+      return null;
+    }
+  }, []);
+
   useFileWatcher({
-    projectsDir: getProjectsDir(),
+    projectsDir: pmDir ?? "",
     onReload: handleReload,
     debounceMs: 300,
   });
 
-  // Suppress unused variable warning — reloading is set by watcher
   void reloading;
+
+  if (error) {
+    return (
+      <Box flexDirection="column" width={termWidth} height={termHeight}>
+        <Box width={termWidth} height={1}>
+          <Text backgroundColor="red" color="white" bold>
+            {"  pm tui — Error".padEnd(termWidth)}
+          </Text>
+        </Box>
+        <Box flexDirection="column" width={termWidth} height={bodyHeight + 1}>
+          <Text color="red" bold>
+            Error: {error}
+          </Text>
+          <Text dimColor>Press q to quit</Text>
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box flexDirection="column" width={termWidth} height={termHeight}>
-      {/* Title bar */}
       <Box width={termWidth} height={1}>
         <Text backgroundColor="cyan" color="black" bold>
-          {"  pm tui — Project Management Dashboard".padEnd(termWidth)}
+          {`  pm tui — ${projectName}`.padEnd(termWidth)}
         </Text>
       </Box>
 
-      {/* Main body */}
       <Box flexDirection="row" width={termWidth} height={bodyHeight + 1}>
-        {/* Left: tree panel */}
         <Box
           flexDirection="column"
           width={leftWidth}
@@ -207,7 +225,6 @@ function App() {
           />
         </Box>
 
-        {/* Divider */}
         <Box flexDirection="column" width={1} height={bodyHeight + 1}>
           {Array.from({ length: bodyHeight + 1 }).map((_, i) => (
             <Text key={i} dimColor>
@@ -216,7 +233,6 @@ function App() {
           ))}
         </Box>
 
-        {/* Right: detail panel */}
         <Box
           flexDirection="column"
           width={rightWidth}
@@ -233,7 +249,6 @@ function App() {
         </Box>
       </Box>
 
-      {/* Status bar */}
       <StatusBar
         selectedCode={selectedCode}
         filter={filter}
@@ -249,6 +264,16 @@ function App() {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 export async function launchTui(): Promise<void> {
+  try {
+    getPmDir();
+  } catch (e) {
+    if (e instanceof PmError) {
+      console.error(`\n  Error: ${e.message}\n`);
+      process.exit(1);
+    }
+    throw e;
+  }
+
   const { waitUntilExit } = render(<App />);
   await waitUntilExit();
 }

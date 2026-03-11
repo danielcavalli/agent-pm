@@ -1,0 +1,124 @@
+id: E038
+code: PM-E038
+title: CLI and TUI Single-Project Adaptation
+description: >-
+  Adapt all CLI commands and the TUI for single-project .pm/ storage. pm init creates .pm/ locally, pm status shows only
+  the local project, project codes become optional (auto-detected from .pm/project.yaml), and the TUI is scoped to the
+  current repo. Depends on Local-First Storage Engine epic.
+status: backlog
+priority: high
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E038-S001
+    title: pm init creates .pm/ in current repo
+    description: >-
+      Instead of creating ~/.pm/projects/{CODE}/, create .pm/ in the current directory (or git root). Project code
+      becomes optional — if omitted, derive from directory name. Error if .pm/ already exists.
+    acceptance_criteria:
+      - pm init creates .pm/ in cwd or git root
+      - pm init works without a project code argument, deriving code from directory name
+      - pm init with explicit code still works
+      - pm init errors if .pm/ already exists in the target directory
+      - Created .pm/ contains project.yaml and epics/ subdirectory
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E038-S002
+    title: pm status shows single project only
+    description: >-
+      Remove multi-project listing. pm status (no arg) reads .pm/project.yaml and shows that projects full status.
+      Remove the all-projects summary table. Error with helpful message if no .pm/ found.
+    acceptance_criteria:
+      - pm status with no arguments shows the local project status
+      - Multi-project summary table is removed
+      - pm status errors with helpful message when no .pm/ directory found
+      - JSON output (--json) returns single project data structure
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E038-S003
+    title: Make project code optional on all commands
+    description: >-
+      pm epic add, pm story add, pm work, etc. — when .pm/ exists and contains a single project, infer the project code
+      automatically. The code prefix is still valid when provided but not mandatory.
+    acceptance_criteria:
+      - pm epic add --title X works without specifying project code
+      - pm story add E001 --title X works with just the epic number
+      - pm work E001-S001 works with just epic-story suffix
+      - Explicit full codes (PM-E001-S001) still work
+      - Clear error when .pm/ not found and no code provided
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E038-S004
+    title: pm remove deletes local .pm/
+    description: >-
+      Instead of removing a subdirectory from global storage, pm remove deletes the .pm/ directory in the current repo.
+      Add a confirmation prompt since this is destructive.
+    acceptance_criteria:
+      - pm remove deletes .pm/ in the current repo
+      - Confirmation prompt shown before deletion
+      - pm remove --force skips confirmation
+      - Error if no .pm/ directory found
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S005
+    code: PM-E038-S005
+    title: TUI scoped to single project
+    description: >-
+      Remove multi-project tree root. TUI opens showing the single projects epics directly. File watcher watches .pm/ in
+      the current repo.
+    acceptance_criteria:
+      - TUI shows epics as top-level tree nodes, not nested under a project node
+      - File watcher watches .pm/ relative to git root or cwd
+      - TUI errors with helpful message if no .pm/ found
+      - Status bar shows the project name without multi-project context
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S006
+    code: PM-E038-S006
+    title: pm gc scoped to single project
+    description: Remove all-project iteration from gc. GC operates on the .pm/ in the current repo only.
+    acceptance_criteria:
+      - pm gc run only processes the local .pm/ directory
+      - No iteration over multiple project directories
+      - Error if no .pm/ directory found
+      - Dry-run output reflects single-project scope
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S007
+    code: PM-E038-S007
+    title: Update listProjectCodes() callers for single-project
+    description: >-
+      listProjectCodes() currently scans all global project dirs. Replace with single-project resolution. Callers:
+      status.ts, gc.ts, tui/loadTree.ts.
+    acceptance_criteria:
+      - listProjectCodes() returns only the local project code
+      - status.ts uses single-project resolution
+      - gc.ts uses single-project resolution
+      - tui/loadTree.ts uses single-project resolution
+      - No command attempts to enumerate multiple project directories
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''

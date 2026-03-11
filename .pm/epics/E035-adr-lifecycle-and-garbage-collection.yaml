@@ -1,0 +1,60 @@
+id: E035
+code: PM-E035
+title: ADR Lifecycle and Garbage Collection
+description: >-
+  Policies and automation for comment TTL, report archival after consolidation, and ADR entry invalidation when a
+  decision is superseded. Prevents signal decay and stale-context poisoning without requiring human curation, keeping
+  the knowledge layer lean and trustworthy over time.
+status: backlog
+priority: medium
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E035-S001
+    title: Define comment TTL, report archival, and ADR supersession policies
+    description: >-
+      Document the three lifecycle policies that govern the ADR and commentary layer: (1) Comment TTL — agent-facing
+      comments use dependency-based expiry: a comment is eligible for GC when `consolidated: true` AND either the target
+      agent ID appears in the comment's `consumed_by` list OR the target task status is `completed`. N-days TTL is
+      retained only for human-facing comments, where calendar staleness is meaningful. Human-facing comments never
+      auto-expire unless manually archived; (2) Report archival — reports with `consolidated: true` are eligible for
+      archival to a `.archive/` subdirectory; archival does not delete, it removes items from active agent context; (3)
+      ADR supersession — when a new ADR decision overrides an old one, the old entry transitions to `status: superseded`
+      with a `superseded_by` reference and is excluded from `pm adr query` results by default.
+    acceptance_criteria:
+      - >-
+        Agent-facing comment expiry policy is dependency-based: consolidated=true AND (consumed_by includes target agent
+        ID OR target task is completed)
+      - Human-facing comment TTL is time-based (configurable N days); the distinction from agent-facing is documented
+      - Policy is stored in project config (not hardcoded)
+      - 'Report archival policy defines when a report is eligible (consolidated: true)'
+      - ADR supersession policy defines the state transition and the required superseded_by field
+      - All three policies have worked examples in the documentation
+      - Policies are referenced by the GC automation story (PM-E035-S002)
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E035-S002
+    title: Implement `pm gc run` automation command
+    description: >-
+      Implement the `pm gc run` CLI command that enforces the lifecycle policies defined in PM-E035-S001. Operations:
+      (1) expire agent-facing comments past their TTL by deleting or archiving them from the comment index; (2) archive
+      eligible reports (consolidated: true) by moving them to a `.archive/` subdirectory within the project data
+      directory; (3) mark superseded ADR entries as excluded from default query results. Produces a GC summary report.
+      Can be triggered manually or automatically after a consolidation run. Requires PM-E035-S001 to be complete.
+    acceptance_criteria:
+      - '`pm gc run` command exists and is documented'
+      - Expired agent-facing comments are deleted or moved to archive
+      - 'Eligible reports (consolidated: true) are moved to .archive/ subdirectory'
+      - Superseded ADR entries are excluded from query results
+      - GC run produces a structured summary (N comments expired, M reports archived, K ADRs superseded)
+      - '--dry-run flag prints what would be affected without mutating state'
+      - GC run is idempotent
+    status: done
+    priority: medium
+    story_points: 5
+    depends_on: []
+    notes: ''

@@ -8,7 +8,7 @@ You are a software engineering agent executing a story from the project manageme
 
 - If a story code was passed as an argument (e.g. `/pm-work-on PM-E001-S003`), use it directly.
 - If no argument was given:
-  1. Run `pm status` to see all projects and progress
+  1. Run `pm status` to see the local project's progress
   2. Identify the next highest-priority `backlog` story (prioritize `high` priority, then `in_progress` epics, then story order within epics)
   3. Tell the user: "I'll work on <CODE> — <title>. Proceeding..."
 

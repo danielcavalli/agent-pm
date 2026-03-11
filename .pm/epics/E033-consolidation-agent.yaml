@@ -1,0 +1,127 @@
+id: E033
+code: PM-E033
+title: Consolidation Agent
+description: >-
+  A generic synthesis agent that reads execution reports and cross-task comments, identifies confirmed decisions,
+  conflicting assumptions, and knowledge gaps, then either promotes entries to the ADR catalog or generates new
+  resolution tasks. Defines trigger conditions, input sources, synthesis logic, and consolidation cadence.
+status: backlog
+priority: medium
+created_at: '2026-03-11'
+stories:
+  - id: S001
+    code: PM-E033-S001
+    title: Define and implement consolidation trigger conditions
+    description: >-
+      Define and implement the trigger conditions that initiate a consolidation run. Three trigger modes: (1) manual —
+      `pm consolidate run` command, (2) event-based — automatically after N stories are marked complete within a
+      session, (3) time-based — configurable interval stored in project config. The trigger condition configuration
+      lives in the project YAML, including a required max_reports_per_run key. This key caps how many unprocessed
+      reports are ingested in a single consolidation run: if the unprocessed queue exceeds this limit, the oldest N
+      reports are processed and the remainder are queued for the next run. This prevents context saturation in a single
+      run (a primary LLM agent failure mode). This story only covers the trigger logic and configuration interface;
+      synthesis logic is covered in subsequent stories. Must be completable standalone before the synthesis stories.
+    acceptance_criteria:
+      - Consolidation trigger conditions are documented (time-based, event-based, manual)
+      - Cadence configuration is stored in project config (not hardcoded)
+      - max_reports_per_run is a required project config key with a documented default value
+      - When unprocessed reports exceed max_reports_per_run, oldest N are processed and remainder are queued
+      - Manual trigger is always available via `pm consolidate run`
+      - Trigger conditions are validated and enforced by the CLI
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E033-S002
+    title: Implement report and comment ingestion for consolidation
+    description: >-
+      Implement the ingestion phase of the consolidation agent: reads all unprocessed execution reports (from PM-E030)
+      and cross-task comments (from PM-E031) since the last consolidation run. Tracks a `last_consolidated_at` timestamp
+      in project config. After ingestion, items are marked `consolidated: true` so they are not re-processed. Output is
+      a structured in-memory representation (list of report objects, list of comment objects) for use by the synthesis
+      logic stories. Requires PM-E030-S003, PM-E031-S003, and PM-E033-S001 to be complete.
+    acceptance_criteria:
+      - Ingestion reads all reports and comments since the last consolidation run timestamp
+      - Items are marked as consolidated after processing (not re-processed on next run)
+      - Ingestion is idempotent (re-running does not double-process items)
+      - A dry-run flag shows what would be ingested without mutating state
+      - Ingestion summary is printed at end of run (N reports, M comments ingested)
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E033-S003
+    title: Implement structural deduplication phase of synthesis
+    description: >-
+      Implement the first phase of the synthesis logic: deterministic structural matching across ingested reports and
+      comments. This phase uses exact and fuzzy string matching on the decisions and assumptions fields from all
+      ingested reports to identify: (1) confirmed decision candidates — decisions or assumptions that appear
+      consistently across 2+ independent reports without contradiction (structural match, no LLM calls); (2) conflict
+      candidates — pairs or groups of reports with directly contradictory assumptions (structural contradiction
+      detection). No LLM calls are made in this story — all matching is deterministic. Output is a structured YAML
+      candidate list (confirmed decisions, conflicts) that is passed to S004 for routing after being merged with the
+      semantic clustering output from PM-E033-S005. Requires PM-E033-S002 to be complete.
+    acceptance_criteria:
+      - Synthesis uses exact and fuzzy string matching (no LLM calls) to identify confirmed decisions and conflicts
+      - Output is a structured YAML candidate list with fields for candidate type, content, and supporting report IDs
+      - Synthesis identifies repeated decisions (same choice in 2+ reports by structural match) as confirmed candidates
+      - Synthesis identifies structurally contradictory assumptions as conflict candidates
+      - Synthesis can run with zero findings (produces an empty candidate list, not an error)
+      - Output format is compatible with PM-E033-S005 output so both can be merged before routing to S004
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E033-S004
+    title: Implement consolidation output routing (ADR promotion and task generation)
+    description: >-
+      Implement the output routing phase of the consolidation agent: takes the classified candidate list from
+      PM-E033-S003 and routes each candidate to its destination. Confirmed decision candidates → `pm adr create`
+      (PM-E032-S002). Conflict candidates → `pm story add` with resolution_type=conflict to the appropriate epic
+      (PM-E034). Gap candidates → `pm story add` with resolution_type=gap (PM-E034). Each created item must include
+      back-references to the source reports/comments. Routing is idempotent. Requires PM-E033-S003, PM-E033-S005,
+      PM-E032-S002, and PM-E034-S001 to be complete.
+    acceptance_criteria:
+      - Confirmed decision candidates are promoted to ADR entries via pm_adr_create
+      - Conflict candidates are created as conflict tasks via pm story add with resolution_type=conflict
+      - Gap candidates are created as gap tasks via pm story add with resolution_type=gap
+      - Routing is idempotent (re-running consolidation does not create duplicate ADRs or tasks)
+      - Routing produces a consolidation summary (N ADRs created, M conflict tasks created, K gap tasks created)
+      - All created items include back-references to the source reports/comments that generated them
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S005
+    code: PM-E033-S005
+    title: Implement LLM-assisted semantic clustering phase of synthesis
+    description: >-
+      Implement the second phase of synthesis logic: LLM-assisted semantic clustering of items that were not resolved by
+      the structural deduplication phase (PM-E033-S003). This phase takes the unmatched remainder from S003 as input and
+      uses an LLM to: (1) cluster semantically equivalent decisions or assumptions stated in different words across
+      reports — producing semantic confirmed-decision candidates and semantic conflict candidates; (2) detect gap
+      candidates: concepts referenced in reports or comments that have no corresponding ADR entry (requires semantic
+      reasoning that structural matching cannot perform). The LLM is called in batches of a configurable max size to
+      prevent context saturation. Output is a structured YAML candidate list in the same format as PM-E033-S003, which
+      is then merged with S003's output before being passed to PM-E033-S004 for routing. Requires PM-E033-S003 to be
+      complete first.
+    acceptance_criteria:
+      - Synthesis takes the unmatched remainder from PM-E033-S003 as its sole input
+      - LLM is used to cluster semantically equivalent decisions/assumptions stated in different words
+      - Batch size (max reports per LLM call) is specified and configurable
+      - Output format is structured YAML (not prose), in the same schema as PM-E033-S003 output
+      - 'Gap candidate detection is implemented: concepts referenced in reports/comments with no corresponding ADR entry'
+      - Results are merged with PM-E033-S003 output before being passed to PM-E033-S004
+      - Story can run with zero findings (produces an empty candidate list, not an error)
+    status: done
+    priority: medium
+    story_points: 5
+    depends_on: []
+    notes: ''

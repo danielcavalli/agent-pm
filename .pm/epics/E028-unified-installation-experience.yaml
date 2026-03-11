@@ -1,0 +1,132 @@
+id: E028
+code: PM-E028
+title: Unified Installation Experience
+description: >-
+  The installation experience is the top priority for alpha. After running install.sh, both OpenCode and Claude Code
+  users should have full PM functionality: MCP tools (pm_epic_add, pm_story_add, pm_status), slash commands (/pm-*), and
+  agent rules for autonomous filing. The installer must auto-detect available clients, configure MCP server connections,
+  copy slash commands to the correct directories, and set up agent instruction rules -- all idempotently. Supported
+  platforms: Linux and macOS. Depends on PM-E021 (MCP server), PM-E020 (unified command directory), and PM-E025/E026
+  (command content fixes).
+status: done
+priority: high
+created_at: "2026-03-10"
+stories:
+  - id: S001
+    code: PM-E028-S001
+    title: Refactor install.sh to detect available clients
+    description: >-
+      Refactor install.sh to detect which AI coding clients are available on the system. Check for OpenCode
+      (~/.config/opencode/) and Claude Code (~/.claude/) directory presence. Run the appropriate setup steps for each
+      detected client. If neither is detected, still install the pm CLI globally but warn that no client integration was
+      configured.
+    acceptance_criteria:
+      - install.sh checks for ~/.config/opencode/ to detect OpenCode
+      - install.sh checks for ~/.claude/ to detect Claude Code
+      - If neither is found, install.sh prints a warning but still installs the pm CLI
+      - If both are found, both are configured
+      - Detection logic works on both Linux and macOS
+    status: done
+    priority: high
+    story_points: 2
+    notes: ""
+  - id: S002
+    code: PM-E028-S002
+    title: Configure MCP server in OpenCode opencode.json
+    description: >-
+      Add MCP server configuration to OpenCode's opencode.json (~/.config/opencode/opencode.json). The config should add
+      an mcp.pm block of type local with the command to start the PM MCP server. This replaces the previous approach of
+      copying custom tool files. The installer must handle the case where opencode.json already exists with other MCP
+      configs (merge, don't overwrite).
+    acceptance_criteria:
+      - opencode.json contains an mcp.pm block with type local and correct command path
+      - The MCP server command points to the compiled dist/mcp-server.js (or globally installed equivalent)
+      - OpenCode can start the MCP server and list pm_epic_add, pm_story_add, pm_status tools
+      - install.sh creates this config idempotently (doesn't duplicate on re-run)
+    status: done
+    priority: high
+    story_points: 2
+    notes: ""
+  - id: S003
+    code: PM-E028-S003
+    title: Configure MCP server in Claude Code settings
+    description: >-
+      Add MCP server configuration to Claude Code's settings. Determine the correct config file location and format for
+      Claude Code MCP servers (e.g., ~/.claude/settings.json, .mcp.json, or similar). Configure the PM MCP server as a
+      local stdio server. Handle the case where the config file already exists with other MCP servers.
+    acceptance_criteria:
+      - Claude Code's MCP settings contain the PM server configuration
+      - Claude Code can start the MCP server and access pm_epic_add, pm_story_add, pm_status tools
+      - Config is created idempotently
+      - Works with Claude Code's standard MCP configuration format
+    status: done
+    priority: high
+    story_points: 2
+    notes: ""
+  - id: S004
+    code: PM-E028-S004
+    title: Install slash commands for both clients
+    description: >-
+      Install slash commands from the canonical install/commands/ directory (per PM-E020) to both client locations:
+      ~/.config/opencode/commands/ for OpenCode and ~/.claude/commands/ for Claude Code. Only copy to clients that were
+      detected in the detection step. Handle the pm-help.md file which was previously missing from global deployment.
+    acceptance_criteria:
+      - All pm-*.md files from install/commands/ are copied to ~/.config/opencode/commands/ for OpenCode users
+      - All pm-*.md files from install/commands/ are copied to ~/.claude/commands/ for Claude Code users
+      - No stale command files remain from previous installs
+      - Copy step is idempotent and safe to re-run
+    status: done
+    priority: high
+    story_points: 1
+    notes: ""
+  - id: S005
+    code: PM-E028-S005
+    title: Install agent rules for both clients with update-in-place logic
+    description: >-
+      Install agent instruction rules from install/agents-rules.md to both clients. For OpenCode: append/update the PM
+      section in ~/.config/opencode/AGENTS.md. For Claude Code: add to the appropriate global instructions file. Fix the
+      current append-only limitation: the installer uses marker detection to avoid duplicates but cannot update existing
+      rules. Implement update-in-place logic that replaces the PM rules section between markers.
+    acceptance_criteria:
+      - PM autonomous filing rules are present in ~/.config/opencode/AGENTS.md for OpenCode
+      - PM autonomous filing rules are present in Claude Code's equivalent instructions file
+      - Rules can be updated in-place on re-install (not just appended)
+      - Marker detection works for both clients
+      - Re-running install.sh updates existing rules rather than duplicating them
+    status: done
+    priority: high
+    story_points: 3
+    notes: ""
+  - id: S006
+    code: PM-E028-S006
+    title: macOS compatibility verification and fixes
+    description: >-
+      Replace 'which pm' with 'command -v pm' in install.sh line 30 for POSIX-portable binary detection. Review all path
+      handling, flag usage, and shell builtins for macOS compatibility. Verify the script works with macOS's default
+      bash (3.2) and BSD utilities (cp, grep, sed).
+    acceptance_criteria:
+      - install.sh uses command -v instead of which for binary detection
+      - All path operations work on both Linux (/home/user/) and macOS (/Users/user/)
+      - install.sh tested on macOS (or verified via review that no GNU-specific flags are used)
+      - No hardcoded Linux-specific paths exist in the installer
+    status: done
+    priority: medium
+    story_points: 1
+    notes: ""
+  - id: S007
+    code: PM-E028-S007
+    title: End-to-end install verification
+    description: >-
+      Create a verification checklist and test the complete installation flow end-to-end. Test scenarios: fresh install
+      (no previous PM setup), upgrade install (existing PM setup), OpenCode-only system, Claude Code-only system, both
+      clients present. Verify MCP tools, slash commands, and agent rules are all functional after each scenario.
+    acceptance_criteria:
+      - "Fresh install on Linux: pm CLI available, MCP tools visible in OpenCode, slash commands available"
+      - "Fresh install on macOS: same verification (or documented manual verification steps)"
+      - "Re-install over existing setup: no errors, configs updated correctly, no duplicates"
+      - "Install with only OpenCode present: only OpenCode configured"
+      - "Install with only Claude Code present: only Claude Code configured"
+    status: done
+    priority: high
+    story_points: 1
+    notes: ""

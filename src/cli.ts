@@ -9,7 +9,15 @@ const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
 
 // Ensure the global data directory exists before any command runs.
-ensureProjectsDir();
+// Skip for 'init' command which handles its own directory creation.
+// Skip for 'status' command which should error if no .pm/ exists.
+const isInitCommand = process.argv[2] === "init";
+const isStatusCommand = process.argv[2] === "status";
+const isTuiCommand = process.argv[2] === "tui";
+const isGcCommand = process.argv[2] === "gc";
+if (!isInitCommand && !isStatusCommand && !isTuiCommand && !isGcCommand) {
+  ensureProjectsDir();
+}
 
 const program = new Command();
 
@@ -59,9 +67,9 @@ program
   .command("init")
   .description("Initialize a new project and create its YAML definition")
   .requiredOption("--name <name>", "Project name (required)")
-  .requiredOption(
+  .option(
     "--code <code>",
-    "Project code: 2-6 uppercase letters, e.g. PM (required)",
+    "Project code: 2-6 uppercase letters (default: derived from directory name)",
   )
   .option("--description <desc>", "One-paragraph project description", "")
   .option("--vision <vision>", "North-star vision statement", "")
@@ -80,16 +88,21 @@ program
 
 // ── remove ────────────────────────────────────────────────────────────────────
 program
-  .command("remove <projectCode>")
+  .command("remove")
   .description(
-    "Remove a project and all its epics and stories (e.g. pm remove MYAPP --force)",
+    "Remove the .pm/ directory and all project data (e.g. pm remove --force)",
   )
   .option("--force", "Skip confirmation and delete immediately")
   .action(
-    action(async (projectCode: string, options: Record<string, unknown>) => {
-      const { remove } = await import("./commands/remove.js");
-      await remove(projectCode, options);
-    }),
+    action(
+      async (
+        projectCode: string | undefined,
+        options: Record<string, unknown>,
+      ) => {
+        const { remove } = await import("./commands/remove.js");
+        await remove(projectCode, options);
+      },
+    ),
   );
 
 // ── epic ────────────────────────────────────────────────────────────────────
@@ -98,7 +111,7 @@ const epicCmd = program
   .description("Manage epics within a project");
 
 epicCmd
-  .command("add <projectCode>")
+  .command("add [projectCode]")
   .description(
     'Add a new epic to a project (e.g. pm epic add PM --title "Auth")',
   )
@@ -106,29 +119,34 @@ epicCmd
   .option("--description <desc>", "Epic description", "")
   .option("--priority <priority>", "Priority: high | medium | low", "medium")
   .action(
-    action(async (projectCode: string, options: Record<string, unknown>) => {
-      const { epicAdd } = await import("./commands/epic.js");
-      await epicAdd(projectCode, options);
-    }),
+    action(
+      async (
+        projectCode: string | undefined,
+        options: Record<string, unknown>,
+      ) => {
+        const { epicAdd } = await import("./commands/epic.js");
+        await epicAdd(projectCode, options);
+      },
+    ),
   );
 
 epicCmd
-  .command("list <projectCode>")
+  .command("list [projectCode]")
   .description("List all epics for a project with status and story counts")
   .action(
-    action(async (projectCode: string) => {
+    action(async (projectCode: string | undefined) => {
       const { epicList } = await import("./commands/epic.js");
       await epicList(projectCode);
     }),
   );
 
 epicCmd
-  .command("sync <projectCode>")
+  .command("sync [projectCode]")
   .description(
     "Sync epic statuses from story completion (e.g. all stories done → epic done)",
   )
   .action(
-    action(async (projectCode: string) => {
+    action(async (projectCode: string | undefined) => {
       const { epicSync } = await import("./commands/epic.js");
       await epicSync(projectCode);
     }),
@@ -142,7 +160,7 @@ const storyCmd = program
 storyCmd
   .command("add <epicCode>")
   .description(
-    'Add a new story to an epic (e.g. pm story add PM-E001 --title "...")',
+    'Add a new story to an epic (e.g. pm story add E001 --title "..." or pm story add PM-E001 --title "...")',
   )
   .requiredOption("--title <title>", "Story title (required)")
   .option("--description <desc>", "Story description", "")
@@ -155,7 +173,7 @@ storyCmd
   )
   .option(
     "--depends-on <storyCode...>",
-    "Story codes this story depends on (repeatable, e.g. --depends-on PM-E001-S001)",
+    "Story codes this story depends on (repeatable, e.g. --depends-on E001-S001)",
     [],
   )
   .action(
@@ -179,7 +197,7 @@ storyCmd
 storyCmd
   .command("update <storyCode>")
   .description(
-    "Update a story status or priority (e.g. pm story update PM-E001-S001 --status done)",
+    "Update a story status or priority (e.g. pm story update E001-S001 --status done)",
   )
   .option(
     "--status <status>",
@@ -201,7 +219,7 @@ storyCmd
 program
   .command("work <storyCode>")
   .description(
-    "Load a story context and mark it in_progress (e.g. pm work PM-E001-S001)",
+    "Load a story context and mark it in_progress (e.g. pm work E001-S001 or pm work PM-E001-S001)",
   )
   .action(
     action(async (storyCode: string) => {
@@ -212,15 +230,20 @@ program
 
 // ── prioritize ────────────────────────────────────────────────────────────────
 program
-  .command("prioritize <projectCode>")
+  .command("prioritize [projectCode]")
   .description("Output prioritization context for a project or epic")
-  .option("--epic <epicCode>", "Target a specific epic (e.g. PM-E001)")
+  .option("--epic <epicCode>", "Target a specific epic (e.g. E001 or PM-E001)")
   .option("--strategy <strategy>", "Prioritization strategy description")
   .action(
-    action(async (projectCode: string, options: Record<string, unknown>) => {
-      const { prioritize } = await import("./commands/prioritize.js");
-      await prioritize(projectCode, options);
-    }),
+    action(
+      async (
+        projectCode: string | undefined,
+        options: Record<string, unknown>,
+      ) => {
+        const { prioritize } = await import("./commands/prioritize.js");
+        await prioritize(projectCode, options);
+      },
+    ),
   );
 
 // ── rules ─────────────────────────────────────────────────────────────────
@@ -260,25 +283,45 @@ rulesCmd
 
 // ── status ────────────────────────────────────────────────────────────────────
 program
-  .command("status [projectCode]")
-  .description("Show project status summary (all projects, or a specific one)")
+  .command("status")
+  .description("Show project status summary for the local .pm/ project")
   .option("--json", "Output as machine-readable JSON")
   .action(
-    action(
-      async (
-        projectCode: string | undefined,
-        options: Record<string, unknown>,
-      ) => {
-        const { status } = await import("./commands/status.js");
-        await status(projectCode, options);
-      },
-    ),
+    action(async (options: Record<string, unknown>) => {
+      const { status } = await import("./commands/status.js");
+      await status(undefined, options);
+    }),
   );
 
 // ── migrate ───────────────────────────────────────────────────────────────────
-program
+const migrateCmd = program
   .command("migrate")
-  .description("Migrate projects from a source directory to PM_HOME/projects/")
+  .description("Migrate project data between storage locations");
+
+migrateCmd
+  .command("to-local")
+  .description(
+    "Migrate a project from global ~/.pm/projects/{CODE}/ to local .pm/ at target",
+  )
+  .requiredOption("--code <code>", "Project code to migrate (e.g., PM)")
+  .requiredOption(
+    "--target <path>",
+    "Target repository directory where .pm/ will be created",
+  )
+  .option(
+    "--cleanup",
+    "Remove the project from global ~/.pm/projects/ after successful migration",
+  )
+  .action(
+    action(async (options: Record<string, unknown>) => {
+      const { toLocal } = await import("./commands/migrate.js");
+      await toLocal(options);
+    }),
+  );
+
+migrateCmd
+  .command("from-source")
+  .description("Migrate projects from a source directory to .pm/")
   .option(
     "--source <path>",
     "Source directory to migrate from (default: ./projects/)",
@@ -298,6 +341,22 @@ program
     action(async () => {
       const { launchTui } = await import("./tui/index.js");
       await launchTui();
+    }),
+  );
+
+// ── gc ─────────────────────────────────────────────────────────────────────────
+const gcCmd = program
+  .command("gc")
+  .description("Garbage collection for completed tasks and stale artifacts");
+
+gcCmd
+  .command("run")
+  .description("Run garbage collection on the local .pm/ directory")
+  .option("--dry-run", "Preview changes without executing them")
+  .action(
+    action(async (options: Record<string, unknown>) => {
+      const { gcRun } = await import("./commands/gc.js");
+      await gcRun(options);
     }),
   );
 

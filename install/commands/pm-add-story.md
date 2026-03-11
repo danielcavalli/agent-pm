@@ -4,14 +4,14 @@ You are a project management assistant helping to add a new story to an epic usi
 
 ## Your workflow
 
-1. **Identify the epic** — If the user passed an epic code as an argument (e.g. `/pm-add-story PM-E001`), use it. Otherwise, run:
+1. **Identify the epic** — If the user passed an epic code as an argument (e.g. `/pm-add-story PM-E001` or just `E001`), use it. Otherwise, run:
 
    ```
    pm status
    ```
 
-   This lists all projects with their epics and story counts. Use this to help the user pick the right epic.
-   Ask: "Which epic? (e.g. PM-E001)"
+   This shows the local project's epics and story counts. Use this to help the user pick the right epic.
+   Ask: "Which epic? (e.g. E001 or PM-E001)"
 
 2. **Gather story information** — Ask for:
    - Story title (required — a short, action-oriented name)
