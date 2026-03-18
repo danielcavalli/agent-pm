@@ -5,7 +5,7 @@ description: >-
   Fix E030-S002 NOT MET — the execution report schema and CLI exist but agents have zero instructions to use them. Add
   report-writing contract to agents-rules.md, add report step to pm-work-on.md workflow, and fix the
   execution-report-contract doc to reference the correct schema.
-status: backlog
+status: done
 priority: high
 created_at: '2026-03-11'
 stories:
@@ -21,7 +21,7 @@ stories:
       - Section includes the exact pm report create command syntax
       - A worked example with realistic field values is included
       - AgentExecutionReportSchema fields (decisions, assumptions, tradeoffs, conflicts) are explained
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on: []
@@ -37,7 +37,7 @@ stories:
       - Step comes after marking the story as done
       - Step uses pm report create or pm_report_create MCP tool
       - Step explains which fields to populate and why
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on: []
@@ -52,7 +52,7 @@ stories:
       - doc/execution-report-contract.md references AgentExecutionReportSchema
       - Schema fields match what is defined in src/schemas/agent-report.schema.ts
       - No references to the wrong ExecutionReportSchema remain
-    status: backlog
+    status: done
     priority: medium
     story_points: 1
     depends_on: []

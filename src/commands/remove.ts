@@ -37,7 +37,9 @@ export async function remove(
     try {
       const epic = readYaml(epicFile, EpicSchema);
       storyCount += epic.stories?.length ?? 0;
-    } catch {}
+    } catch (err) {
+      process.stderr.write(`[pm remove] failed to read epic file ${epicFile}: ${err instanceof Error ? err.message : String(err)}\n`);
+    }
   }
 
   if (!options["force"]) {
@@ -57,7 +59,7 @@ export async function remove(
     return;
   }
 
-  const subdirs = ["epics", "comments", "adrs", "reports"];
+  const subdirs = ["epics", "comments", "adrs", "reports", "agents"];
   for (const subdir of subdirs) {
     const subdirPath = path.join(pmDir, subdir);
     if (fs.existsSync(subdirPath)) {

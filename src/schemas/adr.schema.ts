@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { EpicCodeSchema } from "./epic.schema.js";
-import { StoryCodeSchema } from "./story.schema.js";
+import { TaskReferenceSchema } from "./comment.schema.js";
 
 export const ADRStatusSchema = z.enum([
   "proposed",
@@ -9,8 +8,6 @@ export const ADRStatusSchema = z.enum([
   "superseded",
 ]);
 export type ADRStatus = z.infer<typeof ADRStatusSchema>;
-
-export const TaskReferenceSchema = z.union([EpicCodeSchema, StoryCodeSchema]);
 
 export const ADRAuthorSchema = z
   .union([
@@ -37,7 +34,7 @@ export const ADRSupersessionSchema = z.object({
 export type ADRSupersession = z.infer<typeof ADRSupersessionSchema>;
 
 export const ADRReferenceSchema = z.object({
-  type: z.enum(["comment", "report", "adr", "task"]),
+  type: z.enum(["comment", "report", "adr", "task", "supersedes"]),
   id: z.string(),
   description: z.string().optional(),
 });

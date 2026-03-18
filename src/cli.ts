@@ -187,6 +187,10 @@ storyCmd
   .command("list <epicCode>")
   .description("List all stories for an epic with status and priority")
   .option("--deps", "Show dependency info (depends_on) for each story")
+  .option(
+    "--type <type>",
+    "Filter by resolution type: conflict | gap",
+  )
   .action(
     action(async (epicCode: string, options: Record<string, unknown>) => {
       const { storyList } = await import("./commands/story.js");
@@ -353,10 +357,217 @@ gcCmd
   .command("run")
   .description("Run garbage collection on the local .pm/ directory")
   .option("--dry-run", "Preview changes without executing them")
+  .option("--verbose", "Show TTL evaluation for each item")
   .action(
     action(async (options: Record<string, unknown>) => {
       const { gcRun } = await import("./commands/gc.js");
       await gcRun(options);
+    }),
+  );
+
+// ── consolidate ──────────────────────────────────────────────────────────────
+const consolidateCmd = program
+  .command("consolidate")
+  .description("Consolidation pipeline for execution reports and comments");
+
+consolidateCmd
+  .command("run")
+  .description("Run the consolidation pipeline")
+  .option("--dry-run", "Preview what would be created without writing files")
+  .action(
+    action(async (options: Record<string, unknown>) => {
+      const { consolidateRun } = await import("./commands/consolidate.js");
+      await consolidateRun(options);
+    }),
+  );
+
+consolidateCmd
+  .command("config")
+  .description("Display the current consolidation configuration")
+  .action(
+    action(async (options: Record<string, unknown>) => {
+      const { consolidateConfig } = await import("./commands/consolidate.js");
+      await consolidateConfig(options);
+    }),
+  );
+
+// ── adr ──────────────────────────────────────────────────────────────────────
+const adrCmd = program
+  .command("adr")
+  .description("Manage Architecture Decision Records (ADRs)");
+
+adrCmd
+  .command("create")
+  .description("Create a new ADR (e.g. pm adr create --project PM --title ...)")
+  .requiredOption("--project <code>", "Project code (e.g. PM)")
+  .requiredOption("--title <title>", "Short descriptive title of the decision")
+  .requiredOption(
+    "--status <status>",
+    "Current status: proposed | accepted | deprecated | superseded",
+  )
+  .requiredOption(
+    "--context <context>",
+    "The issue being addressed — why this decision is needed",
+  )
+  .requiredOption(
+    "--decision <decision>",
+    "What was decided — the actual architectural decision",
+  )
+  .option(
+    "--positive <items...>",
+    "Positive consequences (repeatable)",
+    [],
+  )
+  .option(
+    "--negative <items...>",
+    "Negative consequences (repeatable)",
+    [],
+  )
+  .option("--author-type <type>", "Author type: agent | human", "human")
+  .option("--author <name>", "Author name (for human authors)")
+  .option("--author-id <id>", "Agent ID (for agent authors)")
+  .option("--tags <tags...>", "Tags for retrieval filtering (repeatable)", [])
+  .action(
+    action(async (options: Record<string, unknown>) => {
+      const { adrCreate } = await import("./commands/adr.js");
+      await adrCreate({
+        projectCode: options["project"] as string,
+        title: options["title"] as string,
+        status: options["status"] as string,
+        context: options["context"] as string,
+        decision: options["decision"] as string,
+        positiveConsequences: (options["positive"] as string[]) ?? [],
+        negativeConsequences: (options["negative"] as string[]) ?? [],
+        authorType: (options["authorType"] as "agent" | "human") ?? "human",
+        authorName: options["author"] as string | undefined,
+        authorId: options["authorId"] as string | undefined,
+        tags: (options["tags"] as string[]) ?? [],
+      });
+    }),
+  );
+
+adrCmd
+  .command("list [projectCode]")
+  .description("List all ADRs for a project")
+  .action(
+    action(async (projectCode: string | undefined) => {
+      const { adrList } = await import("./commands/adr.js");
+      await adrList(projectCode ?? "");
+    }),
+  );
+
+adrCmd
+  .command("query [projectCode]")
+  .description("Query ADRs with filters, ranked by relevance")
+  .option("--id <pattern>", "Filter by ADR ID pattern (supports * wildcards)")
+  .option(
+    "--status <status>",
+    "Filter by status: proposed | accepted | deprecated | superseded",
+  )
+  .option("--tag <tag>", "Filter by a single tag")
+  .option("--tags <tags...>", "Filter by multiple tags (repeatable)")
+  .option(
+    "--author-type <type>",
+    "Filter by author type: agent | human",
+  )
+  .option("--author <author>", "Filter by author name or agent ID")
+  .option("--search <text>", "Full-text search across title, context, decision")
+  .option("--limit <n>", "Maximum results to return (default: 5)", "5")
+  .option("--format <fmt>", "Output format: summary | full", "summary")
+  .option("--verbose", "Show relevance scores in summary format")
+  .option(
+    "--include-superseded",
+    "Include superseded and deprecated ADRs (excluded by default)",
+  )
+  .action(
+    action(
+      async (
+        projectCode: string | undefined,
+        options: Record<string, unknown>,
+      ) => {
+        const { adrQuery } = await import("./commands/adr.js");
+        await adrQuery({
+          projectCode: projectCode ?? "",
+          id: options["id"] as string | undefined,
+          status: options["status"] as string | undefined,
+          tag: options["tag"] as string | undefined,
+          tags: options["tags"] as string[] | undefined,
+          authorType: options["authorType"] as "agent" | "human" | undefined,
+          author: options["author"] as string | undefined,
+          search: options["search"] as string | undefined,
+          limit: options["limit"]
+            ? parseInt(options["limit"] as string, 10)
+            : undefined,
+          format: (options["format"] as "summary" | "full") ?? "summary",
+          verbose: options["verbose"] === true,
+          includeSuperseded: options["includeSuperseded"] === true,
+        });
+      },
+    ),
+  );
+
+// ── agent ─────────────────────────────────────────────────────────────────────
+const agentCmd = program
+  .command("agent")
+  .description("Agent lifecycle commands (heartbeat, escalate, check-response)");
+
+agentCmd
+  .command("heartbeat")
+  .description(
+    "Send a heartbeat for an agent, creating or updating its state file",
+  )
+  .requiredOption("--agent-id <agentId>", "Agent identifier (required)")
+  .option("--session-id <sessionId>", "Session identifier")
+  .option(
+    "--status <status>",
+    "Agent status: active | idle | needs_attention | blocked | completed",
+    "active",
+  )
+  .option("--current-task <currentTask>", "Current task code (e.g. PM-E052-S001)")
+  .option("--progress-summary <progressSummary>", "Brief progress description")
+  .action(
+    action(async (options: Record<string, unknown>) => {
+      const { agentHeartbeat } = await import("./commands/agent.js");
+      await agentHeartbeat(options);
+    }),
+  );
+
+agentCmd
+  .command("escalate")
+  .description(
+    "Escalate an issue, setting agent status to needs_attention with escalation details",
+  )
+  .requiredOption("--agent-id <agentId>", "Agent identifier (required)")
+  .requiredOption(
+    "--type <type>",
+    "Escalation type: decision | clarification | approval | error",
+  )
+  .requiredOption("--message <message>", "Escalation message (required)")
+  .option(
+    "--confidence <confidence>",
+    "Confidence level 0-1 (default: 0.5)",
+  )
+  .option(
+    "--options <options...>",
+    "Options for the escalation (e.g. possible choices)",
+  )
+  .action(
+    action(async (options: Record<string, unknown>) => {
+      const { agentEscalate } = await import("./commands/agent.js");
+      await agentEscalate(options);
+    }),
+  );
+
+agentCmd
+  .command("check-response")
+  .description(
+    "Check for a human response to an agent escalation (read-once: deletes after read)",
+  )
+  .requiredOption("--agent-id <agentId>", "Agent identifier (required)")
+  .action(
+    action(async (options: Record<string, unknown>) => {
+      const { agentCheckResponse } = await import("./commands/agent.js");
+      await agentCheckResponse(options);
     }),
   );
 

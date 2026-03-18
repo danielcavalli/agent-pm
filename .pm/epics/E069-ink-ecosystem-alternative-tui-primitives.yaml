@@ -1,0 +1,81 @@
+id: E069
+code: PM-E069
+title: Ink Ecosystem & Alternative TUI Primitives
+description: >-
+  Evaluate and adopt better TUI building blocks from the Ink ecosystem or alternative frameworks. Ink's lack of native
+  mouse, scroll containers, and click support limits the TUI. This epic contains research spikes to inform the long-term
+  TUI technology foundation.
+status: backlog
+priority: low
+created_at: '2026-03-16'
+stories:
+  - id: S001
+    code: PM-E069-S001
+    title: Evaluate ink-text-input for search mode
+    description: >-
+      Current search is hand-rolled via useInput with basic character accumulation. The ink-text-input package provides
+      cursor movement, text selection, proper backspace handling. Spike: integrate ink-text-input and compare UX quality
+      with the current implementation.
+    acceptance_criteria:
+      - Spike completed comparing ink-text-input vs current hand-rolled search
+      - Decision documented as ADR on whether to adopt ink-text-input
+      - 'If adopted: search mode uses ink-text-input with cursor movement support'
+      - 'If rejected: rationale documented (e.g., bundle size, compatibility issues)'
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E069-S002
+    title: Evaluate blessed/neo-blessed as alternative to Ink
+    description: >-
+      Ink's lack of native mouse, scroll containers, and click support limits the TUI. The blessed/neo-blessed library
+      provides these primitives natively. Spike: prototype the tree panel in blessed, assess migration effort, visual
+      quality, and maintenance risk.
+    acceptance_criteria:
+      - Spike completed with a working tree panel prototype in blessed
+      - Decision documented as ADR on framework choice
+      - >-
+        Assessment covers: mouse support quality, rendering performance, API ergonomics, maintenance risk, community
+        health
+      - 'If migration warranted: estimated effort and migration plan outlined'
+    status: backlog
+    priority: low
+    story_points: 5
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E069-S003
+    title: Evaluate terminal link support (OSC 8)
+    description: >-
+      Story codes could be clickable hyperlinks to GitHub issues or PRs if configured. OSC 8 escape sequences enable
+      terminal hyperlinks in modern terminals. Spike: test OSC 8 support in common terminals (iTerm2, Terminal.app,
+      Kitty, Alacritty) and assess integration feasibility.
+    acceptance_criteria:
+      - OSC 8 tested in at least 3 terminal emulators
+      - Decision documented on whether to add hyperlink support
+      - 'If adopted: story codes in tree/detail become clickable links'
+      - Terminal compatibility matrix documented
+    status: backlog
+    priority: low
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E069-S004
+    title: Theme customization via project config
+    description: >-
+      Allow a theme field in project.yaml to override default hex colors. Support named themes (catppuccin, tokyonight,
+      etc.) alongside custom hex overrides. Load theme on TUI startup and merge with defaults.
+    acceptance_criteria:
+      - project.yaml accepts optional theme field with color overrides
+      - 'Named themes (at least 3) are bundled: default, catppuccin, tokyonight'
+      - Custom hex values in project.yaml override individual theme tokens
+      - Invalid color values fall back to defaults without crashing
+      - Users can change the TUI color scheme by editing project.yaml
+    status: backlog
+    priority: low
+    story_points: 3
+    depends_on: []
+    notes: ''

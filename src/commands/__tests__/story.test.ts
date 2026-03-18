@@ -8,9 +8,9 @@ import {
   type TmpDirHandle,
   type CapturedOutput,
 } from "../../__tests__/integration-helpers.js";
-import { readYaml } from "../../lib/fs.js";
+import { readYaml, writeYaml } from "../../lib/fs.js";
 import { EpicSchema } from "../../schemas/index.js";
-import { findEpicFile } from "../../lib/codes.js";
+import { findEpicFile, resolveStoryCode } from "../../lib/codes.js";
 import { ValidationError, StoryNotFoundError } from "../../lib/errors.js";
 
 describe("pm story add / list / update (integration)", () => {
@@ -216,5 +216,89 @@ describe("pm story add / list / update (integration)", () => {
 
     const lines = out.log().join("\n");
     expect(lines).not.toContain("Depends On");
+  });
+
+  // ── --type filter ─────────────────────────────────────────────────
+
+  /**
+   * Helper to inject resolution_type into a story by directly editing the epic YAML.
+   * We must bypass storyAdd since it blocks resolution_type.
+   */
+  function setResolutionType(
+    storyCode: string,
+    resolutionType: "conflict" | "gap",
+  ) {
+    const parsed = resolveStoryCode(storyCode);
+    const epicFile = findEpicFile(parsed.epicCode);
+    if (!epicFile) throw new Error(`Epic not found: ${parsed.epicCode}`);
+    const epic = readYaml(epicFile, EpicSchema);
+    const fullCode = `${parsed.projectCode}-${parsed.epicId}-${parsed.storyId}`;
+    const story = epic.stories.find((s: any) => s.code === fullCode);
+    if (!story) throw new Error(`Story not found: ${fullCode}`);
+    (story as any).resolution_type = resolutionType;
+    writeYaml(epicFile, epic);
+  }
+
+  it("AC13: storyList --type conflict shows only conflict stories", async () => {
+    await storyAdd(epicCode, { title: "Regular Story", points: "2" });
+    await storyAdd(epicCode, { title: "Conflict Story", points: "3" });
+    await storyAdd(epicCode, { title: "Gap Story", points: "1" });
+
+    setResolutionType(`${epicCode}-S002`, "conflict");
+    setResolutionType(`${epicCode}-S003`, "gap");
+
+    out.restore();
+    out = captureOutput();
+
+    await storyList(epicCode, { type: "conflict" });
+
+    const lines = out.log().join("\n");
+    expect(lines).toContain("Conflict Story");
+    expect(lines).not.toContain("Regular Story");
+    expect(lines).not.toContain("Gap Story");
+  });
+
+  it("AC14: storyList --type gap shows only gap stories", async () => {
+    await storyAdd(epicCode, { title: "Regular Story", points: "2" });
+    await storyAdd(epicCode, { title: "Conflict Story", points: "3" });
+    await storyAdd(epicCode, { title: "Gap Story", points: "1" });
+
+    setResolutionType(`${epicCode}-S002`, "conflict");
+    setResolutionType(`${epicCode}-S003`, "gap");
+
+    out.restore();
+    out = captureOutput();
+
+    await storyList(epicCode, { type: "gap" });
+
+    const lines = out.log().join("\n");
+    expect(lines).toContain("Gap Story");
+    expect(lines).not.toContain("Regular Story");
+    expect(lines).not.toContain("Conflict Story");
+  });
+
+  it("AC15: storyList without --type shows all stories including resolution tasks", async () => {
+    await storyAdd(epicCode, { title: "Regular Story", points: "2" });
+    await storyAdd(epicCode, { title: "Conflict Story", points: "3" });
+    await storyAdd(epicCode, { title: "Gap Story", points: "1" });
+
+    setResolutionType(`${epicCode}-S002`, "conflict");
+    setResolutionType(`${epicCode}-S003`, "gap");
+
+    out.restore();
+    out = captureOutput();
+
+    await storyList(epicCode);
+
+    const lines = out.log().join("\n");
+    expect(lines).toContain("Regular Story");
+    expect(lines).toContain("Conflict Story");
+    expect(lines).toContain("Gap Story");
+  });
+
+  it("AC16: storyList --type with invalid value throws ValidationError", async () => {
+    await expect(
+      storyList(epicCode, { type: "invalid" }),
+    ).rejects.toThrow(ValidationError);
   });
 });

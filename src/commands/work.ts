@@ -58,7 +58,9 @@ export async function work(storyCode: string): Promise<void> {
   try {
     const project = readYaml(projectYaml, ProjectSchema);
     projectName = project.name;
-  } catch {}
+  } catch (err) {
+    process.stderr.write(`[pm work] failed to read project name: ${err instanceof Error ? err.message : String(err)}\n`);
+  }
 
   console.log("");
   console.log(chalk.cyan.bold("━".repeat(72)));

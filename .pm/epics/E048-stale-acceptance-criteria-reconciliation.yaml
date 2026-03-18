@@ -5,7 +5,7 @@ description: >-
   Housekeeping epic — 9 stories across 6 completed epics have acceptance criteria that no longer match the architecture
   due to the OpenCode plugin-to-MCP migration and global-to-per-project rules shift. Update criteria to reflect reality,
   mark cancelled items, and fix minor issues (schema re-export, test description, index count, doc typo).
-status: backlog
+status: done
 priority: low
 created_at: '2026-03-11'
 stories:
@@ -19,7 +19,7 @@ stories:
       - E015-S004 criteria reference MCP server registration instead of custom tools copy
       - E016-S001 criteria reference src/mcp-server.ts instead of install/opencode/tools/pm.ts
       - Both stories remain marked as done
-    status: backlog
+    status: done
     priority: low
     story_points: 1
     depends_on: []
@@ -33,7 +33,7 @@ stories:
     acceptance_criteria:
       - E018-S002 status is updated to cancelled
       - A note is added explaining the plugin system was deprecated
-    status: backlog
+    status: done
     priority: low
     story_points: 1
     depends_on: []
@@ -48,7 +48,7 @@ stories:
       - E022-S003 criteria reference per-project pm rules init instead of global AGENTS.md injection
       - E028-S005 criteria reference per-project rules model
       - Both stories remain marked as done
-    status: backlog
+    status: done
     priority: low
     story_points: 1
     depends_on: []
@@ -62,7 +62,7 @@ stories:
     acceptance_criteria:
       - E003-S005 criterion 3 references pm story update --priority CLI command
       - No reference to direct YAML file editing
-    status: backlog
+    status: done
     priority: low
     story_points: 1
     depends_on: []
@@ -76,11 +76,15 @@ stories:
     acceptance_criteria:
       - Either .claude/commands/ directory exists with symlinks OR E020-S003 is annotated explaining the skip
       - Decision is documented
-    status: backlog
+    status: done
     priority: low
     story_points: 1
     depends_on: []
-    notes: ''
+    notes: >-
+      Decision: created .claude/commands/ with 11 relative symlinks mirroring .opencode/commands/ structure. This
+      fulfills the original E020-S003 acceptance criteria. The install.sh script still handles global installation by
+      copying from install/commands/ to ~/.claude/commands/ for Claude Code users. E020-S003 was annotated with a note
+      explaining the symlinks were created during this reconciliation.
   - id: S006
     code: PM-E048-S006
     title: Fix minor code and doc issues
@@ -93,7 +97,7 @@ stories:
       - mcp-server.test.ts description matches actual tool count
       - rebuildIndex() excludes cancelled stories from story_count
       - 'doc/cross-task-comment-schema.md typo consumed: fixed to consumed_by:'
-    status: in_progress
+    status: done
     priority: low
     story_points: 2
     depends_on: []

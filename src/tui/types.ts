@@ -22,6 +22,8 @@ export interface StoryNode {
   story_points: StoryPoints;
   description: string;
   acceptance_criteria: string[];
+  depends_on: string[];
+  notes: string;
   resolution_type?: ResolutionType;
   conflicting_assumptions?: ConflictingAssumption[];
   source_reports?: string[];
@@ -38,6 +40,7 @@ export interface EpicNode {
   status: EpicStatus;
   priority: Priority;
   description: string;
+  created_at: string;
   stories: StoryNode[];
   expanded: boolean;
 }
@@ -62,3 +65,5 @@ export interface TreeData {
 }
 
 export type FilterMode = "all" | "backlog" | "in_progress" | "done";
+
+export type FocusedPanel = "tree" | "detail" | "sidebar";

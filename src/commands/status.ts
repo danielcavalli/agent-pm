@@ -18,6 +18,7 @@ type StoryData = {
   description: string;
   acceptance_criteria: string[];
   notes: string;
+  resolution_type?: string;
 };
 
 type EpicData = {
@@ -96,6 +97,7 @@ function loadProjectEpics(pmDir: string, warnOnError = false): EpicData[] {
         description: s.description ?? "",
         acceptance_criteria: s.acceptance_criteria ?? [],
         notes: s.notes ?? "",
+        ...(s.resolution_type ? { resolution_type: s.resolution_type } : {}),
       }));
       epicsData.push({
         code: epic.code,
@@ -276,8 +278,14 @@ async function statusSingleProject(
         const icon = STATUS_ICON[story.status] ?? "?";
         const inProg =
           story.status === "in_progress" ? chalk.yellow(" ← in_progress") : "";
+        const badge =
+          story.resolution_type === "conflict"
+            ? chalk.red(" [CONFLICT]")
+            : story.resolution_type === "gap"
+              ? chalk.magenta(" [GAP]")
+              : "";
         console.log(
-          `       ${icon} ${chalk.dim(story.code)} ${story.title.slice(0, 50)}${inProg}`,
+          `       ${icon} ${chalk.dim(story.code)} ${story.title.slice(0, 50)}${badge}${inProg}`,
         );
       }
       console.log("");

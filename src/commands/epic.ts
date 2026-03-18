@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import chalk from "chalk";
 import { EpicSchema, PrioritySchema } from "../schemas/index.js";
 import type { Epic, Priority } from "../schemas/index.js";
-import { readYaml, writeYaml, listFiles } from "../lib/fs.js";
+import { readYaml, writeYaml, listFiles, withLock } from "../lib/fs.js";
 import {
   getPmDir,
   nextEpicNumber,
@@ -77,7 +77,9 @@ export async function epicAdd(
     stories: [],
   };
 
-  writeYaml(epicPath, epic);
+  await withLock(epicPath, () => {
+    writeYaml(epicPath, epic);
+  });
   rebuildIndex();
 
   console.log(chalk.green("✓") + " Epic created: " + chalk.bold(epicCode));
@@ -118,11 +120,13 @@ export async function epicSync(
           `  ${chalk.bold(epic.code)} ${epic.status} ${chalk.dim("→")} ${derivedStatus}`,
         );
         epic.status = derivedStatus as Epic["status"];
-        writeYaml(epicFile, epic);
+        await withLock(epicFile, () => {
+          writeYaml(epicFile, epic);
+        });
         updated++;
       }
-    } catch {
-      // skip unreadable files
+    } catch (err) {
+      process.stderr.write(`[pm epic sync] failed to read epic file ${epicFile}: ${err instanceof Error ? err.message : String(err)}\n`);
     }
   }
 
@@ -158,8 +162,8 @@ export async function epicList(
   for (const f of epicFiles) {
     try {
       epics.push(readYaml(f, EpicSchema));
-    } catch {
-      // skip unreadable files
+    } catch (err) {
+      process.stderr.write(`[pm epic list] failed to read epic file ${f}: ${err instanceof Error ? err.message : String(err)}\n`);
     }
   }
 

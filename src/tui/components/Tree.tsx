@@ -1,28 +1,29 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { EpicNode, TreeNode, FilterMode, StoryNode } from "../types.js";
+import { theme, tc, priorityColor, priorityBadge, statusThemeColor } from "../colors.js";
 
 // ── Status icons ─────────────────────────────────────────────────────────────
 
 export function statusIcon(status: string): string {
   switch (status) {
     case "backlog":
-      return "○";
+      return "\u25CB";
     case "in_progress":
-      return "●";
+      return "\u25CF";
     case "done":
     case "complete":
-      return "✓";
+      return "\u2713";
     case "cancelled":
-      return "✗";
+      return "\u2717";
     case "active":
-      return "●";
+      return "\u25CF";
     case "paused":
-      return "○";
+      return "\u25CB";
     case "archived":
-      return "✗";
+      return "\u2717";
     default:
-      return "○";
+      return "\u25CB";
   }
 }
 
@@ -111,42 +112,52 @@ export function TreePanel({ rows, cursor, width, height }: TreePanelProps) {
       {visible.map((row, i) => {
         const idx = scrollStart + i;
         const isSelected = idx === cursor;
-        const indent = "  ".repeat(row.depth);
         const node = row.node;
         const icon = statusIcon(node.status);
-        const color = statusColor(node.status) as Parameters<
-          typeof Text
-        >[0]["color"];
+        const sColor = statusThemeColor(node.status);
 
         let label: string;
         if (node.kind === "epic") {
-          const expandIcon = node.expanded ? "▼" : "▶";
-          label = `${indent}${expandIcon} ${icon} ${node.code} ${node.title}`;
+          const expandIcon = node.expanded ? "\u25BC" : "\u25B6";
+          const total = node.stories.length;
+          const done = node.stories.filter(s => s.status === "done").length;
+          const progress = total > 0 ? ` [${done}/${total}]` : "";
+          const indent = row.depth > 0 ? "  " : "";
+          label = `${indent}${expandIcon} ${icon} ${node.code} ${node.title}${progress}`;
         } else {
           const story = node as StoryNode;
+          const pBadge = priorityBadge(story.priority);
           let badge = "";
           if (story.resolution_type === "conflict") {
-            badge = " ≋conflict";
+            badge = " ~conflict";
           } else if (story.resolution_type === "gap") {
-            badge = " ≋gap";
+            badge = " ~gap";
           }
-          label = `${indent}  ${icon} ${story.code} ${story.title}${badge}`;
+          label = `    ${icon} ${pBadge} ${story.code} ${story.title}${badge}`;
         }
 
         // Truncate to panel width
-        const maxLen = width - 1;
+        const maxLen = width;
         if (label.length > maxLen) {
-          label = label.slice(0, maxLen - 1) + "…";
+          label = label.slice(0, maxLen - 1) + "\u2026";
+        } else {
+          label = label.padEnd(maxLen);
+        }
+
+        if (isSelected) {
+          return (
+            <Box key={row.key} width={width}>
+              <Text backgroundColor={tc(theme.bgSelected)} color={tc(theme.textBright)} bold>
+                {label}
+              </Text>
+            </Box>
+          );
         }
 
         return (
-          <Box key={row.key}>
-            <Text
-              backgroundColor={isSelected ? "blue" : undefined}
-              bold={isSelected}
-              color={isSelected ? "white" : color}
-            >
-              {label.padEnd(width - 1)}
+          <Box key={row.key} width={width}>
+            <Text color={tc(sColor)}>
+              {label}
             </Text>
           </Box>
         );

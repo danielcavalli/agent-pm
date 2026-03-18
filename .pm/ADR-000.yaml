@@ -36,4 +36,43 @@ adrs:
     references: []
     created_at: '2026-03-11T14:29:41.423Z'
     updated_at: '2026-03-11T14:29:41.423Z'
-last_updated: '2026-03-11T14:29:41.425Z'
+  - id: ADR-003
+    title: Reject ink-text-input for TUI search mode
+    status: accepted
+    context: >-
+      The TUI search mode uses a hand-rolled implementation via useInput with basic character accumulation (~20 lines in
+      src/tui/index.tsx). It supports character append, backspace from end, Escape to cancel, and Enter to confirm. It
+      lacks cursor movement within the search string, clipboard paste, and text selection. Story PM-E069-S001 evaluated
+      ink-text-input (v6.0.0) as a potential replacement to improve search UX quality.
+    decision: >-
+      Reject ink-text-input for the TUI search field. The current hand-rolled implementation is sufficient. The primary
+      gain would be left/right arrow cursor movement within the search string, but this is marginal value for a search
+      field where queries are typically short. The risks outweigh the benefits: (1) ink-text-input issue #75 causes Ctrl
+      key consumption even when not intended, conflicting with existing TUI shortcuts like Ctrl+D and Ctrl+U; (2) slow
+      maintenance cadence (last commit May 2024, 15 open issues); (3) still lacks Home/End, readline shortcuts, and text
+      selection -- so the improvement is incremental, not transformative. Revisit if richer text input is needed (e.g.,
+      multi-field forms).
+    consequences:
+      positive:
+        - No new dependency -- keeps bundle minimal and avoids type-fest transitive dep
+        - No risk of Ctrl key consumption conflicts with existing TUI shortcuts
+        - Hand-rolled implementation remains fully under project control
+        - Avoids coupling to a low-maintenance external package
+      negative:
+        - Search field continues to lack cursor movement within query
+        - No clipboard paste support in search mode
+        - Future search UX enhancements require hand-rolling additional input features
+    author:
+      type: agent
+      agent_id: claude-agent-1
+    timestamp: '2026-03-16T20:23:50.179Z'
+    tags:
+      - tui
+      - search
+      - ink-text-input
+      - dependency-evaluation
+      - rejected
+    references: []
+    created_at: '2026-03-16T20:23:50.179Z'
+    updated_at: '2026-03-16T20:23:50.179Z'
+last_updated: '2026-03-16T20:23:50.208Z'

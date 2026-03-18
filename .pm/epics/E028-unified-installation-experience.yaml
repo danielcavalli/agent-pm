@@ -88,15 +88,18 @@ stories:
       current append-only limitation: the installer uses marker detection to avoid duplicates but cannot update existing
       rules. Implement update-in-place logic that replaces the PM rules section between markers.
     acceptance_criteria:
-      - PM autonomous filing rules are present in ~/.config/opencode/AGENTS.md for OpenCode
-      - PM autonomous filing rules are present in Claude Code's equivalent instructions file
-      - Rules can be updated in-place on re-install (not just appended)
-      - Marker detection works for both clients
-      - Re-running install.sh updates existing rules rather than duplicating them
+      - PM autonomous filing rules can be installed per-project via pm rules init
+      - pm rules init writes rules into the project-local AGENTS.md (not a global file)
+      - Rules can be updated in-place on re-run (not just appended) via marker detection
+      - pm rules remove cleanly removes the PM rules section from AGENTS.md
+      - Re-running pm rules init updates existing rules rather than duplicating them
     status: done
     priority: high
     story_points: 3
-    notes: ""
+    notes: >-
+      Originally verified against global ~/.config/opencode/AGENTS.md and ~/.claude/AGENTS.md.
+      Updated to reflect per-project rules model: pm rules init/remove manage a project-local
+      AGENTS.md with idempotent marker-based update-in-place logic.
   - id: S006
     code: PM-E028-S006
     title: macOS compatibility verification and fixes

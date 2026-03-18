@@ -67,10 +67,10 @@ export function getProjectsDir(): string {
  * Should be called early in CLI initialization before any command runs.
  *
  * Creates .pm/ at git root or cwd, with subdirectories for epics, comments,
- * adrs, and reports. Refuses to create in / or HOME without explicit pm init.
+ * adrs, reports, and agents. Refuses to create in / or HOME without explicit pm init.
  */
 export function ensurePmDir(): void {
-  const subdirs = ["epics", "comments", "adrs", "reports"];
+  const subdirs = ["epics", "comments", "adrs", "reports", "agents"];
 
   if (process.env["PM_HOME"]) {
     const pmDir = process.env["PM_HOME"];

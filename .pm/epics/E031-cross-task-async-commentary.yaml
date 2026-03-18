@@ -6,7 +6,7 @@ description: >-
   dependency, or conflict. This epic defines the comment schema, targeting rules, and the distinction between
   human-facing and agent-facing comments, enabling asynchronous signal propagation across tasks without blocking
   execution.
-status: backlog
+status: done
 priority: high
 created_at: '2026-03-11'
 stories:

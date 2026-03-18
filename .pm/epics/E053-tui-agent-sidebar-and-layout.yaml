@@ -1,0 +1,128 @@
+id: E053
+code: PM-E053
+title: TUI Agent Sidebar and Layout
+description: >-
+  Evolve the TUI from a two-panel layout (tree + detail) to a three-panel layout with a collapsible agent sidebar. The
+  sidebar provides ISA-101 Level 1 fleet overview: all agents at a glance with status icons and attention indicators.
+  Auto-hides when no agents are registered for backward compatibility. Implements ADR-021 Decision 2. PRD coverage: M2,
+  S4, C1, C2, C4.
+status: done
+priority: high
+created_at: '2026-03-14'
+stories:
+  - id: S001
+    code: PM-E053-S001
+    title: Implement three-panel layout with collapsible agent sidebar
+    description: >-
+      Modify src/tui/index.tsx to render three panels: agent sidebar (20-25 chars fixed width), project tree, and detail
+      panel. Add focusedPanel state to track which panel is active. When .pm/agents/ is empty or missing, default to the
+      existing two-panel layout. Active panel gets a cyan border; inactive panels get default borders. PRD: M2. SC: SC1,
+      SC7.
+    acceptance_criteria:
+      - >-
+        src/tui/index.tsx renders agent sidebar (20-25 chars), project tree, and detail panel in a horizontal flexbox
+        layout
+      - When .pm/agents/ is empty or does not exist, layout renders only tree + detail (matching v0.0.6 behavior)
+      - focusedPanel state tracks sidebar | tree | detail and determines which panel receives keyboard input
+      - Active panel Box has borderColor cyan; inactive panels use default border color
+    status: done
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E051-S002
+    notes: ''
+  - id: S002
+    code: PM-E053-S002
+    title: Agent sidebar content rendering with status icons
+    description: >-
+      Create src/tui/components/AgentSidebar.tsx component. It reads agent state from .pm/agents/ via the agent state
+      helpers, renders each agent as a line showing agent_id (truncated), status icon, and current_task code. Agents
+      with needs_attention are visually prominent. Integrates with useFileWatcher for live updates. PRD: M2. SC: SC1.
+    acceptance_criteria:
+      - >-
+        src/tui/components/AgentSidebar.tsx renders a list of agents with: status icon, agent_id (truncated to fit), and
+        current_task code
+      - >-
+        Status icons: filled circle (active), empty circle (idle), triangle (needs_attention), x (blocked), check
+        (completed)
+      - Agents with needs_attention or blocked status render with bold/highlighted text
+      - Component re-renders when .pm/agents/ files change (via existing useFileWatcher mechanism)
+    status: done
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E053-S001
+      - PM-E051-S002
+    notes: ''
+  - id: S003
+    code: PM-E053-S003
+    title: Agent sidebar toggle via a key
+    description: >-
+      Add a keybinding to src/tui/index.tsx that toggles the agent sidebar visibility. When hidden, restore the v0.0.6
+      two-panel layout (tree + detail with 40/60 split). Toggle state is a boolean in component state. PRD: S4. SC: SC7.
+    acceptance_criteria:
+      - Pressing a hides the agent sidebar and restores two-panel layout
+      - Pressing a again shows the agent sidebar
+      - >-
+        When sidebar is hidden and agents have needs_attention, a minimal indicator remains in the status bar (cross-ref
+        E053-S005)
+      - Focus automatically moves to the tree panel if the sidebar was focused when hidden
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on:
+      - PM-E053-S001
+    notes: ''
+  - id: S004
+    code: PM-E053-S004
+    title: Color-coded agent states with symbol fallback
+    description: >-
+      Add color mapping to agent status rendering in AgentSidebar.tsx. Green for active, dim/gray for idle, red for
+      needs_attention and blocked, gray for completed. When NO_COLOR is set, rely on symbol-only differentiation
+      (already in S002). PRD: C1. SC: SC1.
+    acceptance_criteria:
+      - >-
+        Active agents render agent_id in green, idle in dim, needs_attention in red/bold, blocked in red, completed in
+        gray
+      - Colors are defined in a single constant mapping (STATUS_COLORS object) for easy modification
+      - When NO_COLOR environment variable is set or TERM=dumb, only symbols differentiate states (no ANSI color codes)
+    status: done
+    priority: low
+    story_points: 2
+    depends_on:
+      - PM-E053-S002
+    notes: ''
+  - id: S005
+    code: PM-E053-S005
+    title: Agent count in status bar
+    description: >-
+      Extend src/tui/components/StatusBar.tsx to display agent count summary (e.g., 3 agents, 1 needs attention) when
+      agents are registered. Omit the section when no agents exist. PRD: C2. SC: SC1.
+    acceptance_criteria:
+      - StatusBar.tsx displays total agent count and count needing attention (e.g., 3 agents (1 needs attention))
+      - When no agents are registered (.pm/agents/ empty or missing), the agent count section is not rendered
+      - Count updates reactively when agent state files change
+    status: done
+    priority: low
+    story_points: 1
+    depends_on:
+      - PM-E053-S001
+      - PM-E051-S002
+    notes: ''
+  - id: S006
+    code: PM-E053-S006
+    title: Agent filter in sidebar
+    description: >-
+      Add a filter mode to the agent sidebar that shows only agents with needs_attention or blocked status. Toggled by a
+      key when the sidebar is focused. Mitigates alert fatigue when many agents are running smoothly. PRD: C4. SC: SC1.
+    acceptance_criteria:
+      - 'When the sidebar is focused, pressing f cycles: all agents -> attention-only -> all agents'
+      - Current filter state is shown in the sidebar header (e.g., Agents [!] for attention-only filter)
+      - Filter defaults to show all on TUI startup
+      - Filter persists within the session but resets when the TUI is restarted
+    status: done
+    priority: low
+    story_points: 2
+    depends_on:
+      - PM-E053-S002
+    notes: ''

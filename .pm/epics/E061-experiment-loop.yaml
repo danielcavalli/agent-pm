@@ -1,0 +1,123 @@
+id: E061
+code: PM-E061
+title: Experiment Loop
+description: >-
+  Implement the /pm-swarm-improve slash command that runs the experiment loop. Covers the full
+  ANALYZE-HYPOTHESIZE-CLAIM-CONFIGURE-OBSERVE-EVALUATE-DECIDE-PUBLISH cycle, dual mutation paths, loop reliability
+  mechanisms, and error handling.
+status: backlog
+priority: high
+created_at: '2026-03-15'
+stories:
+  - id: S001
+    code: PM-E061-S001
+    title: /pm-swarm-improve slash command scaffold
+    description: >-
+      Create install/commands/pm-swarm-improve.md implementing the full 9-step experiment loop as a slash command
+      prompt. Lists available pm mutation commands and EXPERIMENT_RESULT output format.
+    acceptance_criteria:
+      - install/commands/pm-swarm-improve.md exists with the full loop structure matching ADR-023 Decision 4
+      - ANALYZE step instructs agent to call pm swarm analyze and identify under-explored dimensions
+      - HYPOTHESIZE step lists available pm mutation commands and rotation heuristic
+      - CLAIM step references claim protocol and instructs verification
+      - >-
+        CONFIGURE step branches on mutation type (board: pm commands + git commit; runtime: strategy.yaml + version
+        increment)
+      - OBSERVE step instructs reading observations filtered by strategy_hash/board_hash
+      - EVALUATE step instructs Tchebycheff composite scoring
+      - DECIDE step compares against best, instructs keep or discard with appropriate revert
+      - PUBLISH step requires both result file and insight file; optionally hypothesis
+      - 'Human override detection: if hashes changed externally, evaluate and record as result'
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E059-S004
+      - PM-E060-S003
+    notes: ''
+  - id: S002
+    code: PM-E061-S002
+    title: Loop reliability mechanisms
+    description: >-
+      Implement three reliability mechanisms: per-iteration state file (.pm/swarm/loop-state.yaml), step-level Zod
+      validation with retry-once-then-abort, context budget after PUBLISH.
+    acceptance_criteria:
+      - >-
+        LoopStateSchema validates: current_iteration, last_completed_step (enum), current_experiment_id,
+        recent_summaries (up to 3), started_at
+      - After PUBLISH, slash command instructs writing loop-state.yaml; at ANALYZE, instructs reading it to resume
+      - Step validation schemas exist for HYPOTHESIZE, CONFIGURE, and EVALUATE outputs
+      - 'On step validation failure: retry once; if retry fails, skip to next iteration'
+      - 'PUBLISH step explicitly states: carry forward only loop-state, current best, and last 3 summaries'
+      - Unit tests verify LoopStateSchema and step output schemas
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E061-S001
+    notes: ''
+  - id: S003
+    code: PM-E061-S003
+    title: Dual mutation path implementation
+    description: >-
+      Implement CONFIGURE and DECIDE logic for both mutation types. Board: execute pm commands, git commit, git revert
+      on discard. Runtime: write strategy.yaml with version+1, restore best on discard.
+    acceptance_criteria:
+      - applyBoardMutation(pmDir, pmCommands) executes commands, stages .pm/ changes, git commits, returns hash
+      - revertBoardMutation(pmDir, commitHash) runs git revert --no-edit and returns success/failure
+      - >-
+        applyRuntimeMutation(pmDir, parameterPath, newValue) updates strategy.yaml, increments config_version, writes
+        atomically
+      - revertRuntimeMutation(pmDir) copies best/strategy.yaml over current, increments config_version
+      - >-
+        Unit tests: apply/revert board mutation (verify git history), apply/revert runtime (verify config_version
+        monotonic)
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E061-S001
+      - PM-E060-S004
+    notes: ''
+  - id: S004
+    code: PM-E061-S004
+    title: Integration test with error handling
+    description: >-
+      End-to-end test: init swarm, establish baseline, run one experiment iteration. Plus three error paths: git revert
+      failure, claim TTL expiry mid-experiment, strategy.yaml corruption.
+    acceptance_criteria:
+      - >-
+        Happy path: init -> fixture observations -> baseline -> runtime mutation -> more observations -> evaluate ->
+        decide -> publish result and insight
+      - 'Git revert failure: simulate conflicting commit; verify error logged and escalation filed'
+      - 'Claim TTL expiry: set TTL to 1s, advance clock; verify iteration aborts cleanly without corrupted result'
+      - 'Strategy.yaml corruption: write invalid YAML mid-iteration; verify fallback to best or clean abort'
+      - Each error path has at least one dedicated test case
+      - All tests clean up their temp directories
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E061-S001
+      - PM-E061-S002
+      - PM-E061-S003
+    notes: ''
+  - id: S005
+    code: PM-E061-S005
+    title: EXPERIMENT_RESULT structured output
+    description: >-
+      Define ExperimentResultOutput Zod schema and implement emitter/parser for the structured EXPERIMENT_RESULT block
+      format from ADR-023.
+    acceptance_criteria:
+      - >-
+        ExperimentResultOutputSchema validates: experiment_id, mutation_type, hypothesis, change_description,
+        observation_window, composite_score, previous_best_score, decision, insight
+      - formatExperimentResult(data) returns YAML wrapped in ---/EXPERIMENT_RESULT:/--- delimiters
+      - parseExperimentResult(stdout) extracts and validates the block from arbitrary text
+      - Unit tests verify formatting and round-trip parsing
+    status: backlog
+    priority: medium
+    story_points: 2
+    depends_on:
+      - PM-E061-S001
+    notes: ''

@@ -99,15 +99,20 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 describe("MCP PM Server", () => {
-  it("lists all six tools via tools/list", async () => {
+  it("lists all fourteen tools via tools/list", async () => {
     const result = await client.listTools();
     const names = result.tools.map((t) => t.name).sort();
 
     expect(names).toEqual([
       "pm_adr_create",
+      "pm_adr_query",
+      "pm_agent_check_response",
+      "pm_agent_escalate",
+      "pm_agent_heartbeat",
       "pm_comment_add",
       "pm_comment_list",
       "pm_epic_add",
+      "pm_gc_run",
       "pm_project_remove",
       "pm_report_create",
       "pm_report_view",
@@ -184,6 +189,119 @@ describe("MCP PM Server", () => {
     const content = result.content as Array<{ type: string; text: string }>;
     expect(content.length).toBeGreaterThan(0);
     expect(content[0]?.text).toContain("S001");
+  });
+
+  it("pm_adr_query is listed with correct schema", async () => {
+    const result = await client.listTools();
+    const adrQueryTool = result.tools.find((t) => t.name === "pm_adr_query");
+
+    expect(adrQueryTool).toBeDefined();
+    expect(adrQueryTool!.description).toBeTruthy();
+    expect(adrQueryTool!.inputSchema).toBeDefined();
+    expect(adrQueryTool!.inputSchema.type).toBe("object");
+
+    const props = adrQueryTool!.inputSchema.properties as Record<
+      string,
+      unknown
+    >;
+    // All filter parameters should be present
+    expect(props).toHaveProperty("status");
+    expect(props).toHaveProperty("tags");
+    expect(props).toHaveProperty("author");
+    expect(props).toHaveProperty("limit");
+    expect(props).toHaveProperty("workdir");
+  });
+
+  it("pm_adr_query delegates to pm adr query CLI", async () => {
+    // First create an ADR to query
+    const createResult = await client.callTool({
+      name: "pm_adr_create",
+      arguments: {
+        project: "MCPT",
+        title: "Query Test ADR",
+        status: "accepted",
+        context: "Testing ADR query via MCP",
+        decision: "Use MCP tool delegation",
+        positive_consequences: ["Easy to test"],
+        negative_consequences: [],
+        author_type: "agent",
+        author_id: "test-agent",
+        tags: ["mcp", "testing"],
+      },
+    });
+
+    expect(createResult.isError).toBeFalsy();
+
+    // Now query for it
+    const queryResult = await client.callTool({
+      name: "pm_adr_query",
+      arguments: {
+        tags: ["mcp"],
+      },
+    });
+
+    expect(queryResult.isError).toBeFalsy();
+    const content = queryResult.content as Array<{
+      type: string;
+      text: string;
+    }>;
+    expect(content.length).toBeGreaterThan(0);
+    expect(content[0]?.text).toContain("Query Test ADR");
+  });
+
+  it("pm_adr_query returns empty results when no ADRs exist", async () => {
+    // Query with filters that won't match anything
+    const result = await client.callTool({
+      name: "pm_adr_query",
+      arguments: {
+        tags: ["nonexistent-tag-xyz"],
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as Array<{ type: string; text: string }>;
+    expect(content.length).toBeGreaterThan(0);
+    expect(content[0]?.text).toContain("No ADRs match");
+  });
+
+  it("pm_gc_run is listed with correct schema", async () => {
+    const result = await client.listTools();
+    const gcTool = result.tools.find((t) => t.name === "pm_gc_run");
+
+    expect(gcTool).toBeDefined();
+    expect(gcTool!.description).toBeTruthy();
+    expect(gcTool!.inputSchema).toBeDefined();
+    expect(gcTool!.inputSchema.type).toBe("object");
+
+    const props = gcTool!.inputSchema.properties as Record<string, unknown>;
+    expect(props).toHaveProperty("dry_run");
+    expect(props).toHaveProperty("workdir");
+  });
+
+  it("pm_gc_run delegates to pm gc run CLI and returns summary", async () => {
+    const result = await client.callTool({
+      name: "pm_gc_run",
+      arguments: {},
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as Array<{ type: string; text: string }>;
+    expect(content.length).toBeGreaterThan(0);
+    expect(content[0]?.type).toBe("text");
+    // GC output includes the summary line
+    expect(content[0]?.text).toContain("Garbage Collection");
+  });
+
+  it("pm_gc_run supports dry_run parameter", async () => {
+    const result = await client.callTool({
+      name: "pm_gc_run",
+      arguments: { dry_run: true },
+    });
+
+    expect(result.isError).toBeFalsy();
+    const content = result.content as Array<{ type: string; text: string }>;
+    expect(content.length).toBeGreaterThan(0);
+    expect(content[0]?.text).toContain("dry-run");
   });
 
   it("returns an error for unknown tool name", async () => {

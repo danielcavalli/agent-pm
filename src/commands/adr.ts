@@ -179,11 +179,65 @@ export interface AdrQueryOptions {
   id?: string;
   status?: string;
   tag?: string;
+  tags?: string[];
   authorType?: "agent" | "human";
   author?: string;
   search?: string;
   limit?: number;
   format?: "summary" | "full";
+  verbose?: boolean;
+  includeSuperseded?: boolean;
+}
+
+/**
+ * Compute a relevance score for an ADR based on tag match count and recency.
+ *
+ * - Tag score: number of query tags that appear in the ADR's tags (0 if no
+ *   query tags provided).
+ * - Recency score: a 0..1 value where 1.0 = today and 0.0 = 365+ days ago.
+ *   Recency is weighted at 0.5 relative to tag matches (i.e. one tag match
+ *   adds 1.0, while maximum recency adds 0.5).
+ *
+ * Total score = tagMatchCount + (recencyFraction * 0.5)
+ */
+export function computeRelevanceScore(
+  adr: ADR,
+  queryTags: string[],
+  now: Date = new Date(),
+): { total: number; tagMatches: number; recency: number } {
+  // Tag match count
+  const adrTags = adr.tags ?? [];
+  const tagMatches = queryTags.filter((qt) => adrTags.includes(qt)).length;
+
+  // Recency: days since creation, capped at 365
+  const timestamp = adr.created_at || adr.timestamp;
+  const createdDate = new Date(timestamp);
+  const daysSinceCreation =
+    (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+  const recencyFraction = Math.max(0, 1 - daysSinceCreation / 365);
+  const recencyScore = recencyFraction * 0.5;
+
+  return {
+    total: tagMatches + recencyScore,
+    tagMatches,
+    recency: recencyScore,
+  };
+}
+
+/**
+ * Extract a one-sentence excerpt from a decision string.
+ * Takes the first sentence (delimited by `. `, `.` at end, or newline),
+ * truncated to maxLen characters.
+ */
+function decisionExcerpt(decision: string, maxLen = 100): string {
+  if (!decision) return "";
+  // Normalise whitespace (collapse newlines / multiple spaces)
+  const normalised = decision.replace(/\s+/g, " ").trim();
+  // First sentence: up to the first ". " or end-of-string "."
+  const sentenceMatch = normalised.match(/^(.+?\.)\s/);
+  const sentence = sentenceMatch ? sentenceMatch[1] : normalised;
+  if (sentence.length <= maxLen) return sentence;
+  return sentence.substring(0, maxLen - 3) + "...";
 }
 
 export async function adrQuery(options: AdrQueryOptions): Promise<void> {
@@ -191,11 +245,14 @@ export async function adrQuery(options: AdrQueryOptions): Promise<void> {
     id,
     status,
     tag,
+    tags: tagsOpt,
     authorType,
     author,
     search,
-    limit = 20,
+    limit = 5,
     format = "summary",
+    verbose = false,
+    includeSuperseded = false,
   } = options;
 
   const pmDir = getPmDir();
@@ -208,6 +265,14 @@ export async function adrQuery(options: AdrQueryOptions): Promise<void> {
 
   let results = index.adrs;
 
+  // By default, exclude superseded and deprecated ADRs unless the caller
+  // explicitly opts in via --include-superseded or sets a specific status filter.
+  if (!includeSuperseded && !status) {
+    results = results.filter(
+      (adr) => adr.status !== "superseded" && adr.status !== "deprecated",
+    );
+  }
+
   if (id) {
     const idPattern = new RegExp(id.replace(/\*/g, ".*"), "i");
     results = results.filter((adr) => idPattern.test(adr.id));
@@ -217,8 +282,20 @@ export async function adrQuery(options: AdrQueryOptions): Promise<void> {
     results = results.filter((adr) => adr.status === status);
   }
 
-  if (tag) {
-    results = results.filter((adr) => adr.tags?.includes(tag));
+  // Merge single --tag with --tags array for backward compatibility
+  const queryTags: string[] = [
+    ...(tag ? [tag] : []),
+    ...(tagsOpt ?? []),
+  ];
+  // Remove duplicates
+  const uniqueQueryTags = [...new Set(queryTags)];
+
+  // When tags are provided as a filter, keep only ADRs that match at least
+  // one tag (preserving previous behaviour where --tag was an exact filter).
+  if (uniqueQueryTags.length > 0) {
+    results = results.filter((adr) =>
+      uniqueQueryTags.some((qt) => adr.tags?.includes(qt)),
+    );
   }
 
   if (authorType) {
@@ -246,17 +323,32 @@ export async function adrQuery(options: AdrQueryOptions): Promise<void> {
     );
   }
 
-  results = results.slice(0, limit);
+  // ── Relevance scoring & sorting ──────────────────────────────────────────
+  const now = new Date();
+  const scored = results.map((adr) => ({
+    adr,
+    score: computeRelevanceScore(adr, uniqueQueryTags, now),
+  }));
 
-  if (results.length === 0) {
+  // Sort by total score descending (highest relevance first)
+  scored.sort((a, b) => b.score.total - a.score.total);
+
+  // Apply limit after sorting
+  const limited = scored.slice(0, limit);
+
+  if (limited.length === 0) {
     console.log(chalk.yellow("No ADRs match the query."));
     return;
   }
 
   if (format === "full") {
-    for (const adr of results) {
+    for (const { adr, score } of limited) {
       console.log(chalk.bold(`\n${adr.id}: ${adr.title}`));
       console.log(chalk.dim("─".repeat(50)));
+      console.log(
+        chalk.cyan("Score:") +
+          ` ${score.total.toFixed(2)} (tags: ${score.tagMatches}, recency: ${score.recency.toFixed(2)})`,
+      );
       console.log(chalk.cyan("Status:") + " " + adr.status);
       console.log(
         chalk.cyan("Author:") +
@@ -287,28 +379,49 @@ export async function adrQuery(options: AdrQueryOptions): Promise<void> {
       }
     }
   } else {
-    console.log(
-      chalk.dim(
-        "ID        Title                          Status       Author                 Tags",
-      ),
-    );
-    console.log(chalk.dim("─".repeat(85)));
-
-    for (const adr of results) {
-      const authorStr =
-        adr.author.type === "agent"
-          ? `agent:${adr.author.agent_id}`
-          : adr.author.name;
-      const tagsStr = adr.tags?.join(", ") || "";
+    // In verbose mode, include the score column
+    if (verbose) {
       console.log(
-        `${adr.id}   ${adr.title.substring(0, 30).padEnd(30)}  ${adr.status.padEnd(11)} ${authorStr.substring(0, 20).padEnd(20)} ${tagsStr}`,
+        chalk.dim(
+          "ID        Score  Title                          Status       Tags",
+        ),
       );
+      console.log(chalk.dim("─".repeat(80)));
+
+      for (const { adr, score } of limited) {
+        const tagsStr = adr.tags?.join(", ") || "";
+        console.log(
+          `${adr.id}   ${score.total.toFixed(2).padStart(5)}  ${adr.title.substring(0, 30).padEnd(30)}  ${adr.status.padEnd(11)} ${tagsStr}`,
+        );
+        const excerpt = decisionExcerpt(adr.decision);
+        if (excerpt) {
+          console.log(chalk.dim(`          ${excerpt}`));
+        }
+      }
+    } else {
+      console.log(
+        chalk.dim(
+          "ID        Title                          Status       Tags",
+        ),
+      );
+      console.log(chalk.dim("─".repeat(70)));
+
+      for (const { adr } of limited) {
+        const tagsStr = adr.tags?.join(", ") || "";
+        console.log(
+          `${adr.id}   ${adr.title.substring(0, 30).padEnd(30)}  ${adr.status.padEnd(11)} ${tagsStr}`,
+        );
+        const excerpt = decisionExcerpt(adr.decision);
+        if (excerpt) {
+          console.log(chalk.dim(`          ${excerpt}`));
+        }
+      }
     }
 
-    if (results.length === limit) {
+    if (limited.length === limit) {
       console.log(chalk.dim(`\n(reached limit of ${limit} results)`));
     }
   }
 
-  console.log(chalk.dim(`\n${results.length} result(s)`));
+  console.log(chalk.dim(`\n${limited.length} result(s)`));
 }

@@ -5,7 +5,7 @@ description: >-
   Fix E027 FAIL — .opencode/ artifacts (package.json, bun.lock, .gitignore, node_modules/) still on disk. Add install.sh
   cleanup for stale ~/.config/opencode/tools/pm.ts from prior installations. Document pm-reminder plugin disposition
   (dropped due to plugin system deprecation).
-status: backlog
+status: done
 priority: high
 created_at: '2026-03-11'
 stories:
@@ -21,7 +21,7 @@ stories:
       - .opencode/.gitignore is deleted from the repo
       - .opencode/node_modules/ is removed
       - .opencode/ is added to the root .gitignore
-    status: backlog
+    status: done
     priority: high
     story_points: 1
     depends_on: []
@@ -37,7 +37,7 @@ stories:
       - Removal only happens if the file exists (no error on clean installs)
       - Informational message printed when stale file is removed
       - Cleanup runs before MCP configuration
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on: []
@@ -52,7 +52,7 @@ stories:
       - CHANGELOG or ADR documents the pm-reminder deprecation decision
       - Rationale references MCP replacing the plugin system
       - E018-S002 context is preserved for historical reference
-    status: backlog
+    status: done
     priority: low
     story_points: 1
     depends_on: []

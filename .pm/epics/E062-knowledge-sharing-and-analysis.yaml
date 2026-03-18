@@ -1,0 +1,127 @@
+id: E062
+code: PM-E062
+title: Knowledge Sharing and Analysis
+description: >-
+  Implement the four knowledge artifacts (results, hypotheses, insights, swarm analysis) and the pm swarm analyze CLI
+  command. Enables inter-agent learning, exploration tracking, and trend detection.
+status: backlog
+priority: medium
+created_at: '2026-03-15'
+stories:
+  - id: S001
+    code: PM-E062-S001
+    title: Result aggregation and exploration coverage
+    description: >-
+      Read all experiment results from .pm/swarm/results/, compute exploration coverage per mutation dimension, report
+      global best.
+    acceptance_criteria:
+      - aggregateResults(pmDir) reads all files in .pm/swarm/results/, validates each, returns array of valid results
+      - computeExplorationCoverage(results) returns runtime_config and board_mutations dimension counts
+      - >-
+        Board mutations classified by pm_commands: priority -> priority_changes, depends-on -> dependency_changes, story
+        add -> story_splits, pm prioritize -> priority_changes
+      - readGlobalBest(pmDir) returns best metadata or null
+      - Unit tests with 5+ fixture results verifying aggregation and category classification
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E057-S002
+    notes: ''
+  - id: S002
+    code: PM-E062-S002
+    title: Trend detection and composite analysis
+    description: >-
+      Compare 5 most recent composite scores vs preceding 5. Delta > 0.02: improving, within +/-0.02: plateaued, <
+      -0.02: regressing.
+    acceptance_criteria:
+      - detectTrend(results) returns improving, plateaued, or regressing based on comparing recent 5 vs preceding 5
+      - If fewer than 10 results, uses all available split into halves; if fewer than 2, returns plateaued
+      - >-
+        buildAnalysisSummary(pmDir) returns full analysis: global_best, recent_results, active_claims,
+        unclaimed_hypotheses, agent_bests, trend, count, coverage
+      - 'Unit tests: improving (ascending), plateaued (flat), regressing (descending), edge case fewer than 10'
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E062-S001
+    notes: ''
+  - id: S003
+    code: PM-E062-S003
+    title: pm swarm analyze CLI command and formatted output
+    description: Implement pm swarm analyze subcommand that runs analysis pipeline and outputs formatted YAML summary.
+    acceptance_criteria:
+      - pm swarm analyze outputs full analysis summary as YAML to stdout
+      - >-
+        Output includes: global_best, improvement_trend, experiment_count, exploration_coverage, recent_results (last
+        5), active_claims count, unclaimed_hypotheses count
+      - If .pm/swarm/ does not exist, prints error message and exits with code 1
+      - Subcommand registered under pm swarm in CLI
+      - 'Integration test: init swarm, write fixtures, run analyze, verify output fields'
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E062-S001
+      - PM-E062-S002
+      - PM-E057-S005
+    notes: ''
+  - id: S004
+    code: PM-E062-S004
+    title: Hypothesis exchange -- write and list
+    description: Implement hypothesis writing and listing. Hypotheses with type tactic_suggestion are flagged for human review.
+    acceptance_criteria:
+      - writeHypothesis(pmDir, hypothesis) writes validated file with auto-generated timestamp-based filename
+      - >-
+        listHypotheses(pmDir, filter?) returns hypotheses filtered by status (default: unclaimed), sorted by priority
+        ascending
+      - 'Hypotheses with type tactic_suggestion get requires_human_review: true added automatically'
+      - 'Unit tests: write/list round-trip, priority sorting, tactic_suggestion flagging'
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E057-S002
+    notes: ''
+  - id: S005
+    code: PM-E062-S005
+    title: Insight accumulation -- write, list, and tag search
+    description: >-
+      Every experiment publishes one insight. Support writing, listing by recency, filtering by tags, and similarity
+      search.
+    acceptance_criteria:
+      - writeInsight(pmDir, insight) writes validated file with auto-generated filename
+      - listInsights(pmDir, limit?) returns insights sorted by posted_at descending with optional limit
+      - searchInsights(pmDir, query, threshold) uses FileSwarmStore.search on insights namespace
+      - filterInsightsByTag(pmDir, tag) returns only insights whose tags include the given tag
+      - 'Unit tests: write/list round-trip, tag filtering, search by similarity'
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E057-S003
+    notes: ''
+  - id: S006
+    code: PM-E062-S006
+    title: Cascading best-tracking with safety guards
+    description: >-
+      Agent personal best and global best tracking. Safety guards: reject score <= 0, reject improvement > 0.30,
+      double-read before write.
+    acceptance_criteria:
+      - updateAgentBest(pmDir, agentId, result) writes/updates agent personal best if new score exceeds current
+      - updateGlobalBest(pmDir, result) updates metadata.yaml if score > current best, with safety guards
+      - Rejects composite_score <= 0 with logged warning
+      - Rejects improvement > 0.30 over current best with anomalous improvement warning
+      - 'Double-read: read, compute, re-read to verify no concurrent update, then write; retry once on mismatch'
+      - metadata.yaml stores previous_best_score and previous_best_experiment_id for audit
+      - >-
+        Unit tests: normal update, rejection of score <= 0, rejection of anomalous improvement, concurrent write
+        detection
+    status: backlog
+    priority: high
+    story_points: 2
+    depends_on:
+      - PM-E060-S005
+      - PM-E059-S004
+    notes: ''

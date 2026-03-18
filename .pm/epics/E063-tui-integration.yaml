@@ -1,0 +1,89 @@
+id: E063
+code: PM-E063
+title: TUI Integration
+description: >-
+  Display swarm experiment status, current best configuration, and improvement trend in the existing TUI. Extends the
+  agent sidebar and status bar with swarm-specific data.
+status: backlog
+priority: low
+created_at: '2026-03-15'
+stories:
+  - id: S001
+    code: PM-E063-S001
+    title: Swarm status data loader
+    description: >-
+      Create TUI data loader that reads swarm analysis summary and transforms into TUI-friendly data structures with
+      trend colors.
+    acceptance_criteria:
+      - >-
+        loadSwarmStatus(pmDir) returns { trend, trendColor, experimentCount, bestScore, activeClaims } or null if swarm
+        not initialized
+      - 'Trend colors: improving = green, plateaued = yellow, regressing = red'
+      - Returns null (not error) if .pm/swarm/ does not exist
+      - Unit test verifies data transformation
+    status: backlog
+    priority: low
+    story_points: 2
+    depends_on:
+      - PM-E062-S002
+    notes: ''
+  - id: S002
+    code: PM-E063-S002
+    title: Experiment status in StatusBar
+    description: >-
+      Add swarm experiment status to TUI StatusBar: experiment count, trend with color, best score. Only shown if swarm
+      initialized.
+    acceptance_criteria:
+      - 'StatusBar displays Swarm: N experiments | trend | best: X.XX when swarm initialized'
+      - Trend text colored per E063-S001 color mapping
+      - StatusBar unchanged when swarm not initialized
+      - Component renders correctly with swarm data loader returning null
+    status: backlog
+    priority: low
+    story_points: 2
+    depends_on:
+      - PM-E063-S001
+    notes: ''
+  - id: S003
+    code: PM-E063-S003
+    title: Active experiments in AgentSidebar
+    description: 'Show active experiment claims in AgentSidebar: agent_id, mutation type icon, elapsed time.'
+    acceptance_criteria:
+      - AgentSidebar shows Active Experiments section listing active claims
+      - 'Each claim shows: agent_id, mutation_type icon (gear for runtime, tree for board), elapsed time'
+      - Section hidden when no active claims exist
+      - Component handles empty claims array without error
+    status: backlog
+    priority: low
+    story_points: 2
+    depends_on:
+      - PM-E063-S001
+    notes: ''
+  - id: S004
+    code: PM-E063-S004
+    title: Recent results in DetailPanel
+    description: Add Recent Experiments section to DetailPanel showing last 5 results with decision, score, and description.
+    acceptance_criteria:
+      - DetailPanel shows Recent Experiments section with last 5 results
+      - 'Each result shows: decision (keep=green, discard=red), score, truncated description'
+      - Section hidden when no results exist
+    status: backlog
+    priority: low
+    story_points: 1
+    depends_on:
+      - PM-E063-S001
+    notes: ''
+  - id: S005
+    code: PM-E063-S005
+    title: Exploration coverage visualization
+    description: Compact exploration coverage display in DetailPanel showing explored dimensions and counts.
+    acceptance_criteria:
+      - DetailPanel shows exploration coverage with dimension names and experiment counts
+      - Dimensions with 0 experiments shown in dim/grey to highlight gaps
+      - Display updates when swarm analysis data refreshes
+    status: backlog
+    priority: low
+    story_points: 1
+    depends_on:
+      - PM-E063-S001
+    notes: ''

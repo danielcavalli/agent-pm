@@ -5,7 +5,7 @@ description: >-
   Update all documentation to reflect the local-first .pm/ storage architecture. Covers README, PRD, CONTRIBUTING,
   AGENTS.md, agent-rules template, and all 11 slash commands. Replaces ~/.pm/ references with .pm/, documents PM_HOME as
   test/CI-only override. Depends on all other local-first epics.
-status: backlog
+status: done
 priority: high
 created_at: '2026-03-11'
 stories:

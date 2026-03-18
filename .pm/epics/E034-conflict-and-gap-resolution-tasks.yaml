@@ -5,7 +5,7 @@ description: >-
   The structured output of the consolidation agent when it detects incompatible assumptions or unvalidated priors.
   Defines how conflict and gap tasks are schema'd, prioritized, and distinguished from normal implementation tasks on
   the board so that agents and humans can triage them correctly.
-status: backlog
+status: done
 priority: medium
 created_at: '2026-03-11'
 stories:

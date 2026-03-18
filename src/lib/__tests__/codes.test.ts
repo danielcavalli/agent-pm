@@ -403,6 +403,7 @@ describe("ensurePmDir", () => {
     expect(fs.existsSync(path.join(tmpDir, "comments"))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, "adrs"))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, "reports"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "agents"))).toBe(true);
   });
 
   it("is idempotent — does not error if .pm/ already exists", () => {
@@ -548,5 +549,6 @@ describe("ensureProjectsDir (legacy alias)", () => {
     expect(fs.existsSync(path.join(tmpDir, "comments"))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, "adrs"))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, "reports"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "agents"))).toBe(true);
   });
 });

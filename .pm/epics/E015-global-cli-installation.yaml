@@ -56,16 +56,16 @@ stories:
     code: PM-E015-S004
     title: Create install.sh script for complete setup
     description: >-
-      Create install/install.sh that performs: (1) npm install -g . to install the pm CLI globally, (2) copies
-      install/opencode/tools/* to ~/.config/opencode/tools/, (3) copies install/opencode/commands/* to
-      ~/.config/opencode/commands/, (4) appends PM autonomous filing rules to ~/.config/opencode/AGENTS.md if not
-      already present. Script should be idempotent.
+      Create install/install.sh that performs: (1) npm install -g . to install the pm CLI globally, (2) detects
+      available AI coding clients (OpenCode, Claude Code), (3) registers the MCP server (dist/mcp-server.js) in
+      each detected client's config, (4) copies slash commands to each client's commands directory, (5) cleans up
+      legacy global agent rules from AGENTS.md if present. Script should be idempotent.
     acceptance_criteria:
       - install.sh installs pm CLI globally
-      - install.sh copies custom tools to ~/.config/opencode/tools/
-      - install.sh copies slash commands to ~/.config/opencode/commands/
-      - install.sh appends PM rules to ~/.config/opencode/AGENTS.md
-      - Running install.sh twice does not duplicate AGENTS.md rules
+      - install.sh registers the MCP server (dist/mcp-server.js) in detected AI client configs
+      - install.sh copies slash commands to detected AI client command directories
+      - install.sh cleans up legacy global agent rules from AGENTS.md if present
+      - Running install.sh twice is idempotent (no duplicate config entries)
       - Script is executable and has proper bash shebang
     status: done
     priority: high

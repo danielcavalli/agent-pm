@@ -54,7 +54,8 @@ export function loadTree(): TreeData {
     let epic;
     try {
       epic = readYaml(epicFile, EpicSchema);
-    } catch {
+    } catch (err) {
+      process.stderr.write(`[pm tui] failed to parse epic file ${epicFile}: ${err instanceof Error ? err.message : String(err)}\n`);
       continue;
     }
 
@@ -68,6 +69,8 @@ export function loadTree(): TreeData {
       story_points: s.story_points,
       description: s.description ?? "",
       acceptance_criteria: s.acceptance_criteria ?? [],
+      depends_on: s.depends_on ?? [],
+      notes: s.notes ?? "",
       resolution_type: s.resolution_type,
       conflicting_assumptions: s.conflicting_assumptions,
       source_reports: s.source_reports,
@@ -84,6 +87,7 @@ export function loadTree(): TreeData {
       status: epic.status,
       priority: epic.priority,
       description: epic.description ?? "",
+      created_at: epic.created_at,
       stories,
       expanded: true,
     });

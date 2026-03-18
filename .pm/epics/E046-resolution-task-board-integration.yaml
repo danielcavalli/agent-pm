@@ -5,7 +5,7 @@ description: >-
   Fix E034 PARTIAL — schema is solid but pm status and pm story list are unaware of resolution tasks. Add
   resolution_type to status output with conflict/gap badges, add --type filter to story list, and enforce priority
   defaults in consolidation output.
-status: backlog
+status: done
 priority: medium
 created_at: '2026-03-11'
 stories:
@@ -21,7 +21,7 @@ stories:
       - 'Status output shows a gap badge for resolution_type: gap'
       - Regular stories without resolution_type display normally
       - JSON output includes resolution_type when present
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on:
@@ -36,7 +36,7 @@ stories:
       - pm story list <EPIC> --type gap shows only gap stories
       - Without --type flag, all stories are shown (existing behavior)
       - Flag is documented in --help output
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on: []
@@ -51,7 +51,7 @@ stories:
       - 'Conflict tasks created by consolidation have priority: high'
       - 'Gap tasks created by consolidation have priority: medium'
       - Priority is set explicitly, not left to default
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on:

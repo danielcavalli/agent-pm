@@ -5,6 +5,8 @@ export {
   ProjectCodeSchema,
   ProjectArchitectureSchema,
   ConsolidationConfigSchema,
+  GcConfigSchema,
+  DEFAULT_GC_CONFIG,
   TriggerModeSchema,
 } from "./project.schema.js";
 export type {
@@ -12,6 +14,7 @@ export type {
   ProjectStatus,
   ProjectArchitecture,
   ConsolidationConfig,
+  GcConfig,
   TriggerMode,
 } from "./project.schema.js";
 
@@ -120,6 +123,21 @@ export type {
   ADRIndex,
   ADRIndexEntry,
 } from "./adr.schema.js";
+
+export {
+  AgentStateSchema,
+  AgentStatusSchema,
+  AgentResponseSchema,
+  EscalationSchema,
+  EscalationTypeSchema,
+} from "./agent-state.schema.js";
+export type {
+  AgentState,
+  AgentStatus,
+  AgentResponse,
+  Escalation,
+  EscalationType,
+} from "./agent-state.schema.js";
 
 // Index schema (single-project)
 import { z } from "zod";

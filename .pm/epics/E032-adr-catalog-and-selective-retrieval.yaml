@@ -5,7 +5,7 @@ description: >-
   Implement the ADR-000 index file and the mechanism by which agents query and retrieve only relevant ADR entries at
   task-start. Includes the ADR entry schema (decision, rationale, alternatives, consequences, originating tasks) and the
   selective retrieval strategy that avoids loading the full catalog into every agent context.
-status: backlog
+status: done
 priority: high
 created_at: '2026-03-11'
 stories:

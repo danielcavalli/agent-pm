@@ -1,0 +1,78 @@
+id: E052
+code: PM-E052
+title: MCP Tool Extensions
+description: >-
+  Add three new MCP tools (pm_agent_heartbeat, pm_agent_escalate, pm_agent_check_response) and their corresponding CLI
+  commands. These are the agent-facing API for the observer model. Implements ADR-021 Decision 5. Existing 9 MCP tools
+  remain unchanged. PRD coverage: M5, S2.
+status: done
+priority: high
+created_at: '2026-03-14'
+stories:
+  - id: S001
+    code: PM-E052-S001
+    title: Implement pm_agent_heartbeat MCP tool and CLI command
+    description: >-
+      Register pm_agent_heartbeat in src/mcp-server.ts following the existing tool pattern (JSON schema input, CLI
+      delegation, text output). Add a corresponding agent heartbeat CLI subcommand. The tool creates/updates
+      .pm/agents/{agent_id}.yaml with last_heartbeat set to current ISO timestamp. PRD: M5. SC: SC2.
+    acceptance_criteria:
+      - >-
+        pm_agent_heartbeat tool is registered in src/mcp-server.ts with parameters: agent_id (required), session_id,
+        status, current_task, progress_summary, workdir
+      - Calling the tool creates .pm/agents/{agent_id}.yaml with valid schema (verified by reading the file back)
+      - Calling the tool again updates last_heartbeat without losing other fields
+      - The .pm/agents/ directory is created if it does not exist
+      - A CLI command pm agent heartbeat --agent-id X --status active provides the same functionality
+    status: done
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E051-S001
+      - PM-E051-S002
+    notes: ''
+  - id: S002
+    code: PM-E052-S002
+    title: Implement pm_agent_escalate MCP tool and CLI command
+    description: >-
+      Register pm_agent_escalate in src/mcp-server.ts. The tool writes escalation data to the agent state file and sets
+      status to needs_attention. Add a corresponding agent escalate CLI subcommand. PRD: S2. SC: SC2.
+    acceptance_criteria:
+      - >-
+        pm_agent_escalate tool is registered with parameters: agent_id (required), type (required, enum:
+        decision|clarification|approval|error), message (required), confidence (number 0-1), options (string array),
+        workdir
+      - >-
+        Calling the tool sets the agent status to needs_attention and populates the escalation field in
+        .pm/agents/{agent_id}.yaml
+      - If the agent state file does not exist, the tool creates it with the escalation data and started_at set to now
+      - Returns confirmation text including agent_id and escalation type
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E051-S001
+      - PM-E051-S002
+    notes: ''
+  - id: S003
+    code: PM-E052-S003
+    title: Implement pm_agent_check_response MCP tool and CLI command
+    description: >-
+      Register pm_agent_check_response in src/mcp-server.ts. The tool checks for a human response file at
+      .pm/agents/{agent_id}-response.yaml, returns its contents, and deletes the file (read-once semantics). Add a
+      corresponding agent check-response CLI subcommand. PRD: S2. SC: SC3.
+    acceptance_criteria:
+      - 'pm_agent_check_response tool is registered with parameters: agent_id (required), workdir'
+      - >-
+        When .pm/agents/{agent_id}-response.yaml exists, returns the response content (selected_option,
+        additional_context, responded_at)
+      - 'When no response file exists, returns {status: no_response}'
+      - The response file is deleted after successful read to prevent duplicate reads
+      - A CLI command pm agent check-response --agent-id X provides the same functionality
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E051-S001
+      - PM-E051-S002
+    notes: ''

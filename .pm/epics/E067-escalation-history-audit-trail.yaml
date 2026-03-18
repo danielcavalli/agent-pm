@@ -1,0 +1,83 @@
+id: E067
+code: PM-E067
+title: Escalation History & Audit Trail
+description: >-
+  Preserve escalation history so past decisions can be reviewed, patterns identified, and audit trails maintained.
+  Currently agent responses are read-once and deleted, losing all decision context. This epic adds persistent logging of
+  escalation exchanges.
+status: backlog
+priority: medium
+created_at: '2026-03-16'
+stories:
+  - id: S001
+    code: PM-E067-S001
+    title: Escalation log schema and storage
+    description: >-
+      Define an EscalationLogEntry schema with timestamp, agent_id, type, message, confidence, options, selected_option,
+      and responded_at fields. Log entries are appended to .pm/agents/{id}-escalation-log.yaml as a YAML array.
+    acceptance_criteria:
+      - EscalationLogEntry schema defined with Zod validation
+      - Log file is a YAML array of entries at .pm/agents/{id}-escalation-log.yaml
+      - Schema includes all escalation fields plus response fields
+      - Tests validate schema with complete and partial entries
+    status: backlog
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E067-S002
+    title: Archive escalation before response delete
+    description: >-
+      Modify readAgentResponse() in agent-state.ts to append the complete escalation exchange (escalation data +
+      response) to the escalation log file before deleting the response file. This preserves the decision context that
+      is currently lost.
+    acceptance_criteria:
+      - After responding to an escalation, the exchange is appended to the log file
+      - Log entry includes both the escalation data and the response
+      - Escalation log grows with each response cycle
+      - Existing read-once-delete behavior still works for the agent polling side
+      - Errors during log append do not block the response read
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E067-S001
+    notes: ''
+  - id: S003
+    code: PM-E067-S003
+    title: Escalation history view in detail panel
+    description: >-
+      When viewing an agent in the detail panel, add an Escalation History section showing past escalation exchanges.
+      Display timestamp, type, truncated message, and selected option for each entry. Scrollable within the detail
+      panel.
+    acceptance_criteria:
+      - Past escalations are visible in the agent detail panel under an Escalation History section
+      - Each entry shows timestamp, type label, message summary, and selected option
+      - History is in reverse chronological order (newest first)
+      - Empty history shows No past escalations message
+      - Section is scrollable within the detail panel
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E067-S002
+    notes: ''
+  - id: S004
+    code: PM-E067-S004
+    title: Project-wide escalation summary CLI command
+    description: >-
+      Add a pm escalation list CLI command that aggregates and displays all escalation history across all agents.
+      Support --agent filter to show history for a specific agent. Output as a formatted table.
+    acceptance_criteria:
+      - Running pm escalation list shows a table of all escalation history
+      - Table includes agent_id, timestamp, type, message summary, selected option
+      - Optional --agent flag filters to a specific agent
+      - Empty state shows No escalation history found
+      - Registered in CLI and available via pm escalation list
+    status: backlog
+    priority: low
+    story_points: 3
+    depends_on:
+      - PM-E067-S002
+    notes: ''

@@ -5,7 +5,7 @@ description: >-
   Fix E035 PARTIAL — GC has broken reference types, unconditional report archival, no configurable TTLs, no MCP tool,
   and no tests. Fix the supersedes/reference type mismatch, archive only consolidated reports, add TTL thresholds,
   expose pm_gc_run via MCP, and add test coverage.
-status: backlog
+status: done
 priority: medium
 created_at: '2026-03-11'
 stories:
@@ -20,7 +20,7 @@ stories:
       - Supersession detection works correctly for ADR lifecycle
       - No runtime errors from type mismatch
       - Unit test covers the reference type validation
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on: []
@@ -36,7 +36,7 @@ stories:
       - 'GC archives reports where consolidated: true'
       - Dry-run output shows which reports would be archived and why
       - Reports without the consolidated field are treated as not consolidated
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on:
@@ -53,7 +53,7 @@ stories:
       - TTLs are configurable via project.yaml gc_config section
       - Items younger than their TTL are never garbage collected
       - pm gc run --verbose shows TTL evaluation for each item
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on: []
@@ -67,7 +67,7 @@ stories:
       - Tool supports --dry-run parameter
       - Tool delegates to pm gc run CLI command
       - Tool returns structured summary of GC actions
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on: []
@@ -84,7 +84,7 @@ stories:
       - 'Tests cover report archival with consolidated: true check'
       - Tests cover ADR reference type handling
       - Tests verify --dry-run produces output without side effects
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on: []

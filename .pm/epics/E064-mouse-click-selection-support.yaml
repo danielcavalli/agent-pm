@@ -1,0 +1,104 @@
+id: E064
+code: PM-E064
+title: Mouse Click & Selection Support
+description: >-
+  Add mouse click support to the TUI so users can click on epics, stories, and agents to select them. Extend the
+  existing useMouseScroll hook to parse click events (button 0) and map terminal coordinates to panel regions and row
+  indices. This is the highest-impact UX gap -- scroll works but clicking to select is expected by users.
+status: backlog
+priority: high
+created_at: '2026-03-16'
+stories:
+  - id: S001
+    code: PM-E064-S001
+    title: Parse mouse click events in useMouseScroll
+    description: >-
+      Extend the existing parseMouseSequence function to emit click events (button 0 press) alongside scroll events. Add
+      an onClick(col, row) callback to the useMouseScroll hook interface. Currently the hook only handles scroll wheel
+      (buttons 64/65) and ignores clicks.
+    acceptance_criteria:
+      - Click events (button 0 press) are parsed with correct column and row coordinates
+      - onClick callback is called on left-click press (not release)
+      - Existing scroll functionality continues to work unchanged
+      - Tests verify click parsing and button 0 press/release differentiation
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E064-S002
+    title: Map click coordinates to panel regions
+    description: >-
+      Given the terminal layout (sidebar width, tree width, detail width), determine which panel a click lands in.
+      Export a pure function hitTestPanel(col, sidebarWidth, treeWidth, termWidth) that returns the target FocusedPanel
+      or null.
+    acceptance_criteria:
+      - Clicking in tree region returns 'tree'
+      - Clicking in sidebar region returns 'sidebar'
+      - Clicking in detail region returns 'detail'
+      - Clicking on panel gap/divider returns null
+      - Function is pure and exported for testing
+      - Tests cover all panel regions and edge cases (no sidebar visible, narrow terminal)
+    status: backlog
+    priority: high
+    story_points: 2
+    depends_on:
+      - PM-E064-S001
+    notes: ''
+  - id: S003
+    code: PM-E064-S003
+    title: Map click coordinates to tree rows
+    description: >-
+      Given a click row coordinate, the current scroll offset, and body offset, compute the flat row index in the tree
+      panel. Export a pure function hitTestTreeRow. Clicking on an epic should toggle expand/collapse, clicking on a
+      story should select it.
+    acceptance_criteria:
+      - Clicking on a tree row selects that row (cursor moves to it)
+      - Clicking on an epic toggles expand/collapse
+      - Click row correctly accounts for scroll offset and title bar height
+      - Out-of-bounds clicks (below last row) are handled gracefully
+      - Tests verify row index computation with various scroll offsets
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E064-S002
+    notes: ''
+  - id: S004
+    code: PM-E064-S004
+    title: Map click coordinates to agent sidebar rows
+    description: >-
+      Same pattern as tree row hit-testing but for the agent sidebar. Given a click row in the sidebar region, compute
+      the agent index in the filtered agent list accounting for the sidebar scroll offset and header row.
+    acceptance_criteria:
+      - Clicking an agent in the sidebar selects it and focuses the sidebar panel
+      - Click row correctly accounts for sidebar scroll offset and header
+      - Out-of-bounds clicks are handled gracefully
+      - Tests verify agent index computation
+    status: backlog
+    priority: high
+    story_points: 2
+    depends_on:
+      - PM-E064-S002
+    notes: ''
+  - id: S005
+    code: PM-E064-S005
+    title: Wire click handlers into index.tsx
+    description: >-
+      Integrate the hit-testing functions into the main App component. On click: determine target panel via
+      hitTestPanel, set focus to that panel, compute the row/agent index, and update the corresponding cursor state.
+    acceptance_criteria:
+      - Click on a story in the tree selects it and shows its detail
+      - Click on an epic in the tree toggles expand/collapse
+      - Click on an agent in the sidebar selects it and shows agent detail
+      - Focus automatically moves to the clicked panel
+      - Clicking in the detail panel focuses it for scrolling
+      - No interference with existing keyboard navigation or mouse scroll
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E064-S003
+      - PM-E064-S004
+    notes: ''

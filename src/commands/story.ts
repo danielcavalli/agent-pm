@@ -6,7 +6,7 @@ import {
   PrioritySchema,
 } from "../schemas/index.js";
 import type { Story } from "../schemas/index.js";
-import { readYaml, writeYaml } from "../lib/fs.js";
+import { readYaml, writeYaml, withLock } from "../lib/fs.js";
 import {
   getPmDir,
   findEpicFile,
@@ -102,7 +102,9 @@ export async function storyAdd(
     stories: [...(epic.stories ?? []), story],
   };
 
-  writeYaml(epicFile, updatedEpic);
+  await withLock(epicFile, () => {
+    writeYaml(epicFile, updatedEpic);
+  });
 
   rebuildIndex();
 
@@ -121,6 +123,13 @@ export async function storyList(
   options?: Record<string, unknown>,
 ): Promise<void> {
   const showDeps = !!options?.deps;
+  const typeFilter = options?.type as string | undefined;
+
+  if (typeFilter && typeFilter !== "conflict" && typeFilter !== "gap") {
+    throw new ValidationError(
+      `Invalid --type '${typeFilter}': must be one of conflict | gap`,
+    );
+  }
 
   const resolvedEpicCode = resolveEpicCode(epicCode);
 
@@ -130,7 +139,11 @@ export async function storyList(
   }
 
   const epic = readYaml(epicFile, EpicSchema);
-  const stories = epic.stories ?? [];
+  let stories = epic.stories ?? [];
+
+  if (typeFilter) {
+    stories = stories.filter((s) => s.resolution_type === typeFilter);
+  }
 
   if (stories.length === 0) {
     console.log(
@@ -236,7 +249,9 @@ export async function storyUpdate(
   const updatedStories = [...stories];
   updatedStories[storyIdx] = updatedStory;
 
-  writeYaml(epicFile, { ...epic, stories: updatedStories });
+  await withLock(epicFile, () => {
+    writeYaml(epicFile, { ...epic, stories: updatedStories });
+  });
   rebuildIndex();
 
   const changes: string[] = [];

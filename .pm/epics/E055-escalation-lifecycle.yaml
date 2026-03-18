@@ -1,0 +1,60 @@
+id: E055
+code: PM-E055
+title: Escalation Lifecycle
+description: >-
+  Implement the escalation display and response mechanism in the TUI. When an agent status is needs_attention, the
+  sidebar shows a prominent indicator and the detail panel shows escalation context with numbered options. The human
+  responds via e key + option number, writing a response file that the agent polls via pm_agent_check_response.
+  Implements ADR-021 Decision 4. PRD coverage: M6, S1.
+status: done
+priority: high
+created_at: '2026-03-14'
+stories:
+  - id: S001
+    code: PM-E055-S001
+    title: Escalation display in TUI sidebar and detail panel
+    description: >-
+      When an agent has status: needs_attention with an escalation field, render it prominently in the sidebar (handled
+      by E053-S002 for the icon). In the detail panel, when an agent with an escalation is selected, render: escalation
+      type, message, confidence score, and numbered options. Extends DetailPanel.tsx to handle agent escalation data in
+      addition to epic/story data. PRD: M6. SC: SC1, SC3.
+    acceptance_criteria:
+      - Selecting an agent with needs_attention in the sidebar shows escalation details in the detail panel
+      - >-
+        Detail panel renders: escalation type label, message text, confidence percentage, and numbered options (e.g.,
+        [1] RS256 with key rotation)
+      - Escalation details are scrollable (uses the scroll mechanism from E054-S003)
+      - >-
+        When the selected agent has no escalation, the detail panel shows the agent general state (agent_id, status,
+        current_task, last_heartbeat, progress_summary)
+    status: done
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E053-S002
+      - PM-E051-S002
+    notes: ''
+  - id: S002
+    code: PM-E055-S002
+    title: Escalation response mechanism via e key
+    description: >-
+      When an agent with needs_attention is selected in the sidebar, pressing e enters escalation response mode. The
+      detail panel highlights the options. The user presses a number key (1-9) to select an option. The response is
+      written to .pm/agents/{agent_id}-response.yaml. After responding, the UI shows confirmation. PRD: S1. SC: SC3.
+    acceptance_criteria:
+      - >-
+        Pressing e when an agent with an active escalation is selected enters response mode (indicated visually with
+        Select option [1-N] prompt)
+      - >-
+        Pressing a number key (1-N) writes .pm/agents/{agent_id}-response.yaml with agent_id, responded_at (ISO),
+        selected_option (number), additional_context (empty string)
+      - 'After responding, the detail panel shows confirmation text (Response sent: option N)'
+      - Pressing Escape exits response mode without sending a response
+      - If the agent has no escalation, pressing e does nothing
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E055-S001
+      - PM-E051-S002
+    notes: ''

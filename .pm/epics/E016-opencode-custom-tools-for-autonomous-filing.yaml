@@ -13,14 +13,14 @@ stories:
     code: PM-E016-S001
     title: Create install/opencode/tools/pm.ts with epic_add, story_add, status tools
     description: >-
-      Create the custom tools file at install/opencode/tools/pm.ts. Implement three exported tools: epic_add (files a
-      new epic), story_add (files a new story to an existing epic), and status (shows PM status). Each tool should use
-      the OpenCode tool() API with proper schema definitions for arguments.
+      Implement the MCP server at src/mcp-server.ts exposing three core tools: pm_epic_add (files a new epic),
+      pm_story_add (files a new story to an existing epic), and pm_status (shows PM status). Each tool uses the
+      @modelcontextprotocol/sdk Server API with JSON Schema input definitions for arguments.
     acceptance_criteria:
-      - install/opencode/tools/pm.ts exports epic_add, story_add, and status tools
-      - Each tool has a Zod schema for its arguments
-      - Tools use the @opencode-ai/plugin tool() API
-      - File follows the exact structure from PRD Section 7.1
+      - src/mcp-server.ts exposes pm_epic_add, pm_story_add, and pm_status tools via MCP protocol
+      - Each tool has a JSON Schema inputSchema for its arguments
+      - Tools use the @modelcontextprotocol/sdk Server API
+      - MCP server is registered by install.sh in detected AI client configs
     status: done
     priority: high
     story_points: 3

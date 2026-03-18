@@ -26,9 +26,10 @@ function buildIndexEntry(pmDir: string): Index | null {
   for (const epicFile of epicFiles) {
     try {
       const epic = readYaml(epicFile, EpicSchema);
-      storyCount += epic.stories?.length ?? 0;
-      storiesDone +=
-        epic.stories?.filter((s) => s.status === "done").length ?? 0;
+      const activeStories =
+        epic.stories?.filter((s) => s.status !== "cancelled") ?? [];
+      storyCount += activeStories.length;
+      storiesDone += activeStories.filter((s) => s.status === "done").length;
     } catch {
       // skip unreadable epic files
     }
