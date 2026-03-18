@@ -6,9 +6,13 @@ import {
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../package.json") as { version: string };
 
 const server = new Server(
-  { name: "pm-tools", version: "0.0.6-alpha" },
+  { name: "pm-tools", version },
   { capabilities: { tools: {} } },
 );
 
@@ -367,6 +371,194 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["project", "title", "status", "context", "decision"],
       },
     },
+    {
+      name: "pm_adr_query",
+      description:
+        "Query Architecture Decision Records (ADRs) with filters and relevance ranking. Results are scored by tag match count plus recency and returned sorted by relevance. Use this to find relevant architectural decisions before making new ones, or to check existing guidance on a topic. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          workdir: {
+            type: "string",
+            description:
+              "Working directory — the repo root containing .pm/. If not provided, defaults to process cwd.",
+          },
+          project: {
+            type: "string",
+            description: "Project code (e.g. PM)",
+          },
+          id: {
+            type: "string",
+            description:
+              "Filter by ADR ID pattern (supports * wildcards, e.g. 'ADR-00*')",
+          },
+          status: {
+            type: "string",
+            enum: ["proposed", "accepted", "deprecated", "superseded"],
+            description: "Filter by ADR status",
+          },
+          tags: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Filter by tags — only ADRs matching at least one tag are returned. Tags also boost relevance score.",
+          },
+          author: {
+            type: "string",
+            description:
+              "Filter by author name or agent ID (case-insensitive substring match)",
+          },
+          search: {
+            type: "string",
+            description:
+              "Full-text search across title, context, and decision fields (case-insensitive)",
+          },
+          limit: {
+            type: "number",
+            description:
+              "Maximum number of results to return (default: 5)",
+          },
+          format: {
+            type: "string",
+            enum: ["summary", "full"],
+            description:
+              "Output format: 'summary' for a table view, 'full' for complete ADR content (default: summary)",
+          },
+          include_superseded: {
+            type: "boolean",
+            description:
+              "Include superseded and deprecated ADRs in results (excluded by default)",
+          },
+        },
+      },
+    },
+    {
+      name: "pm_agent_heartbeat",
+      description:
+        "Send an agent heartbeat, creating or updating the agent's state file at .pm/agents/{agent_id}.yaml. Use this periodically during long-running tasks to signal that the agent is still alive and to record progress. The tool sets last_heartbeat to the current timestamp and preserves all other existing fields. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          agent_id: {
+            type: "string",
+            description: "Unique agent identifier (required)",
+          },
+          session_id: {
+            type: "string",
+            description: "Session identifier for this agent run",
+          },
+          status: {
+            type: "string",
+            enum: [
+              "active",
+              "idle",
+              "needs_attention",
+              "blocked",
+              "completed",
+            ],
+            description:
+              "Agent status (default: active for new agents, unchanged for existing)",
+          },
+          current_task: {
+            type: "string",
+            description:
+              "Current task code the agent is working on (e.g. PM-E052-S001)",
+          },
+          progress_summary: {
+            type: "string",
+            description: "Brief description of current progress",
+          },
+          workdir: {
+            type: "string",
+            description:
+              "Working directory — the repo root containing .pm/. If not provided, defaults to process cwd.",
+          },
+        },
+        required: ["agent_id"],
+      },
+    },
+    {
+      name: "pm_agent_escalate",
+      description:
+        "Escalate an issue from an agent, setting its status to needs_attention and recording escalation details in .pm/agents/{agent_id}.yaml. Use this when the agent encounters a situation requiring human or supervisor intervention — a decision that needs approval, a clarification question, or an error that cannot be resolved autonomously. If the agent state file does not exist, it is created with started_at set to now. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          agent_id: {
+            type: "string",
+            description: "Unique agent identifier (required)",
+          },
+          type: {
+            type: "string",
+            enum: ["decision", "clarification", "approval", "error"],
+            description:
+              "Escalation type: decision, clarification, approval, or error (required)",
+          },
+          message: {
+            type: "string",
+            description:
+              "Escalation message describing the issue (required)",
+          },
+          confidence: {
+            type: "number",
+            description:
+              "Confidence level from 0 to 1 indicating how certain the agent is about its suggested resolution (default: 0.5)",
+          },
+          options: {
+            type: "array",
+            items: { type: "string" },
+            description:
+              "Possible options or choices for the escalation (e.g. alternatives the human can pick from)",
+          },
+          workdir: {
+            type: "string",
+            description:
+              "Working directory — the repo root containing .pm/. If not provided, defaults to process cwd.",
+          },
+        },
+        required: ["agent_id", "type", "message"],
+      },
+    },
+    {
+      name: "pm_agent_check_response",
+      description:
+        "Check for a human response to a previously escalated issue. Looks for .pm/agents/{agent_id}-response.yaml, returns its contents (selected_option, additional_context, responded_at), and deletes the file (read-once semantics). If no response file exists, returns {status: no_response}. Use this periodically after escalating to check if a human has provided guidance. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          agent_id: {
+            type: "string",
+            description: "Unique agent identifier (required)",
+          },
+          workdir: {
+            type: "string",
+            description:
+              "Working directory — the repo root containing .pm/. If not provided, defaults to process cwd.",
+          },
+        },
+        required: ["agent_id"],
+      },
+    },
+    {
+      name: "pm_gc_run",
+      description:
+        "Run garbage collection on the local .pm/ directory to clean up stale artifacts — expired comments, consolidated reports, and superseded ADRs. Use this periodically to keep the project data lean. Supports a dry-run mode to preview what would be collected without making changes. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          dry_run: {
+            type: "boolean",
+            description:
+              "Preview changes without executing them (default: false)",
+          },
+          workdir: {
+            type: "string",
+            description:
+              "Working directory — the repo root containing .pm/. If not provided, defaults to process cwd.",
+          },
+        },
+      },
+    },
   ],
 }));
 
@@ -645,6 +837,129 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             cliArgs.push("--tags", tag);
           }
         }
+      }
+
+      return runPm(cliArgs, args["workdir"] as string | undefined);
+    }
+
+    case "pm_adr_query": {
+      const project = args["project"] as string | undefined;
+
+      const cliArgs = ["adr", "query"];
+      if (project) {
+        cliArgs.push(project);
+      }
+
+      if (typeof args["id"] === "string" && args["id"]) {
+        cliArgs.push("--id", args["id"]);
+      }
+
+      if (typeof args["status"] === "string" && args["status"]) {
+        cliArgs.push("--status", args["status"]);
+      }
+
+      if (Array.isArray(args["tags"])) {
+        for (const tag of args["tags"]) {
+          if (typeof tag === "string") {
+            cliArgs.push("--tags", tag);
+          }
+        }
+      }
+
+      if (typeof args["author"] === "string" && args["author"]) {
+        cliArgs.push("--author", args["author"]);
+      }
+
+      if (typeof args["search"] === "string" && args["search"]) {
+        cliArgs.push("--search", args["search"]);
+      }
+
+      if (typeof args["limit"] === "number") {
+        cliArgs.push("--limit", String(args["limit"]));
+      }
+
+      if (typeof args["format"] === "string" && args["format"]) {
+        cliArgs.push("--format", args["format"]);
+      }
+
+      if (args["include_superseded"] === true) {
+        cliArgs.push("--include-superseded");
+      }
+
+      return runPm(cliArgs, args["workdir"] as string | undefined);
+    }
+
+    case "pm_agent_heartbeat": {
+      const agentId = args["agent_id"] as string;
+      const cliArgs = ["agent", "heartbeat", "--agent-id", agentId];
+
+      if (typeof args["session_id"] === "string" && args["session_id"]) {
+        cliArgs.push("--session-id", args["session_id"]);
+      }
+
+      if (typeof args["status"] === "string" && args["status"]) {
+        cliArgs.push("--status", args["status"]);
+      }
+
+      if (
+        typeof args["current_task"] === "string" &&
+        args["current_task"]
+      ) {
+        cliArgs.push("--current-task", args["current_task"]);
+      }
+
+      if (
+        typeof args["progress_summary"] === "string" &&
+        args["progress_summary"]
+      ) {
+        cliArgs.push("--progress-summary", args["progress_summary"]);
+      }
+
+      return runPm(cliArgs, args["workdir"] as string | undefined);
+    }
+
+    case "pm_agent_escalate": {
+      const agentId = args["agent_id"] as string;
+      const type = args["type"] as string;
+      const message = args["message"] as string;
+      const cliArgs = [
+        "agent",
+        "escalate",
+        "--agent-id",
+        agentId,
+        "--type",
+        type,
+        "--message",
+        message,
+      ];
+
+      if (typeof args["confidence"] === "number") {
+        cliArgs.push("--confidence", String(args["confidence"]));
+      }
+
+      if (Array.isArray(args["options"])) {
+        for (const opt of args["options"]) {
+          if (typeof opt === "string") {
+            cliArgs.push("--options", opt);
+          }
+        }
+      }
+
+      return runPm(cliArgs, args["workdir"] as string | undefined);
+    }
+
+    case "pm_agent_check_response": {
+      const agentId = args["agent_id"] as string;
+      const cliArgs = ["agent", "check-response", "--agent-id", agentId];
+
+      return runPm(cliArgs, args["workdir"] as string | undefined);
+    }
+
+    case "pm_gc_run": {
+      const cliArgs = ["gc", "run"];
+
+      if (args["dry_run"] === true) {
+        cliArgs.push("--dry-run");
       }
 
       return runPm(cliArgs, args["workdir"] as string | undefined);

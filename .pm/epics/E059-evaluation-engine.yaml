@@ -1,0 +1,139 @@
+id: E059
+code: PM-E059
+title: Evaluation Engine
+description: >-
+  Implement the tactic-based evaluation engine including metric computation from observation data, Tchebycheff
+  scalarization for composite scoring, running-statistics normalization with EWMA transition, and heartbeat-based idle
+  ratio calculation.
+status: backlog
+priority: high
+created_at: '2026-03-15'
+stories:
+  - id: S001
+    code: PM-E059-S001
+    title: Tactic loader and validation
+    description: >-
+      Implement tactic loader that reads .pm/swarm/tactics.yaml, validates against TacticsSchema, supports profile
+      loading, falls back to balanced defaults.
+    acceptance_criteria:
+      - loadTactics(pmDir, profileName?) reads and validates .pm/swarm/tactics.yaml
+      - When profileName is provided and exists in profiles, returned tactics use that profiles weights
+      - When profileName does not exist, throws descriptive error listing available profiles
+      - When tactics.yaml is missing, returns default balanced tactics matching the template
+      - Validates that weights sum to 1.0 within floating-point tolerance of 0.001
+      - >-
+        Unit tests: load with default profile, load with named profile, missing file fallback, invalid weights sum,
+        missing profile error
+    status: backlog
+    priority: high
+    story_points: 2
+    depends_on:
+      - PM-E057-S001
+    notes: ''
+  - id: S002
+    code: PM-E059-S002
+    title: Metric computation from observations
+    description: >-
+      Implement metric computation functions deriving tactic values from persisted observation records filtered by
+      strategy_hash and board_hash.
+    acceptance_criteria:
+      - >-
+        computeMetrics(pmDir, strategyHash, boardHash) returns Record<string, number> with computed values for
+        story_result-sourced metrics
+      - >-
+        stories_per_hour = done observations count / wall-clock hours between earliest started_at and latest
+        completed_at
+      - criteria_pass_rate = sum of criteria_verified lengths / sum of (verified + failed) lengths
+      - waste_ratio = count of failed or blocked observations / total count
+      - duplicate_and_conflict_ratio = duplicate story_code entries / total count
+      - Returns 0.0 for metrics with insufficient data
+      - Unit tests with at least 3 observation fixtures verifying each metric
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E058-S001
+      - PM-E059-S001
+    notes: ''
+  - id: S003
+    code: PM-E059-S003
+    title: Running-statistics persistence and EWMA normalization
+    description: >-
+      Implement normalization layer using .pm/swarm/normalization-stats.yaml. Phase 1 (count<=10): cumulative Welford.
+      Phase 2 (count>10): EWMA alpha=0.15 as code constant. Atomic read/write.
+    acceptance_criteria:
+      - 'NormalizationStatsSchema validates per-metric entries: count, mean, variance, ewma_mean, ewma_variance'
+      - updateStats(pmDir, metricKey, newValue) updates the stats file atomically via temp file then rename
+      - For count <= 10 (Phase 1), mean and variance use Welfords online algorithm
+      - For count > 10 (Phase 2), normalization uses ewma_mean and ewma_variance with alpha=0.15 as module constant
+      - normalize(pmDir, metricKey, rawValue) returns the z-score using the appropriate phases statistics
+      - Concurrent writes do not corrupt the file (atomic rename)
+      - >-
+        Unit tests: Phase 1 stats match expected, Phase 2 EWMA transition at count=11, correct z-scores, no partial
+        files
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E059-S002
+    notes: ''
+  - id: S004
+    code: PM-E059-S004
+    title: Tchebycheff scalarization and composite scoring
+    description: >-
+      Implement Tchebycheff scalarization: composite = min_i(w_i * normalized_metric_i). Metrics with lower_is_better
+      are negated before normalization.
+    acceptance_criteria:
+      - computeComposite(normalizedMetrics, tactics) returns the Tchebycheff composite score
+      - Metrics with direction lower_is_better are negated before scalarization
+      - Composite equals min(w_i * adjusted_normalized_i) across all tactics
+      - Zero-weight tactics are excluded from the min computation
+      - Returns NaN if no valid metrics available
+      - 'Unit tests: balanced case, dominated case, zero-weight exclusion, direction handling'
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E059-S002
+      - PM-E059-S003
+    notes: ''
+  - id: S005
+    code: PM-E059-S005
+    title: Heartbeat-based idle ratio computation
+    description: >-
+      Implement idle_ratio metric from agent heartbeat files. Three-state classification: active/idle/gone. Uses
+      internal timestamps, not mtime. Validates stale_threshold >= 3 * frequency.
+    acceptance_criteria:
+      - computeIdleRatio(pmDir, windowStart, windowEnd) returns aggregate idle_ratio across all agents
+      - >-
+        Three-state: active (status=active AND current_task set), idle (no current_task), gone (last_heartbeat older
+        than stale_threshold from windowEnd)
+      - idle_ratio = total idle seconds / (total active + total idle); gone time excluded
+      - Uses last_heartbeat timestamps from agent state files, not filesystem mtime
+      - Reads stale_threshold and frequency from strategy.yaml; falls back to defaults 60s/15s if absent
+      - StrategySchema has Zod .refine() ensuring stale_threshold_seconds >= 3 * frequency_seconds
+      - 'Unit tests: all-active (ratio near 0), mixed active/idle, agent gone mid-window, Zod invariant violation'
+    status: backlog
+    priority: medium
+    story_points: 5
+    depends_on:
+      - PM-E057-S001
+    notes: ''
+  - id: S006
+    code: PM-E059-S006
+    title: Escalation metrics computation
+    description: Implement escalation_response_median_seconds and escalation_ratio metrics from agent state and observation data.
+    acceptance_criteria:
+      - >-
+        computeEscalationMetrics(pmDir, windowStart, windowEnd) returns escalation_response_median_seconds and
+        escalation_ratio
+      - Response time computed from agent state escalation timestamp to response file responded_at
+      - escalation_ratio = stories with at least one escalation / total stories in window
+      - Returns 0 for both metrics if no escalation data exists
+      - Unit tests with mocked escalation data verifying median and ratio
+    status: backlog
+    priority: medium
+    story_points: 2
+    depends_on:
+      - PM-E057-S001
+    notes: ''

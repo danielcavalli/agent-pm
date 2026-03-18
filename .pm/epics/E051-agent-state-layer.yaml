@@ -1,0 +1,75 @@
+id: E051
+code: PM-E051
+title: Agent State Layer
+description: >-
+  Define the agent state schema (agent-state.schema.ts) with Zod validation, implement file I/O helpers for .pm/agents/,
+  and integrate the agents directory into project initialization. This is the data foundation for all agent-aware
+  features. Implements ADR-021 Decision 1 (Agent State as Files / Observer Model). PRD coverage: M1.
+status: done
+priority: high
+created_at: '2026-03-14'
+stories:
+  - id: S001
+    code: PM-E051-S001
+    title: Define agent-state.schema.ts with Zod validation
+    description: >-
+      Create src/schemas/agent-state.schema.ts with AgentStateSchema and EscalationSchema. The schema defines the YAML
+      structure agents write to .pm/agents/{agent-id}.yaml. Re-export from src/schemas/index.ts. Follow the existing Zod
+      schema patterns in epic.schema.ts and story.schema.ts. PRD: M1. SC: SC2.
+    acceptance_criteria:
+      - >-
+        src/schemas/agent-state.schema.ts exports AgentStateSchema validating: agent_id (string, required), session_id
+        (string, optional), status (enum: active|idle|needs_attention|blocked|completed), current_task (string,
+        optional), started_at (ISO datetime), last_heartbeat (ISO datetime), progress_summary (string, optional),
+        escalation (optional nested object)
+      - >-
+        EscalationSchema validates: type (enum: decision|clarification|approval|error), message (string), confidence
+        (number 0-1), options (array of strings, optional)
+      - Both schemas are re-exported from src/schemas/index.ts
+      - Unit tests in src/schemas/__tests__/agent-state.schema.test.ts verify valid and invalid payloads
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E051-S002
+    title: Implement agent state file I/O helpers
+    description: >-
+      Create agent state read/write/list helpers in src/lib/agent-state.ts. These mirror the existing readYaml/writeYaml
+      patterns in src/lib/fs.ts but are specific to the .pm/agents/ directory. Used by both CLI commands and MCP tools.
+      PRD: M1. SC: SC2.
+    acceptance_criteria:
+      - >-
+        writeAgentState(pmDir, agentState) writes Zod-validated YAML to .pm/agents/{agent_id}.yaml, creating the
+        directory if it does not exist
+      - >-
+        readAgentState(pmDir, agentId) reads and validates a single agent state file, throwing a descriptive error if
+        the file is missing or invalid
+      - >-
+        listAgents(pmDir) returns an array of all parsed AgentState objects from .pm/agents/, skipping invalid files
+        with stderr warnings
+      - writeAgentResponse(pmDir, agentId, response) writes a response YAML to .pm/agents/{agent_id}-response.yaml
+      - readAgentResponse(pmDir, agentId) reads and deletes the response file atomically (read-once semantics)
+    status: done
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E051-S001
+    notes: ''
+  - id: S003
+    code: PM-E051-S003
+    title: Integrate .pm/agents/ directory into pm init
+    description: >-
+      Add agents to the list of subdirectories created by ensurePmDir() in src/lib/codes.ts and by the pm init command.
+      Ensures backward compatibility: existing .pm/ directories without .pm/agents/ continue to work because the I/O
+      helpers create the directory on demand. PRD: M1. SC: SC6.
+    acceptance_criteria:
+      - ensurePmDir() in src/lib/codes.ts includes agents in its subdirs array
+      - pm init creates .pm/agents/ alongside epics/, comments/, adrs/, reports/
+      - Running pm tui on a pre-existing .pm/ directory without .pm/agents/ does not error (backward compatible)
+    status: done
+    priority: high
+    story_points: 1
+    depends_on: []
+    notes: ''

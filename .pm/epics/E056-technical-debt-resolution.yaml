@@ -1,0 +1,103 @@
+id: E056
+code: PM-E056
+title: Technical Debt Resolution
+description: >-
+  Fix six technical debt items identified in ADR-021 Decision 6: silent catch blocks (P4), advisory file locking (P5),
+  duplicate TaskReferenceSchema (P6), dead code (P7), and hardcoded MCP version (P8). All stories are independent of
+  each other and of the new v0.1.0 features, enabling parallel execution. PRD coverage: M7, S5, S6, S7, S8.
+status: done
+priority: high
+created_at: '2026-03-14'
+stories:
+  - id: S001
+    code: PM-E056-S001
+    title: Fix silent catch {} blocks across codebase
+    description: >-
+      Replace all empty catch {} blocks with proper error handling. In CLI commands, log to stderr via
+      process.stderr.write(). In TUI components, propagate error state. Files: src/tui/index.tsx (lines 163, 172),
+      src/tui/loadTree.ts, src/commands/consolidate-output.ts, src/commands/epic.ts, src/commands/gc.ts,
+      src/commands/work.ts. PRD: M7. SC: SC8.
+    acceptance_criteria:
+      - 'src/tui/index.tsx: catch blocks at lines ~163 and ~172 log errors to stderr'
+      - 'src/tui/loadTree.ts: epic parse errors logged to stderr with the file path that failed'
+      - 'src/commands/consolidate-output.ts: ADR/story creation failures logged to stderr'
+      - 'src/commands/epic.ts: epicSync and epicList catch blocks log to stderr'
+      - 'src/commands/gc.ts: isTaskCompleted catch block logs to stderr'
+      - 'src/commands/work.ts: project name lookup catch block logs to stderr'
+      - Running grep for empty catch blocks in src/ returns zero matches (no empty catch blocks remain)
+    status: done
+    priority: high
+    story_points: 8
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E056-S002
+    title: Advisory file locking for concurrent agent writes
+    description: >-
+      Implement withLock(filePath, fn) in src/lib/fs.ts using .pm/.lock-{hash} files with PID and timestamp. Stale locks
+      older than 30 seconds are broken. Apply locking to epic and story YAML write operations to prevent corruption when
+      multiple agents write concurrently. PRD: S5. SC: SC8.
+    acceptance_criteria:
+      - 'src/lib/fs.ts exports withLock<T>(filePath: string, fn: () => T | Promise<T>): Promise<T>'
+      - >-
+        Lock files are created at .pm/.lock-{sha256(filePath).slice(0,8)} containing {pid: number, created_at: ISO
+        string}
+      - Locks older than 30 seconds are considered stale and automatically broken
+      - Epic and story YAML write operations in src/commands/epic.ts and src/commands/story.ts use withLock()
+      - Lock acquisition failure after 3 retries (100ms apart) throws a descriptive PmError
+    status: done
+    priority: medium
+    story_points: 5
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E056-S003
+    title: Deduplicate TaskReferenceSchema
+    description: >-
+      Remove the duplicate TaskReferenceSchema definition from src/schemas/adr.schema.ts. Import it from
+      src/schemas/comment.schema.ts instead. Re-export from src/schemas/index.ts. PRD: S6. SC: SC8.
+    acceptance_criteria:
+      - TaskReferenceSchema is defined only in src/schemas/comment.schema.ts
+      - src/schemas/adr.schema.ts imports TaskReferenceSchema from ./comment.schema.js or from ./index.js
+      - TaskReferenceSchema is re-exported from src/schemas/index.ts
+      - The duplicate definition in adr.schema.ts is deleted
+      - All existing tests pass with no schema validation changes
+    status: done
+    priority: medium
+    story_points: 1
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E056-S004
+    title: Dynamic MCP version from package.json
+    description: >-
+      Replace the hardcoded 0.0.6-alpha string in src/mcp-server.ts:11 with a dynamic read from package.json, using the
+      createRequire(import.meta.url) pattern already established in src/cli.ts:8-9. PRD: S7. SC: SC8.
+    acceptance_criteria:
+      - src/mcp-server.ts uses createRequire(import.meta.url) to read version from package.json
+      - The hardcoded string 0.0.6-alpha is removed from mcp-server.ts
+      - MCP server server_info.version matches the version in package.json
+    status: done
+    priority: medium
+    story_points: 1
+    depends_on: []
+    notes: ''
+  - id: S005
+    code: PM-E056-S005
+    title: Clean up dead code in task-start.schema.ts
+    description: >-
+      Determine whether ReadyTaskSchema, TaskStartQuerySchema, and TaskStartResponseSchema in
+      src/schemas/task-start.schema.ts are used anywhere. If E048-S006 re-exported them but nothing imports them, remove
+      the file entirely. If they are used, ensure proper export and documentation. PRD: S8. SC: SC8.
+    acceptance_criteria:
+      - >-
+        If no code imports ReadyTaskSchema, TaskStartQuerySchema, or TaskStartResponseSchema:
+        src/schemas/task-start.schema.ts is deleted and its entry removed from src/schemas/index.ts
+      - 'If code does import them: the re-export from index.ts (added by E048-S006) is verified correct'
+      - No orphaned schema definitions remain in src/schemas/
+      - All existing tests pass
+    status: done
+    priority: medium
+    story_points: 1
+    depends_on: []
+    notes: ''

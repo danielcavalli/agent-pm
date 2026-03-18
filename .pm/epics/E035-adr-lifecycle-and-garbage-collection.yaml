@@ -5,7 +5,7 @@ description: >-
   Policies and automation for comment TTL, report archival after consolidation, and ADR entry invalidation when a
   decision is superseded. Prevents signal decay and stale-context poisoning without requiring human curation, keeping
   the knowledge layer lean and trustworthy over time.
-status: backlog
+status: done
 priority: medium
 created_at: '2026-03-11'
 stories:

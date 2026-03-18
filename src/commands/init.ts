@@ -104,8 +104,10 @@ export async function init(options: Record<string, unknown>): Promise<void> {
     notes: "",
   };
 
-  const epicsDir = path.join(pmDir, "epics");
-  fs.mkdirSync(epicsDir, { recursive: true });
+  const subdirs = ["epics", "comments", "adrs", "reports", "agents"];
+  for (const subdir of subdirs) {
+    fs.mkdirSync(path.join(pmDir, subdir), { recursive: true });
+  }
 
   const projectYaml = path.join(pmDir, "project.yaml");
   writeYaml(projectYaml, project);

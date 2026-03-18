@@ -59,7 +59,9 @@ stories:
     status: done
     priority: medium
     story_points: 1
-    notes: ""
+    notes: >-
+      Symlinks were not actually created when this story was originally completed. The .claude/commands/ directory
+      with 11 relative symlinks to ../../install/commands/ was created as part of PM-E048-S005 reconciliation.
   - id: S004
     code: PM-E020-S004
     title: Update install.sh to copy from install/commands/

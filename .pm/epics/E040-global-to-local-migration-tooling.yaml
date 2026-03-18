@@ -6,7 +6,7 @@ description: >-
   migrate --to-local command copies project data, flattens the directory structure, verifies integrity, and optionally
   cleans up the global copy. Includes ADR superseding ADR-002. Depends on Local-First Storage Engine and CLI Adaptation
   epics.
-status: backlog
+status: done
 priority: high
 created_at: '2026-03-11'
 stories:

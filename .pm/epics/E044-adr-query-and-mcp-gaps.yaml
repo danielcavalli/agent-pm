@@ -5,7 +5,7 @@ description: >-
   Fix E032 PARTIAL — pm adr query lacks relevance ranking, MCP exposure, and sensible defaults. Add scoring by tag match
   count + recency, register pm_adr_query as MCP tool, default-exclude superseded/deprecated ADRs, and fix limit
   defaults.
-status: backlog
+status: done
 priority: high
 created_at: '2026-03-11'
 stories:
@@ -20,7 +20,7 @@ stories:
       - Recency is factored into the score (newer ADRs score higher)
       - Results are returned sorted by score descending
       - Score is visible in output (at least in verbose mode)
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on: []
@@ -34,7 +34,7 @@ stories:
       - Tool schema includes all filter parameters (status, tags, domain, author, limit)
       - Tool delegates to pm adr query CLI command
       - Error responses follow existing MCP tool error patterns
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on: []
@@ -50,7 +50,7 @@ stories:
       - '--include-superseded flag shows all ADRs regardless of status'
       - Behavior is documented in --help output
       - MCP tool parameter mirrors the flag
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on: []
@@ -64,7 +64,7 @@ stories:
       - Summary format shows ADR ID, title, status, and one-sentence decision excerpt
       - Full format (--format full) still shows complete ADR content
       - Limit can be overridden via --limit flag
-    status: backlog
+    status: done
     priority: low
     story_points: 2
     depends_on: []

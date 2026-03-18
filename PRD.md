@@ -205,19 +205,18 @@ stories:
 
 ---
 
-### 5.3 Index (`projects/index.yaml`)
+### 5.3 Index (`.pm/index.yaml`)
 
-Auto-maintained by the CLI. Agents can read for a quick overview.
+Auto-maintained by the CLI. A flat single-object file representing the current repository's project. Agents can read it for a quick overview.
 
 ```yaml
-projects:
-  - code: PM
-    name: Project Management for AI Agents
-    status: active
-    epic_count: 3
-    story_count: 12
-    stories_done: 2
-    last_updated: "2026-03-09"
+code: PM
+name: Project Management for AI Agents
+status: active
+epic_count: 3
+story_count: 12
+stories_done: 2
+last_updated: "2026-03-09"
 ```
 
 ---
@@ -291,7 +290,7 @@ After installation:
 If you have existing data in the legacy global `~/.pm/` directory, use the migration command:
 
 ```bash
-pm migrate --to-local --code MYAPP --target /path/to/your/repo
+pm migrate to-local --code MYAPP --target /path/to/your/repo
 ```
 
 This copies the project data to `.pm/` in the target repository and flattens the directory structure.
@@ -577,14 +576,29 @@ pm work PM-E001-S001
 
 ### `pm migrate`
 
+The `migrate` command uses subcommands to move project data between storage locations.
+
+#### `pm migrate to-local`
+
 ```
-pm migrate --to-local --code MYAPP --target /path/to/repo
+pm migrate to-local --code MYAPP --target /path/to/repo
 ```
 
 - Copies project data from the legacy global `~/.pm/projects/{CODE}/` to `.pm/` in the target repository
 - Flattens the directory structure (removes the `projects/{CODE}/` nesting)
+- Optionally pass `--cleanup` to remove the project from global `~/.pm/projects/` after successful migration
 - Rebuilds the local index after migration
 - Prints a summary of migrated data
+
+#### `pm migrate from-source`
+
+```
+pm migrate from-source --source /path/to/source/dir
+```
+
+- Migrates projects from a source directory into the local `.pm/` directory
+- If `--source` is omitted, defaults to `./projects/` in the current working directory
+- Useful for importing project data from arbitrary directories or legacy layouts
 
 ---
 
@@ -921,7 +935,7 @@ Detailed story breakdowns for v2.1 epics are tracked in `.pm/epics/` and viewabl
 - [x] An agent working in an unrelated project can file a story without switching context
 - [x] An agent working in an unrelated project can file an epic without switching context
 - [x] Agents follow the autonomous filing rules (file when appropriate, don't file trivially)
-- [x] `pm migrate --to-local` successfully moves legacy global data to local `.pm/`
+- [x] `pm migrate to-local` successfully moves legacy global data to local `.pm/`
 - [x] The TUI watches the local `.pm/` directory
 - [ ] `install.sh` performs a complete setup for both OpenCode and Claude Code (CLI + MCP server + commands + AGENTS.md rules)
 

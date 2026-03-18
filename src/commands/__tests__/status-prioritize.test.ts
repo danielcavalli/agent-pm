@@ -212,6 +212,119 @@ describe("pm status / pm prioritize (integration)", () => {
     expect(data.epics[0]).toHaveProperty("stories");
   });
 
+  // ── status: resolution_type badges ──────────────────────────────────
+
+  /**
+   * Helper to inject resolution_type into a story by directly editing the epic YAML.
+   * We must bypass storyAdd since it blocks resolution_type.
+   */
+  async function setResolutionType(
+    storyCode: string,
+    resolutionType: "conflict" | "gap",
+  ) {
+    const { readYaml, writeYaml } = await import("../../lib/fs.js");
+    const { EpicSchema } = await import("../../schemas/index.js");
+    const { getPmDir, findEpicFile, resolveStoryCode } = await import(
+      "../../lib/codes.js"
+    );
+    const parsed = resolveStoryCode(storyCode);
+    const epicFile = findEpicFile(parsed.epicCode);
+    if (!epicFile) throw new Error(`Epic not found: ${parsed.epicCode}`);
+    const epic = readYaml(epicFile, EpicSchema);
+    const fullCode = `${parsed.projectCode}-${parsed.epicId}-${parsed.storyId}`;
+    const story = epic.stories.find((s: any) => s.code === fullCode);
+    if (!story) throw new Error(`Story not found: ${fullCode}`);
+    story.resolution_type = resolutionType;
+    writeYaml(epicFile, epic);
+  }
+
+  it("AC-RT1: StoryData type includes resolution_type field (conflict story shows badge)", async () => {
+    await setResolutionType(`${epicCode}-S001`, "conflict");
+
+    out.restore();
+    out = captureOutput();
+
+    await status(undefined, {});
+
+    const lines = out.log().join("\n");
+    expect(lines).toContain("[CONFLICT]");
+  });
+
+  it("AC-RT2: status output shows a conflict badge for resolution_type: conflict", async () => {
+    await setResolutionType(`${epicCode}-S001`, "conflict");
+
+    out.restore();
+    out = captureOutput();
+
+    await status(undefined, {});
+
+    const lines = out.log().join("\n");
+    // The conflict badge should appear near the story code
+    expect(lines).toContain("[CONFLICT]");
+    expect(lines).toContain(`${epicCode}-S001`);
+  });
+
+  it("AC-RT3: status output shows a gap badge for resolution_type: gap", async () => {
+    await setResolutionType(`${epicCode}-S002`, "gap");
+
+    out.restore();
+    out = captureOutput();
+
+    await status(undefined, {});
+
+    const lines = out.log().join("\n");
+    expect(lines).toContain("[GAP]");
+    expect(lines).toContain(`${epicCode}-S002`);
+  });
+
+  it("AC-RT4: regular stories without resolution_type display normally (no badges)", async () => {
+    out.restore();
+    out = captureOutput();
+
+    await status(undefined, {});
+
+    const lines = out.log().join("\n");
+    expect(lines).toContain(`${epicCode}-S001`);
+    expect(lines).toContain(`${epicCode}-S002`);
+    expect(lines).not.toContain("[CONFLICT]");
+    expect(lines).not.toContain("[GAP]");
+  });
+
+  it("AC-RT5: JSON output includes resolution_type when present", async () => {
+    await setResolutionType(`${epicCode}-S001`, "conflict");
+    await setResolutionType(`${epicCode}-S002`, "gap");
+
+    out.restore();
+    out = captureOutput();
+
+    await status(undefined, { json: true });
+
+    const jsonStr = out.log().join("\n");
+    const data = JSON.parse(jsonStr);
+
+    const stories = data.epics[0].stories;
+    const s001 = stories.find((s: any) => s.code === `${epicCode}-S001`);
+    const s002 = stories.find((s: any) => s.code === `${epicCode}-S002`);
+
+    expect(s001.resolution_type).toBe("conflict");
+    expect(s002.resolution_type).toBe("gap");
+  });
+
+  it("AC-RT5b: JSON output omits resolution_type when not present", async () => {
+    out.restore();
+    out = captureOutput();
+
+    await status(undefined, { json: true });
+
+    const jsonStr = out.log().join("\n");
+    const data = JSON.parse(jsonStr);
+
+    const stories = data.epics[0].stories;
+    for (const story of stories) {
+      expect(story).not.toHaveProperty("resolution_type");
+    }
+  });
+
   // ── prioritize ──────────────────────────────────────────────────────
 
   it("AC5: prioritize('TEST', {}) output includes strategy label and a backlog story code", async () => {

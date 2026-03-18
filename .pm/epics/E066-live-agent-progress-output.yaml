@@ -1,0 +1,103 @@
+id: E066
+code: PM-E066
+title: Live Agent Progress & Output
+description: >-
+  Add structured progress reporting and optional log tailing so the TUI shows what agents are actually doing, not just
+  their metadata. This addresses the biggest gap identified in ADR-021: users cannot see real-time agent activity
+  without switching to the agent's terminal.
+status: backlog
+priority: high
+created_at: '2026-03-16'
+stories:
+  - id: S001
+    code: PM-E066-S001
+    title: Structured progress schema
+    description: >-
+      Extend AgentStateSchema with an optional progress object containing total_criteria, completed_criteria,
+      current_step, and a criteria_status array with per-criterion status tracking. Update the pm_agent_heartbeat MCP
+      tool to accept these new progress fields.
+    acceptance_criteria:
+      - >-
+        AgentStateSchema has optional progress field with total_criteria, completed_criteria, current_step, and
+        criteria_status array
+      - Each criteria_status entry has criterion (string) and status (pending/done/failed)
+      - pm_agent_heartbeat MCP tool accepts progress fields
+      - Existing heartbeats without progress continue to work (backward compatible)
+      - Schema validated with Zod, tests cover progress field variations
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E066-S002
+    title: Progress bar in agent sidebar
+    description: >-
+      Show a compact progress bar next to each agent in the sidebar when progress data is available. Format: [####....]
+      4/8. Computed from progress.completed_criteria / progress.total_criteria.
+    acceptance_criteria:
+      - Agents with progress data show a visual progress bar in the sidebar
+      - 'Progress bar format is [####....] N/M where # = done, . = remaining'
+      - Agents without progress data show no bar (backward compatible)
+      - Bar fits within the 22-char sidebar width without truncating agent ID
+    status: backlog
+    priority: high
+    story_points: 2
+    depends_on:
+      - PM-E066-S001
+    notes: ''
+  - id: S003
+    code: PM-E066-S003
+    title: Criteria checklist in detail panel
+    description: >-
+      When viewing an agent with progress data in the detail panel, show a live checklist of acceptance criteria with
+      done/pending/failed status icons. The checklist updates on each file watcher reload cycle as the agent reports
+      progress.
+    acceptance_criteria:
+      - 'Each criterion shows a status icon: checkmark (done), circle (pending), x-mark (failed)'
+      - Criteria are listed in order under a Progress section header
+      - Current step is highlighted or shown at the top
+      - Checklist updates on file watcher reload
+      - Agents without progress data show existing progress_summary string
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E066-S001
+    notes: ''
+  - id: S004
+    code: PM-E066-S004
+    title: Agent log file convention
+    description: >-
+      Define a convention for agents to write rolling logs to .pm/agents/{id}.log (last 100 lines). Add an optional
+      log_file field to AgentStateSchema so agents can declare their log path. Update pm-work-on slash command to
+      instruct agents to write logs.
+    acceptance_criteria:
+      - AgentStateSchema accepts optional log_file string field
+      - pm_agent_heartbeat MCP tool accepts log_file parameter
+      - 'Convention documented: agents write to .pm/agents/{id}.log'
+      - Schema validation passes with and without log_file field
+    status: backlog
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S005
+    code: PM-E066-S005
+    title: Log tail view in detail panel
+    description: >-
+      When an agent has a log_file, add a Log view in the detail panel showing the last N lines of the file. Toggle
+      between Info and Log views with the l key when viewing an agent. Auto-scroll to bottom on update (sticky scroll).
+    acceptance_criteria:
+      - Pressing l on an agent switches detail panel between Info and Log views
+      - Log view shows last 50 lines of the agent's log file
+      - Log view auto-scrolls to bottom when new content appears
+      - Log updates on file watcher reload
+      - If log_file does not exist or is empty, shows No log available message
+      - Help overlay updated with l keybinding
+    status: backlog
+    priority: medium
+    story_points: 5
+    depends_on:
+      - PM-E066-S004
+    notes: ''

@@ -94,13 +94,13 @@ stories:
     description: >
       Create .opencode/commands/pm-prioritize.md. Prompt instructs agent to:
       ask which project/epic, ask for prioritization strategy in natural language,
-      call pm prioritize to get current order, then re-order the stories in the
-      YAML file by updating priority fields and rewriting story order within the
-      stories array, and explain the rationale.
+      call pm prioritize to get current order, then re-order the stories by
+      using pm story update --priority CLI commands to update priority fields,
+      and explain the rationale.
     acceptance_criteria:
       - File exists at .opencode/commands/pm-prioritize.md
       - Prompt covers strategy elicitation
-      - Prompt instructs agent to actually edit the YAML files to reflect new order
+      - Prompt instructs agent to use pm story update --priority CLI commands to reflect new order
       - Prompt instructs agent to explain prioritization rationale
     status: done
     priority: medium

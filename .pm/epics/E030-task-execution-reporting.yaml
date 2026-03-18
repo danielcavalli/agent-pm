@@ -5,7 +5,7 @@ description: >-
   Agents produce a structured post-execution report co-located with the task they completed. Reports capture decisions
   taken, assumptions made, tradeoffs considered, and out-of-scope observations. This epic defines the report schema and
   the prompt contract governing when and how reports are written.
-status: backlog
+status: done
 priority: high
 created_at: '2026-03-11'
 stories:

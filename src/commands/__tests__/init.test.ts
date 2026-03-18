@@ -78,10 +78,13 @@ describe("pm init (integration)", () => {
 
     const projectYaml = path.join(pmDir, "project.yaml");
     const epicsDir = path.join(pmDir, "epics");
+    const agentsDir = path.join(pmDir, "agents");
 
     expect(fs.existsSync(projectYaml)).toBe(true);
     expect(fs.existsSync(epicsDir)).toBe(true);
     expect(fs.statSync(epicsDir).isDirectory()).toBe(true);
+    expect(fs.existsSync(agentsDir)).toBe(true);
+    expect(fs.statSync(agentsDir).isDirectory()).toBe(true);
   });
 
   it("throws ValidationError for lowercase code", async () => {

@@ -133,4 +133,116 @@ creates fragile workflows and bypasses validation. Always go through the CLI.
 **Note:** If no relevant project exists and you need to create one, always notify the user
 first — creating a new project is a higher-impact action than adding to an existing one.
 
+## Post-Task Execution Reports
+
+After completing a story, you **must** file an execution report. Reports capture the
+decisions, assumptions, tradeoffs, and observations you made during implementation.
+The consolidation agent uses these reports to detect conflicts between parallel agents,
+promote important decisions into Architecture Decision Records (ADRs), and build shared
+context for future work.
+
+### When to file a report
+
+File a report **immediately after marking a story as done** (or partially done). Every
+story completion must produce a report — no exceptions. If you only completed part of
+the story, set the status to `partial`.
+
+### Report fields
+
+The report schema (`AgentExecutionReportSchema`) has the following fields:
+
+- **task_id** (required): The story code you just completed (e.g. `PM-E030-S001`).
+- **agent_id** (required): Your identifier — use a short descriptive string (e.g.
+  `claude-agent-1`, `opus-session-abc`).
+- **status** (required): `complete` if all acceptance criteria are met, `partial` if some
+  remain unfinished.
+- **decisions**: Choices you made and their rationale. Each item has a `type`:
+  - `episodic` — historical narrative, relevant only for consolidation context
+    (e.g. "Used existing validation middleware instead of writing new one")
+  - `semantic` — ADR candidate, eligible for promotion to a project-level decision
+    (e.g. "Adopted Zod for runtime schema validation across all CLI commands")
+- **assumptions**: Priors you relied on that were **not validated**. Each item has a
+  `type` (`episodic` or `semantic`) and a `text` description. Example: "Assumed the
+  database migration runs before the API server starts."
+- **tradeoffs**: Alternatives you considered and rejected. Each item has an `alternative`
+  (what you could have done) and a `reason` (why you chose not to). Example:
+  alternative = "Use JSON instead of YAML for config", reason = "YAML supports comments
+  and is already used throughout the project."
+- **out_of_scope**: Observations that surfaced during your work but were not acted on.
+  Each item has an `observation` and an optional `note`. Example: observation = "The
+  error handler does not log stack traces in production", note = "Filed as PM-E050-S003."
+- **potential_conflicts**: Self-flagged assumptions you know are uncertain or likely to
+  conflict with other agents' work. Each item has an `assumption`, a `confidence` level
+  (`low`, `medium`, or `high`), and an optional `note`. Use this to signal areas where
+  parallel agents may have made contradictory choices.
+
+### How to file — MCP tool
+
+Use the `pm_report_create` tool. Always pass `workdir` to ensure the report lands in the
+correct project.
+
+### How to file — CLI
+
+```
+pm report create \
+  --task-id <STORY_CODE> \
+  --agent-id <YOUR_ID> \
+  --status <complete|partial> \
+  --decisions "<type>:<text>" \
+  --assumptions "<type>:<text>" \
+  --tradeoffs "<alternative>|<reason>" \
+  --out-of-scope "<observation>|<note>" \
+  --potential-conflicts "<assumption>|<confidence>|<note>"
+```
+
+All array flags (decisions, assumptions, tradeoffs, out-of-scope, potential-conflicts)
+are repeatable — pass the flag multiple times for multiple items.
+
+### Worked example
+
+After completing story PM-E030-S001 ("Add execution report schema"), an agent files:
+
+```
+pm report create \
+  --task-id PM-E030-S001 \
+  --agent-id claude-agent-1 \
+  --status complete \
+  --decisions "semantic:Chose Zod over JSON Schema for runtime validation because it provides TypeScript type inference" \
+  --decisions "episodic:Placed schema file in src/schemas/ alongside existing project and story schemas" \
+  --assumptions "episodic:Assumed max 10 items per array field is sufficient based on typical story complexity" \
+  --tradeoffs "Use JSON Schema directly|Zod integrates better with existing codebase and provides compile-time types" \
+  --out-of-scope "Report CLI command is not yet registered in cli.ts|Tracked in PM-E045-S002" \
+  --potential-conflicts "Report file naming uses story code as prefix|high|Other agents may expect a different naming convention"
+```
+
+Or via the MCP tool:
+
+```json
+{
+  "workdir": "/path/to/repo",
+  "task_id": "PM-E030-S001",
+  "agent_id": "claude-agent-1",
+  "status": "complete",
+  "decisions": [
+    "semantic:Chose Zod over JSON Schema for runtime validation because it provides TypeScript type inference",
+    "episodic:Placed schema file in src/schemas/ alongside existing project and story schemas"
+  ],
+  "assumptions": [
+    "episodic:Assumed max 10 items per array field is sufficient based on typical story complexity"
+  ],
+  "tradeoffs": [
+    "Use JSON Schema directly|Zod integrates better with existing codebase and provides compile-time types"
+  ],
+  "out_of_scope": [
+    "Report CLI command is not yet registered in cli.ts|Tracked in PM-E045-S002"
+  ],
+  "potential_conflicts": [
+    "Report file naming uses story code as prefix|high|Other agents may expect a different naming convention"
+  ]
+}
+```
+
+The report is saved as a YAML sidecar file in `.pm/reports/` (e.g.
+`.pm/reports/PM-E030-S001-report.yaml`).
+
 # END PM Autonomous Filing Rules

@@ -1,0 +1,111 @@
+id: E058
+code: PM-E058
+title: Orchestrator Integration
+description: >-
+  Integrate the swarm layer with the existing orchestrator (/pm-work-on-project). Covers observation persistence
+  (writing STORY_RESULT to disk), strategy.yaml consumption for dispatch parameters, version tagging with strategy_hash
+  and board_hash.
+status: backlog
+priority: high
+created_at: '2026-03-15'
+stories:
+  - id: S001
+    code: PM-E058-S001
+    title: Observation persistence -- Zod schema and file writer
+    description: >-
+      Create the observation persistence layer: writeObservation/readObservation functions, computeStrategyHash and
+      computeBoardHash functions producing deterministic SHA-256 hashes.
+    acceptance_criteria:
+      - writeObservation(pmDir, record) writes a Zod-validated YAML file to .pm/swarm/observations/<story-code>.yaml
+      - readObservation(pmDir, storyCode) reads and validates the observation file, returning null if missing or invalid
+      - computeStrategyHash(pmDir) returns SHA-256 hex of .pm/swarm/strategy.yaml, or sentinel no-strategy if absent
+      - >-
+        computeBoardHash(pmDir) returns SHA-256 hex of deterministic concatenation of .pm/index.yaml + sorted
+        .pm/epics/*.yaml
+      - Two identical board states produce the same board_hash regardless of file write order
+      - 'Unit tests cover: write/read round-trip, hash stability, hash changes on mutation, no-strategy sentinel'
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E057-S001
+    notes: ''
+  - id: S002
+    code: PM-E058-S002
+    title: Parse STORY_RESULT from sub-agent stdout
+    description: >-
+      Implement a parser that extracts the structured STORY_RESULT YAML block from sub-agent stdout text. Must be robust
+      to extra text and malformed blocks.
+    acceptance_criteria:
+      - parseStoryResult(stdout) extracts and parses the STORY_RESULT YAML block from arbitrary stdout text
+      - >-
+        Returns a typed object (code, title, status, criteria_verified, criteria_failed, blockers, discoveries,
+        reflection) or null
+      - 'Handles: block at end, block in middle, multiple blocks (takes last), no block (null), malformed YAML (null)'
+      - Unit tests with at least 6 test cases covering all above scenarios
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E058-S001
+    notes: ''
+  - id: S003
+    code: PM-E058-S003
+    title: Update /pm-work-on-project to persist observations
+    description: >-
+      Update the orchestrator slash command to persist observation records after each sub-agent completes. Compute
+      hashes at dispatch time, parse STORY_RESULT, write to .pm/swarm/observations/.
+    acceptance_criteria:
+      - >-
+        Updated install/commands/pm-work-on-project.md instructs orchestrator to call computeStrategyHash and
+        computeBoardHash at tier dispatch start
+      - >-
+        After each sub-agent completes, orchestrator parses STORY_RESULT and writes observation record with
+        dispatch-time hashes
+      - If STORY_RESULT parsing returns null, orchestrator logs warning and continues (no crash)
+      - If .pm/swarm/ does not exist, observation persistence is skipped entirely (backward compatible)
+      - Observation file includes started_at (dispatch time) and completed_at (return time) timestamps
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E058-S001
+      - PM-E058-S002
+    notes: ''
+  - id: S004
+    code: PM-E058-S004
+    title: Strategy.yaml consumption for dispatch concurrency
+    description: >-
+      Update /pm-work-on-project to read max_concurrent_agents from .pm/swarm/strategy.yaml and limit parallel sub-agent
+      dispatches.
+    acceptance_criteria:
+      - Orchestrator reads .pm/swarm/strategy.yaml at startup and extracts parameters.dispatch.max_concurrent_agents
+      - Parallel sub-agent dispatches within a tier are limited to this value
+      - >-
+        If strategy.yaml is missing, malformed, or value out of range [1,20], falls back to current behavior with
+        warning
+      - Concurrency limit is logged in the dispatch plan output
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E057-S004
+    notes: ''
+  - id: S005
+    code: PM-E058-S005
+    title: Strategy version tagging in observations
+    description: >-
+      Ensure every observation record includes config_version from strategy.yaml alongside strategy_hash and board_hash
+      for simpler attribution.
+    acceptance_criteria:
+      - 'ObservationRecord includes config_version: number field (defaults to 0 when strategy.yaml absent)'
+      - Orchestrator reads config_version from strategy.yaml at dispatch time and includes it in each observation
+      - 'Observations written when strategy.yaml is absent have config_version: 0'
+      - Unit test verifies config_version is correctly propagated from strategy.yaml to observation files
+    status: backlog
+    priority: medium
+    story_points: 2
+    depends_on:
+      - PM-E058-S001
+      - PM-E058-S003
+    notes: ''

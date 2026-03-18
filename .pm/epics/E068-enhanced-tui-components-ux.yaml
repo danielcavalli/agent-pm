@@ -1,0 +1,115 @@
+id: E068
+code: PM-E068
+title: Enhanced TUI Components & UX
+description: >-
+  Polish the TUI with better components, richer information display, and quality-of-life improvements that make extended
+  supervisory use comfortable. Includes notification bell, relative timestamps, project progress bar, breadcrumbs,
+  status chips, and inline story status updates.
+status: backlog
+priority: medium
+created_at: '2026-03-16'
+stories:
+  - id: S001
+    code: PM-E068-S001
+    title: Notification bell on new escalation
+    description: >-
+      When a new needs_attention agent appears (detected via file watcher reload), emit the BEL character (\x07) to
+      trigger the terminal bell. Track seen escalations to only ring once per agent escalation, not on every reload
+      cycle.
+    acceptance_criteria:
+      - Terminal bell sounds when a new escalation arrives
+      - Bell only rings once per agent escalation (not on every reload)
+      - Previously seen escalations do not re-trigger the bell
+      - Bell is suppressed when NO_COLOR is set or terminal is not a TTY
+    status: backlog
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E068-S002
+    title: Relative time display for heartbeats
+    description: >-
+      Show human-readable relative times like 2m ago or 15s ago instead of raw ISO timestamps in agent detail views.
+      Implement a pure relativeTime(isoString) function and use it for started_at and last_heartbeat fields.
+    acceptance_criteria:
+      - Agent detail shows relative times for started_at and last_heartbeat
+      - 'Format: Ns ago, Nm ago, Nh ago, Nd ago as appropriate'
+      - relativeTime function is pure and exported for testing
+      - Falls back to raw ISO string if parsing fails
+      - Tests cover various time deltas (seconds, minutes, hours, days)
+    status: backlog
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E068-S003
+    title: Progress bar for overall project in title bar
+    description: >-
+      Show a visual progress bar in the title bar representing overall project completion. Format: [########........]
+      52% based on done stories / total stories. Replaces the current text-only stats display.
+    acceptance_criteria:
+      - Title bar shows a visual progress bar with percentage
+      - Bar uses block characters for filled portion and dots for remaining
+      - Percentage is computed from done/total stories across all epics
+      - Bar gracefully handles 0 stories (shows 0%)
+      - Bar width adapts to available terminal width
+    status: backlog
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E068-S004
+    title: Breadcrumb navigation trail in detail panel
+    description: >-
+      Show hierarchical context in the detail panel header: Epic > Story when viewing a story, or Agent > Escalation
+      when viewing an escalated agent. Helps maintain orientation when navigating deeply.
+    acceptance_criteria:
+      - Detail panel header shows breadcrumb trail for the selected item
+      - 'Story breadcrumb format: Epic PM-E064 > PM-E064-S001'
+      - Epic breadcrumb shows just the epic code
+      - Agent breadcrumb shows Agent {id} or Agent {id} > Escalation when escalated
+      - Breadcrumb uses theme.textMuted color for the parent and theme.text for the leaf
+    status: backlog
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S005
+    code: PM-E068-S005
+    title: Status summary chips for collapsed epics
+    description: >-
+      For collapsed epics in the tree panel, show inline status chips summarizing story states. Format: 2 active | 1
+      blocked | 3 done. This gives visibility into epic contents without expanding.
+    acceptance_criteria:
+      - Collapsed epic rows show story status breakdown inline after the title
+      - Chip format uses abbreviated counts with semantic colors
+      - Only non-zero status categories are shown
+      - Chips fit within the panel width (truncate title if needed to make room)
+      - Expanded epics do not show chips (stories are visible)
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S006
+    code: PM-E068-S006
+    title: Quick story status update from TUI (s key)
+    description: >-
+      Pressing s on a selected story opens a simple status picker cycling through backlog/in_progress/done. Writes the
+      update directly via pm story update CLI command. Enables managing story status without leaving the TUI.
+    acceptance_criteria:
+      - Pressing s on a story shows a status picker in the status bar
+      - 'Picker cycles through: backlog, in_progress, done'
+      - Selecting a status writes the update via pm story update
+      - Success message shown after update
+      - Tree panel refreshes to reflect the new status
+      - s key is a no-op when an epic or agent is selected
+      - Help overlay updated with s keybinding
+    status: backlog
+    priority: medium
+    story_points: 3
+    depends_on: []
+    notes: ''

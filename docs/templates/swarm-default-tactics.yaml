@@ -1,0 +1,157 @@
+# Default Evaluation Tactics for agent-pm Swarm Self-Improvement
+#
+# This file is the template copied into .pm/swarm/tactics.yaml when you run
+# `pm swarm init`. Edit it to match your project's priorities.
+#
+# Each tactic defines what "good orchestration" means for your project.
+# The experiment loop (/pm-swarm-improve) uses these to score configurations.
+#
+# Scoring method: Tchebycheff scalarization (ADR-023, Decision 1)
+#   composite = min(w_i * normalized_metric_i)   -- then maximize this
+#   This is Pareto-complete: it finds balanced configurations that weighted-sum
+#   misses. See: Lin et al., "Smooth Tchebycheff Scalarization", ICML 2024.
+#
+# Normalization: running mean/stddev (z-score), not fixed min/max bounds.
+#   This handles cold-start gracefully. Statistics update after each experiment.
+#   See: He et al., "Normalization in MOEAs", IEEE TEC 2021.
+#
+# Fields:
+#   name        -- unique identifier (kebab-case, used as key in profiles)
+#   description -- human-readable explanation of what this measures
+#   metric      -- programmatic key used in evaluation code
+#   direction   -- higher_is_better | lower_is_better
+#   weight      -- relative importance (all weights must sum to 1.0)
+#   measurement -- how the metric is computed (currently only "derived")
+#   source      -- where raw data comes from: story_result, heartbeat, escalation
+
+version: 1
+
+tactics:
+  # --- Throughput ---
+  # How fast the swarm completes stories.
+  # Increase weight for greenfield sprints where shipping speed matters most.
+  # Decrease weight for refactoring projects where caution is more important.
+  - name: throughput
+    description: "Stories completed per wall-clock hour"
+    metric: stories_per_hour
+    direction: higher_is_better
+    weight: 0.25
+    measurement: derived
+    source: story_result
+
+  # --- First-Pass Quality ---
+  # Fraction of acceptance criteria that pass on the first attempt.
+  # Increase weight when rework is expensive (complex integrations, shared APIs).
+  # Decrease weight when stories are small and rework is cheap.
+  - name: first_pass_quality
+    description: "Fraction of acceptance criteria verified on first attempt (no rework)"
+    metric: criteria_pass_rate
+    direction: higher_is_better
+    weight: 0.25
+    measurement: derived
+    source: story_result
+
+  # --- Waste ---
+  # Fraction of story attempts that end in failure, blocking, or cancellation.
+  # High waste means agents are picking up stories they cannot complete.
+  # Increase weight if your backlog has many stories with unclear requirements.
+  - name: waste
+    description: "Fraction of stories attempted that failed or were blocked"
+    metric: waste_ratio
+    direction: lower_is_better
+    weight: 0.15
+    measurement: derived
+    source: story_result
+
+  # --- Idle Time ---
+  # Fraction of total agent-time with no active story assignment.
+  # Computed from gaps between heartbeat updates showing no current_task.
+  # Increase weight if you are paying per-agent and want full utilization.
+  # Decrease weight if occasional idle time is acceptable (e.g., waiting for reviews).
+  - name: idle_time
+    description: "Fraction of agent-time spent with no active story"
+    metric: idle_ratio
+    direction: lower_is_better
+    weight: 0.10
+    measurement: derived
+    source: heartbeat
+
+  # --- Coordination Overhead ---
+  # Duplicate work (two agents attempting the same story) and file conflict frequency.
+  # Computed from concurrent writes detected by advisory locks and duplicate
+  # STORY_RESULT entries for the same story code.
+  # Increase weight when agents frequently step on each other's work.
+  - name: coordination_overhead
+    description: "Duplicate work and conflict resolution frequency"
+    metric: duplicate_and_conflict_ratio
+    direction: lower_is_better
+    weight: 0.10
+    measurement: derived
+    source: story_result
+
+  # --- Escalation Responsiveness ---
+  # Median time from agent escalation request to human response.
+  # A high value means agents are blocked waiting for human input.
+  # This tactic incentivizes strategies that minimize unnecessary escalations
+  # (e.g., higher confidence_autonomous threshold) while keeping necessary ones.
+  # Increase weight if human response time is a known bottleneck.
+  - name: escalation_responsiveness
+    description: "Median seconds from escalation request to human response"
+    metric: escalation_response_median_seconds
+    direction: lower_is_better
+    weight: 0.10
+    measurement: derived
+    source: escalation
+
+  # --- Escalation Rate ---
+  # Fraction of stories that trigger at least one escalation.
+  # Too high means agents lack autonomy; too low might mean agents are guessing
+  # when they should ask. The optimizer balances this against quality metrics.
+  # Increase weight if alert fatigue is a concern.
+  - name: escalation_rate
+    description: "Fraction of stories that trigger at least one escalation"
+    metric: escalation_ratio
+    direction: lower_is_better
+    weight: 0.05
+    measurement: derived
+    source: escalation
+
+# --- Profiles ---
+# Preset weight configurations for common project types.
+# Apply a profile: set each tactic's weight to the value listed here.
+# Or use them as starting points and fine-tune.
+profiles:
+  # Balanced (default): equal emphasis on speed and quality.
+  # Good starting point for most projects.
+  balanced:
+    throughput: 0.25
+    first_pass_quality: 0.25
+    waste: 0.15
+    idle_time: 0.10
+    coordination_overhead: 0.10
+    escalation_responsiveness: 0.10
+    escalation_rate: 0.05
+
+  # Velocity: optimize for stories shipped per hour.
+  # Best for greenfield sprints, hackathons, or MVP development
+  # where speed matters more than polish.
+  velocity:
+    throughput: 0.40
+    first_pass_quality: 0.15
+    waste: 0.10
+    idle_time: 0.20
+    coordination_overhead: 0.05
+    escalation_responsiveness: 0.05
+    escalation_rate: 0.05
+
+  # Quality: optimize for first-pass correctness.
+  # Best for refactoring, compliance work, or projects where
+  # rework is expensive (shared libraries, public APIs).
+  quality:
+    throughput: 0.10
+    first_pass_quality: 0.40
+    waste: 0.20
+    idle_time: 0.05
+    coordination_overhead: 0.15
+    escalation_responsiveness: 0.05
+    escalation_rate: 0.05

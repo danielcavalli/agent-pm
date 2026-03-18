@@ -1,0 +1,116 @@
+id: E060
+code: PM-E060
+title: Claim Protocol
+description: >-
+  Implement the experiment claim protocol with exact-match dedup, hybrid similarity gate, fencing tokens, TTL
+  enforcement, and graceful fallback to solo mode. Prevents duplicate experiments across concurrent experiment agents.
+status: backlog
+priority: high
+created_at: '2026-03-15'
+stories:
+  - id: S001
+    code: PM-E060-S001
+    title: Claim write, read, and TTL enforcement
+    description: >-
+      Implement claim(), releaseClaim(), and listActiveClaims() on FileSwarmStore. Claims expire at read time based on
+      TTL. Lazy expiry, no background cleanup.
+    acceptance_criteria:
+      - >-
+        claim(namespace, key, agentId, ttlSeconds) writes a claim file with agent_id, claimed_at, ttl_seconds, status:
+        active
+      - releaseClaim(namespace, key, agentId) sets claim status to completed (preserves audit trail)
+      - listActiveClaims(namespace) returns only claims where status=active AND claimed_at + ttl_seconds > now
+      - Expired claims are excluded from listActiveClaims without being deleted
+      - 'Unit tests: write claim, read back, expire by advancing time (mock Date.now), verify excluded from active list'
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E057-S002
+    notes: ''
+  - id: S002
+    code: PM-E060-S002
+    title: Hybrid similarity gate for claim dedup
+    description: >-
+      Implement two-tier claim deduplication. Tier 1: exact match on (parameter_path, new_value) or change_description.
+      Tier 2: hybrid gate requiring BOTH levenshtein_ratio >= 0.85 AND jaccard_word_similarity >= 0.70.
+    acceptance_criteria:
+      - >-
+        checkExactDuplicate returns true if active claim has same (parameter_path, new_value) for runtime_config or same
+        change_description for board_mutation
+      - levenshteinRatio(a, b) returns ratio [0,1] using dynamic programming (no npm dependency)
+      - jaccardWordSimilarity(a, b) splits on whitespace, computes intersection/union of word sets
+      - >-
+        checkSimilarDuplicate returns true if any active claim passes BOTH gates: levenshtein >= 0.85 AND jaccard >=
+        0.70
+      - >-
+        10+ unit test pairs: same-direction matches, opposite-direction does NOT match despite high Levenshtein,
+        unrelated no match, different wording matches, edge cases
+      - The old 0.88 Levenshtein-only threshold is not used anywhere
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E060-S001
+    notes: ''
+  - id: S003
+    code: PM-E060-S003
+    title: Write-wait-verify claim acquisition protocol
+    description: >-
+      Implement optimistic locking: write claim, wait 2s, re-read, verify agent_id. After 5 failures, fall back to solo
+      mode.
+    acceptance_criteria:
+      - 'acquireClaim(pmDir, claimData, agentId) implements: write, wait 2s, re-read, verify agent_id matches'
+      - 'Returns { acquired: true, claimKey } on success, { acquired: false, reason } on failure'
+      - On verification failure, deletes the written claim file and returns failure
+      - 'After 5 consecutive failures, returns { acquired: false, soloMode: true } signaling proceed anyway'
+      - The 2-second wait is configurable via internal parameter (for testing), defaulting to 2000ms
+      - 'Unit tests: successful acquisition, contested acquisition (mock concurrent write), fallback after 5 failures'
+    status: backlog
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E060-S001
+    notes: ''
+  - id: S004
+    code: PM-E060-S004
+    title: Fencing tokens for runtime config and board mutations
+    description: >-
+      Implement fencing token verification. Runtime: config_version check before/after write. Board: git commit hash
+      verification.
+    acceptance_criteria:
+      - readConfigVersion(pmDir) returns current config_version from strategy.yaml (0 if missing)
+      - >-
+        writeStrategyWithFence(pmDir, newStrategy, expectedVersion) writes only if current config_version ===
+        expectedVersion
+      - verifyRuntimeFence(pmDir, expectedVersion) re-reads and returns true if matches expectedVersion + 1
+      - verifyBoardFence(pmDir, expectedCommitHash) runs git rev-parse HEAD and returns true if matches
+      - 'Unit tests: successful fence, version mismatch detection, HEAD divergence detection'
+    status: backlog
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E060-S003
+      - PM-E057-S001
+    notes: ''
+  - id: S005
+    code: PM-E060-S005
+    title: Baseline establishment on first invocation
+    description: >-
+      Implement baseline flow for first invocation when .pm/swarm/best/ is empty. Compute composite score from existing
+      observations and write as initial best.
+    acceptance_criteria:
+      - establishBaseline(pmDir) checks if .pm/swarm/best/metadata.yaml exists; if yes, returns existing best (no-op)
+      - >-
+        If no best exists and observations exist, computes composite score and writes metadata.yaml with score,
+        experiment_id: baseline, strategy snapshot
+      - 'If no best and no observations, writes metadata.yaml with status: awaiting-baseline and composite_score: null'
+      - Copies current strategy.yaml to .pm/swarm/best/strategy.yaml
+      - 'Unit tests: baseline with observations, baseline with no observations, no-op when best exists'
+    status: backlog
+    priority: medium
+    story_points: 2
+    depends_on:
+      - PM-E059-S004
+      - PM-E057-S002
+    notes: ''

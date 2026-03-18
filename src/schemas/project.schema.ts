@@ -42,6 +42,42 @@ export const ConsolidationConfigSchema = z.object({
 });
 export type ConsolidationConfig = z.infer<typeof ConsolidationConfigSchema>;
 
+export const GcConfigSchema = z
+  .object({
+    ttl_comments_days: z
+      .number()
+      .int()
+      .positive()
+      .default(30)
+      .describe("TTL in days for consolidated/consumed comments (default: 30)"),
+    ttl_reports_days: z
+      .number()
+      .int()
+      .positive()
+      .default(7)
+      .describe(
+        "TTL in days for consolidated reports before archival (default: 7)",
+      ),
+    ttl_adrs_days: z
+      .number()
+      .int()
+      .positive()
+      .default(90)
+      .describe(
+        "TTL in days for deprecated/superseded ADRs before cleanup (default: 90)",
+      ),
+  })
+  .describe(
+    "Garbage collection configuration. TTL thresholds control the minimum age an item must reach before it becomes eligible for GC.",
+  );
+export type GcConfig = z.infer<typeof GcConfigSchema>;
+
+export const DEFAULT_GC_CONFIG: GcConfig = {
+  ttl_comments_days: 30,
+  ttl_reports_days: 7,
+  ttl_adrs_days: 90,
+};
+
 export const ProjectSchema = z.object({
   code: ProjectCodeSchema,
   name: z.string().min(1, "Project name is required"),
@@ -54,6 +90,7 @@ export const ProjectSchema = z.object({
   tech_stack: z.array(z.string()).optional().default([]),
   architecture: ProjectArchitectureSchema.optional(),
   consolidation: ConsolidationConfigSchema.optional(),
+  gc_config: GcConfigSchema.optional(),
   notes: z.string().optional().default(""),
 });
 export type Project = z.infer<typeof ProjectSchema>;

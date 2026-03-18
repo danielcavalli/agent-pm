@@ -57,16 +57,16 @@ stories:
       agent rules. Test the core autonomous filing workflow: agent discovers tech debt, runs pm_status to find the right
       epic, files a story, continues its original task.
     acceptance_criteria:
-      - PM filing rules are present in Claude Code's global instructions
-      - An agent in an unrelated project directory can see pm_status, pm_epic_add, pm_story_add tools
+      - PM filing rules can be installed into a project via pm rules init (per-project AGENTS.md)
+      - An agent in a project with PM rules can see pm_status, pm_epic_add, pm_story_add tools
       - Agent follows the when-to-file / when-not-to-file guidelines
       - Agent can file a story to an existing epic without switching context
     status: done
     priority: high
     story_points: 2
     notes: >-
-      Verified: ~/.claude/AGENTS.md has start/end markers at lines 1/50, contains all 4 key
-      sections (When to file, When NOT to file, How to file, CLI tools guidance).
+      Originally verified against global ~/.claude/AGENTS.md. Updated to reflect per-project
+      rules model: pm rules init writes markers and filing rules into a project-local AGENTS.md.
   - id: S004
     code: PM-E022-S004
     title: Document Claude Code-specific caveats and configuration

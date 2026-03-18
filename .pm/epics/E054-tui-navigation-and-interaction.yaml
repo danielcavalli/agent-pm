@@ -1,0 +1,102 @@
+id: E054
+code: PM-E054
+title: TUI Navigation and Interaction
+description: >-
+  Add vim-style j/k navigation, Tab panel focus cycling, detail panel scrolling, help overlay, and page up/down. These
+  bring the TUI in line with standard TUI conventions (lazygit, k9s, btop). Existing arrow key navigation remains
+  unchanged. Implements ADR-021 Decision 3. PRD coverage: M3, M4, S3, C3.
+status: done
+priority: high
+created_at: '2026-03-14'
+stories:
+  - id: S001
+    code: PM-E054-S001
+    title: vim-style j/k navigation in all panels
+    description: >-
+      Extend useInput handler in src/tui/index.tsx to map j to downArrow behavior and k to upArrow behavior. This
+      applies to whichever panel currently has focus. Existing arrow key handling remains unchanged. PRD: M4. SC: SC5.
+    acceptance_criteria:
+      - j moves cursor down in the active panel (identical to Down Arrow)
+      - k moves cursor up in the active panel (identical to Up Arrow)
+      - Both keys work in the project tree, detail panel (when scrolling), and agent sidebar
+      - Existing arrow key navigation is unaffected
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E054-S002
+    title: Tab panel focus cycling
+    description: >-
+      Add Tab key handling to cycle focusedPanel state between available panels. When the agent sidebar is visible:
+      sidebar -> tree -> detail -> sidebar. When hidden: tree -> detail -> tree. Update border colors on focus change.
+      PRD: M4. SC: SC5.
+    acceptance_criteria:
+      - Tab key cycles focus between all visible panels in order
+      - When agent sidebar is hidden, Tab cycles between tree and detail only
+      - Focus change is reflected immediately by border color change (cyan for active, default for inactive)
+      - focusedPanel state determines which panel receives j/k and Enter key input
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E054-S003
+    title: Detail panel scrolling
+    description: >-
+      Add scrollOffset state to src/tui/components/DetailPanel.tsx. When the detail panel has focus, j/k adjusts
+      scrollOffset instead of moving a cursor. Replace lines.slice(0, height) with lines.slice(scrollOffset,
+      scrollOffset + height). Replicates the scrollStart pattern from src/tui/components/Tree.tsx:103-107. PRD: M3. SC:
+      SC4.
+    acceptance_criteria:
+      - DetailPanel.tsx maintains scrollOffset state, initialized to 0
+      - When detail panel has focus, j/k increment/decrement scrollOffset by 1
+      - Content renders lines.slice(scrollOffset, scrollOffset + height) instead of lines.slice(0, height)
+      - scrollOffset is clamped to [0, max(0, lines.length - height)]
+      - A story with 20+ acceptance criteria is fully viewable by scrolling with j/k
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E054-S004
+    title: Help overlay via ? key
+    description: >-
+      Create src/tui/components/HelpOverlay.tsx that renders a full-screen overlay listing all keybindings. Triggered by
+      ?, dismissed by Escape or ?. Renders on top of all panels without destroying their state. PRD: S3. SC: SC5.
+    acceptance_criteria:
+      - >-
+        Pressing ? renders a full-screen overlay listing all keybindings grouped by category (Navigation, Panels,
+        Actions, Filters)
+      - Overlay is dismissed by pressing Escape or ? again
+      - Overlay renders as a Box with position absolute layered over existing panels
+      - All keybindings introduced by v0.1.0 (j/k, Tab, a, e, ?, f, Ctrl+u/d, g/G) are documented in the overlay
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E054-S001
+      - PM-E054-S002
+    notes: ''
+  - id: S005
+    code: PM-E054-S005
+    title: Page up/down and jump to top/bottom
+    description: >-
+      Add Ctrl+u (half-page up), Ctrl+d (half-page down), g (jump to first), G (jump to last) to the input handler.
+      These work in all panels, extending the j/k single-line navigation. PRD: C3. SC: SC5.
+    acceptance_criteria:
+      - Ctrl+u moves the cursor or scroll position up by half the panel height
+      - Ctrl+d moves the cursor or scroll position down by half the panel height
+      - g jumps to the first item/line in the active panel
+      - G jumps to the last item/line in the active panel
+      - Works in tree, detail, and sidebar panels
+    status: done
+    priority: low
+    story_points: 2
+    depends_on:
+      - PM-E054-S001
+      - PM-E054-S003
+    notes: ''

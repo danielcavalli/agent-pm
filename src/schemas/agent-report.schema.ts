@@ -134,6 +134,13 @@ export const AgentExecutionReportSchema = z.object({
       `Potential conflicts must not exceed ${MAX_ITEMS_DEFAULT} items`,
     )
     .default([]),
+  consolidated: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe(
+      "Set to true by the consolidation agent after this report is ingested. Used for filtering and garbage collection eligibility.",
+    ),
 });
 
 export type AgentExecutionReport = z.infer<typeof AgentExecutionReportSchema>;

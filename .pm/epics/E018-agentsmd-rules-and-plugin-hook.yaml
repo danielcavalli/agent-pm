@@ -25,6 +25,7 @@ stories:
     status: done
     priority: high
     story_points: 2
+    depends_on: []
     notes: ''
   - id: S002
     code: PM-E018-S002
@@ -38,10 +39,14 @@ stories:
       - Reminder text mentions pm_story_add and pm_epic_add tools
       - Plugin follows PRD Section 7.4 structure
       - install.sh copies plugin to ~/.config/opencode/plugins/
-    status: done
+    status: cancelled
     priority: medium
     story_points: 2
-    notes: ''
+    depends_on: []
+    notes: >-
+      Cancelled: The OpenCode plugin system (experimental.session.compacting hook) was deprecated
+      in favor of MCP (Model Context Protocol). The pm-reminder compaction plugin is no longer
+      applicable as the underlying plugin infrastructure no longer exists.
   - id: S003
     code: PM-E018-S003
     title: Test that agents in unrelated projects can see and use PM tools
@@ -57,6 +62,7 @@ stories:
     status: done
     priority: medium
     story_points: 3
+    depends_on: []
     notes: ''
   - id: S004
     code: PM-E018-S004
@@ -74,4 +80,5 @@ stories:
     status: done
     priority: medium
     story_points: 2
+    depends_on: []
     notes: ''

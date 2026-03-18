@@ -9,11 +9,8 @@ opencode.json
 .vscode/
 .idea/
 
-# OpenCode local config (keep .opencode/commands/ symlinks)
-.opencode/node_modules/
-.opencode/bun.lock
-.opencode/package.json
-.opencode/.gitignore
+# OpenCode local config (legacy — entire directory ignored)
+.opencode/
 
 # OS files
 .DS_Store
@@ -25,3 +22,4 @@ coverage/
 # Environment
 .env
 .env.local
+.claude

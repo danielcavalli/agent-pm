@@ -196,7 +196,7 @@ You must:
 ### Contract Location
 
 This contract is co-located with the execution report contract defined in
-`doc/execution-report-contract.md`. Both contracts define agent responsibilities
+`docs/schemas/execution-report-contract.md`. Both contracts define agent responsibilities
 for cross-task communication patterns.
 
 # END PM Autonomous Filing Rules

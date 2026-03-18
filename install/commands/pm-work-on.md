@@ -24,7 +24,7 @@ This will:
 
 Read the output carefully. The acceptance criteria are your definition of done.
 
-If the story has a **Depends On** section listing other story codes, check whether those dependencies are complete before proceeding. If any dependency has status other than `done`, report the story as `blocked` and emit the STORY_RESULT (see Step 6).
+If the story has a **Depends On** section listing other story codes, check whether those dependencies are complete before proceeding. If any dependency has status other than `done`, report the story as `blocked` and emit the STORY_RESULT (see Step 7).
 
 ### Step 3: Execute the work
 
@@ -50,9 +50,63 @@ For each acceptance criterion in the story, explicitly verify it is met:
 Once all criteria are verified:
 pm story update <STORY_CODE> --status done
 
-### Step 6: Emit structured result
+### Step 6: File execution report
 
-After completing (or failing/blocking), emit the following structured block. This is **required** — the orchestrator (`/pm-work-on-project`) parses this to track results and pass context to subsequent stories.
+After marking the story done (or partially done), file an execution report using the
+`pm report create` CLI command or the `pm_report_create` MCP tool. This is **required** --
+the consolidation agent depends on these reports to detect conflicts, promote decisions
+into ADRs, and build shared context for future work.
+
+**Which fields to populate and why:**
+
+- **task_id**: The story code you just completed (e.g. `PM-E001-S003`). Links the report to the story.
+- **agent_id**: Your identifier (e.g. `claude-agent-1`). Allows tracing which agent made which decisions.
+- **status**: `complete` if all acceptance criteria are met, `partial` if some remain unfinished.
+- **decisions**: Choices you made during implementation. Tag each as `episodic` (historical context only) or `semantic` (ADR candidate -- important architectural or design decisions that should be promoted to project-level records).
+- **assumptions**: Priors you relied on that you did **not** validate. Tag each as `episodic` or `semantic`. These help the consolidation agent identify unstated dependencies between agents.
+- **tradeoffs**: Alternatives you considered and rejected. Each has an `alternative` (what you could have done) and a `reason` (why you chose not to). Captures the decision space for future agents.
+- **out_of_scope**: Things you noticed but intentionally did not act on. Each has an `observation` and an optional `note` (e.g. a filed story code). Prevents knowledge loss.
+- **potential_conflicts**: Assumptions you suspect may conflict with other agents' parallel work. Each has an `assumption`, a `confidence` level (`low`/`medium`/`high`), and an optional `note`. This is the primary signal the consolidation agent uses to detect inter-agent conflicts.
+
+**Using the CLI:**
+
+```
+pm report create \
+  --task-id <STORY_CODE> \
+  --agent-id <YOUR_AGENT_ID> \
+  --status <complete|partial> \
+  --decisions "<type>:<text>" \
+  --assumptions "<type>:<text>" \
+  --tradeoffs "<alternative>|<reason>" \
+  --out-of-scope "<observation>|<note>" \
+  --potential-conflicts "<assumption>|<confidence>|<note>"
+```
+
+All array flags are repeatable -- pass the flag multiple times for multiple items.
+
+**Using the MCP tool:**
+
+```json
+{
+  "workdir": "<repo root>",
+  "task_id": "<STORY_CODE>",
+  "agent_id": "<YOUR_AGENT_ID>",
+  "status": "complete",
+  "decisions": ["semantic:Adopted X for Y because Z"],
+  "assumptions": ["episodic:Assumed A holds based on B"],
+  "tradeoffs": ["Alternative approach|Reason it was rejected"],
+  "out_of_scope": ["Observation|Optional note"],
+  "potential_conflicts": ["Uncertain assumption|medium|Optional note"]
+}
+```
+
+At minimum, always populate `task_id`, `agent_id`, `status`, and at least one `decisions`
+entry describing the most significant choice you made. The other fields are optional but
+strongly encouraged -- more context means better consolidation outcomes.
+
+### Step 7: Emit structured result
+
+After completing (or failing/blocking), emit the following structured block. This is **required** -- the orchestrator (`/pm-work-on-project`) parses this to track results and pass context to subsequent stories.
 
 ```
 ---
@@ -84,7 +138,7 @@ STORY_RESULT:
 - `discoveries` — list codes of any new stories you filed while working (empty if none)
 - `reflection` — **required if status is blocked or failed**. Write 1-2 sentences: what failed, why, and what would fix or unblock it. This gets passed to future agents working on dependent stories.
 
-### Step 7: Report and offer continuation
+### Step 8: Report and offer continuation
 
 - Report: `✓ <STORY_CODE>: <title> — done` (or `✗` / `⊘` for failed/blocked)
 - Show which acceptance criteria were verified

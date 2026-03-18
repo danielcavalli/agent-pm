@@ -5,7 +5,7 @@ description: >-
   Fix the consolidation pipeline (E033 FAIL — 8/30 criteria met). Implement the two-phase pipeline (structural dedup
   then LLM semantic clustering), add comment ingestion, enforce idempotency via consolidated markers, make --dry-run
   functional, load config at runtime, and create conflict/gap resolution tasks during output routing.
-status: backlog
+status: done
 priority: high
 created_at: '2026-03-11'
 stories:
@@ -21,7 +21,7 @@ stories:
       - Trigger conditions (manual, threshold, scheduled) are validated
       - pm consolidate config prints the current configuration
       - Invalid config values produce clear error messages
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on: []
@@ -38,7 +38,7 @@ stories:
       - last_consolidated_at timestamp is used to filter items
       - 'Processed items are marked consolidated: true after successful consolidation'
       - Ingestion summary lists count of reports and comments processed
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -56,7 +56,7 @@ stories:
       - Contradicting decisions are flagged as conflicts
       - Matched items are grouped into synthesis candidates
       - Unmatched items are passed to the LLM semantic phase
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -74,7 +74,7 @@ stories:
       - '--dry-run prints items that would be marked consolidated'
       - No files are written when --dry-run is active
       - Output clearly labels everything as dry-run
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on:
@@ -91,7 +91,7 @@ stories:
       - Re-running does not create duplicate ADRs
       - Re-running does not create duplicate resolution tasks
       - Idempotency is verified by running consolidation twice and comparing output
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
@@ -109,7 +109,7 @@ stories:
       - 'Identified gaps create stories with resolution_type: gap'
       - 'Gap tasks are created with priority: medium'
       - Each resolution task includes source_reports references
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
@@ -127,7 +127,7 @@ stories:
       - Results from both phases are merged into a unified finding set
       - Output routing operates on the merged set, not separate sets
       - Pipeline order is documented in code comments
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on:

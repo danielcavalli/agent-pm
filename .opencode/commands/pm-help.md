@@ -1,1 +1,0 @@
-../../install/commands/pm-help.md
