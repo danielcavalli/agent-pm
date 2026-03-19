@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.8-alpha (2026-03-18)
+
+- Rewrite README with comprehensive feature coverage (MCP tools, slash commands, TUI, agent state, consolidation, ADRs, review pipelines)
+- Rewrite CONTRIBUTING with architecture diagram and contributor workflows
+- Add docs/guide.md: workflow-oriented usage guide
+- Update install/COMMANDS.md with missing slash commands (pm-iterate-plan, pm-review-generic, pm-review-plan)
+- Fix documented GC defaults to match actual values (ttl_reports_days: 7, ttl_adrs_days: 90)
+
 ## 0.0.7-alpha (2026-03-14)
 
 - Add /pm-review-plan: generic 5-agent research-grounded document review pipeline with integrity checking
