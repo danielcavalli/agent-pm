@@ -3,136 +3,176 @@
 ## Development Setup
 
 ```bash
-# Clone the repo
 git clone https://github.com/danielcavalli/agent-pm.git
 cd agent-pm
-
-# Install dependencies
 npm install
-
-# Build TypeScript
 npm run build
-
-# Link for local development (makes `pm` available globally)
-npm link
+npm link        # Makes `pm` available globally, pointing to your local dist/
 ```
 
-After `npm link`, the `pm` command points to your local `dist/` output. Changes take effect after running `npm run build`.
+After `npm link`, changes take effect after `npm run build`.
 
-## Development Workflow
+## Project Structure
 
-### Building
+```
+src/
+  cli.ts                    # CLI entry point (commander.js). All subcommands registered here.
+  mcp-server.ts             # MCP server -- exposes 14 tools over stdio transport.
+  commands/                 # One file per CLI command (init, epic, story, work, adr, agent, etc.)
+  schemas/                  # Zod schemas for every data type (project, epic, story, ADR, etc.)
+  lib/
+    fs.ts                   # YAML read/write, .pm/ directory resolution, file locking
+    codes.ts                # ID generation (next epic/story/ADR number), code parsing
+    index.ts                # Project index (index.yaml) maintenance
+    errors.ts               # Error types
+    llm.ts                  # LLM client (used by consolidation semantic clustering)
+    agent-state.ts          # Agent state file read/write
+  tui/
+    index.tsx               # Ink app entry -- wires panels, keyboard handling, state
+    types.ts                # TreeNode, filter types
+    loadTree.ts             # Builds in-memory tree from YAML files on disk
+    colors.ts               # Color palette
+    dispatch.ts             # Agent dispatch (tmux or background process)
+    escalationResponse.ts   # Write human response to agent escalation
+    focusCycling.ts         # Tab focus rotation logic
+    components/
+      Tree.tsx              # Navigable epic/story tree
+      DetailPanel.tsx       # Selected item detail view
+      StatusBar.tsx         # Bottom bar (code, filter, agent count)
+      AgentSidebar.tsx      # Live agent state panel
+      HelpOverlay.tsx       # Keyboard shortcut overlay
+    hooks/
+      useProjectTree.ts     # Loads tree, exposes reload
+      useFileWatcher.ts     # Watches .pm/ for changes, triggers reload
+      useAgentList.ts       # Reads .pm/agents/*.yaml
+      useMouseScroll.ts     # Mouse wheel scroll support
+install/
+  install.sh                # Multi-client installer (npm global + MCP + slash commands)
+  agents-rules.md           # Autonomous filing rules template (injected into AGENTS.md)
+  commands/                 # Slash command Markdown files (one per /pm-* command)
+  COMMANDS.md               # Slash command index
+docs/
+  adr/                      # Architecture Decision Records (Markdown, for this repo's own decisions)
+  design/                   # Design specs (PRD, TUI spec)
+  plans/                    # Implementation plans
+  schemas/                  # Schema documentation
+  research/                 # Research notes
+```
+
+## How the Pieces Fit Together
+
+```
+                              AI Agent Session
+                             /        |        \
+                   Slash Commands   MCP Tools   Direct CLI
+                     (Markdown)    (stdio)      (pm ...)
+                         |            |            |
+                         v            v            v
+                    install/     mcp-server.ts   cli.ts
+                    commands/         |            |
+                                     +-----+------+
+                                           |
+                                     src/commands/*
+                                           |
+                                     src/schemas/*
+                                     src/lib/*
+                                           |
+                                      .pm/ (YAML)
+```
+
+- **Slash commands** are Markdown prompt templates. They instruct the agent to call `pm` CLI commands. They don't execute code themselves.
+- **MCP tools** are defined in `mcp-server.ts`. Each tool shells out to the `pm` CLI binary, passing parameters as flags.
+- **CLI commands** are the single source of truth for all operations. They validate via Zod schemas and read/write YAML in `.pm/`.
+- **The TUI** reads `.pm/` directly (no CLI in the loop) for performance, using the same `loadTree.ts` logic.
+
+## Building
 
 ```bash
 npm run build     # Compile TypeScript to dist/
 ```
 
-The build compiles `src/` to `dist/` using `tsc`. The CLI entry point is `dist/cli.js` and the MCP server is `dist/mcp-server.js`.
+The build produces `dist/cli.js` (CLI entry) and `dist/mcp-server.js` (MCP server entry). Both get `chmod +x` automatically.
 
-### Testing
+## Testing
 
 ```bash
 npm test          # Run all tests with vitest
 ```
 
-Tests are in `src/__tests__/`. They use `vitest` and set the `PM_HOME` environment variable to temporary directories for test isolation. This ensures tests never touch real project data in `.pm/`.
+Tests live alongside the code they test (`src/**/__tests__/`). They use the `PM_HOME` environment variable pointed at temporary directories for isolation -- tests never touch real `.pm/` data.
+
+Key test areas:
+- `src/__tests__/mcp-server.test.ts` -- End-to-end MCP server tests using the MCP SDK client
+- `src/commands/__tests__/` -- CLI command tests (init, epic, story, work, consolidate, gc, ADR, agent, etc.)
+- `src/tui/__tests__/` -- TUI component and interaction tests
+- `src/schemas/__tests__/` -- Schema validation tests
+- `src/lib/__tests__/` -- Library utility tests
 
 ### Manual Verification
 
-After building, test your changes manually:
-
 ```bash
-pm status                    # Verify CLI works
-pm init --name Test --code T --description "test"
-pm epic add T --title "Test epic" --description "testing"
-pm status T
+pm status
+pm init --name Test --code T --description "test project"
+pm epic add --title "Test epic" --description "testing"
+pm story add E001 --title "Test story" --points 1 --criteria "It works"
+pm status
+pm tui
 ```
 
-For MCP server changes, the automated tests in `src/__tests__/mcp-server.test.ts` use the MCP SDK client to verify the server end-to-end.
+## Adding a New CLI Command
 
-## Project Structure
+1. Create `src/commands/your-command.ts` with a function that takes a Commander `program` argument
+2. Register it in `src/cli.ts` by importing and calling it
+3. If it needs a new data type, add a Zod schema in `src/schemas/`
+4. Add tests in `src/commands/__tests__/your-command.test.ts`
 
-| Path                      | Purpose                                                                    |
-| ------------------------- | -------------------------------------------------------------------------- |
-| `src/cli.ts`              | CLI entry point (commander.js)                                             |
-| `src/mcp-server.ts`       | MCP server exposing pm_status, pm_epic_add, pm_story_add                   |
-| `src/commands/`           | CLI command implementations (init, epic, story, status, work, rules, etc.) |
-| `src/schemas/`            | Zod schemas for Project, Epic, Story validation                            |
-| `src/lib/`                | Shared helpers (ID generation, YAML I/O, data dir resolution)              |
-| `src/tui/`                | ink-based interactive TUI dashboard                                        |
-| `src/__tests__/`          | Test files                                                                 |
-| `install/install.sh`      | Multi-client installer                                                     |
-| `install/commands/`       | Canonical slash command .md files                                          |
-| `install/agents-rules.md` | Autonomous filing rules template                                           |
+## Adding a New MCP Tool
+
+1. Implement the underlying logic as a CLI command first (see above)
+2. Add the tool definition in `src/mcp-server.ts` following the existing pattern:
+   - Define `inputSchema` with Zod
+   - Shell out to the `pm` CLI binary with the appropriate flags
+   - Return the CLI output as the tool result
+3. Add tests in `src/__tests__/mcp-server.test.ts`
 
 ## Adding or Modifying Slash Commands
 
-Slash commands live in `install/commands/` as Markdown files. Each file is a system prompt that guides an AI agent through a PM workflow.
+Slash commands are Markdown files in `install/commands/`. Each file is a system prompt that guides an AI agent through a workflow.
 
 To add a new command:
 
 1. Create `install/commands/pm-your-command.md`
-2. Write the system prompt -- it should instruct the agent to use the `pm` CLI directly (not `npm run pm --`)
-3. Use `$ARGUMENTS` for parameter injection where needed
-4. Run `bash install/install.sh` to deploy to both clients, or manually copy to:
-   - `~/.config/opencode/commands/` (OpenCode)
+2. Write the prompt -- instruct the agent to use `pm` CLI commands directly
+3. Use `$ARGUMENTS` as a placeholder for user-provided parameters
+4. Add the command to `install/COMMANDS.md`
+5. Run `bash install/install.sh` to deploy, or manually copy to:
    - `~/.claude/commands/` (Claude Code)
+   - `~/.config/opencode/commands/` (OpenCode)
 
-To modify an existing command:
+## Modifying Schemas
 
-1. Edit the file in `install/commands/`
-2. Re-run `install.sh` or copy the updated file to the client directories
+Zod schemas in `src/schemas/` define the shape of all YAML data. When modifying:
+
+- Update the Zod schema
+- Run `npm test` to verify existing data still validates
+- If adding fields, consider whether they should be optional (backward compatibility with existing `.pm/` data)
 
 ## How install.sh Works
 
-The installer (`install/install.sh`) performs these steps:
+The installer (`install/install.sh`) is idempotent:
 
-1. **Global CLI install** -- runs `npm install -g .` from the repo root
-2. **Client detection** -- checks for `~/.config/opencode/` and `~/.claude/` directories
-3. **For each detected client:**
-   - **MCP server registration** -- adds `pm-tools` to the client's MCP config JSON
-   - **Slash commands** -- copies `install/commands/pm-*.md` to the client's commands directory
-4. **Legacy cleanup** -- removes any previously-installed global agent rules from client AGENTS.md files
+1. Runs `npm install -g . --force` to install the `pm` binary globally
+2. Detects AI clients by checking for `~/.config/opencode/` and `~/.claude/`
+3. For each detected client:
+   - Registers the MCP server in the client's config
+   - Copies all `install/commands/pm-*.md` to the client's commands directory
+4. Removes any legacy global agent rules from client AGENTS.md files
 
-The installer is idempotent -- running it multiple times is safe and will update existing configurations.
-
-### Per-Project Agent Rules
-
-Agent rules are no longer installed globally. Instead, they are opt-in per repository:
-
-```bash
-pm rules init             # Write PM rules into ./AGENTS.md
-pm rules remove           # Strip PM rules from ./AGENTS.md
-```
-
-The rules template lives in `install/agents-rules.md`, bounded by markers:
-
-```
-# PM Autonomous Filing Rules
-... content ...
-# END PM Autonomous Filing Rules
-```
-
-`pm rules init` uses these markers for idempotent insertion/replacement.
-
-## Testing the Installer
-
-```bash
-# Full install (builds + installs globally + configures clients)
-npm run build && bash install/install.sh
-
-# Verify MCP config was written
-cat ~/.config/opencode/opencode.json  # OpenCode
-cat ~/.claude/settings.json           # Claude Code
-
-# Verify commands were copied
-ls ~/.config/opencode/commands/pm-*
-ls ~/.claude/commands/pm-*
-```
+Agent rules are installed per-repo via `pm rules init`, not globally.
 
 ## Submitting Changes
 
-1. Create a branch for your change
-2. Make your changes, run `npm run build` and `npm test`
-3. Ensure tests pass and the build is clean
-4. Submit a pull request with a clear description of what changed and why
+1. Create a branch
+2. Make changes
+3. `npm run build && npm test`
+4. Submit a pull request describing what changed and why
