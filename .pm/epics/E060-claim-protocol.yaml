@@ -22,7 +22,7 @@ stories:
       - listActiveClaims(namespace) returns only claims where status=active AND claimed_at + ttl_seconds > now
       - Expired claims are excluded from listActiveClaims without being deleted
       - 'Unit tests: write claim, read back, expire by advancing time (mock Date.now), verify excluded from active list'
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
@@ -47,7 +47,7 @@ stories:
         10+ unit test pairs: same-direction matches, opposite-direction does NOT match despite high Levenshtein,
         unrelated no match, different wording matches, edge cases
       - The old 0.88 Levenshtein-only threshold is not used anywhere
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -66,7 +66,7 @@ stories:
       - 'After 5 consecutive failures, returns { acquired: false, soloMode: true } signaling proceed anyway'
       - The 2-second wait is configurable via internal parameter (for testing), defaulting to 2000ms
       - 'Unit tests: successful acquisition, contested acquisition (mock concurrent write), fallback after 5 failures'
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
@@ -86,7 +86,7 @@ stories:
       - verifyRuntimeFence(pmDir, expectedVersion) re-reads and returns true if matches expectedVersion + 1
       - verifyBoardFence(pmDir, expectedCommitHash) runs git rev-parse HEAD and returns true if matches
       - 'Unit tests: successful fence, version mismatch detection, HEAD divergence detection'
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -107,7 +107,7 @@ stories:
       - 'If no best and no observations, writes metadata.yaml with status: awaiting-baseline and composite_score: null'
       - Copies current strategy.yaml to .pm/swarm/best/strategy.yaml
       - 'Unit tests: baseline with observations, baseline with no observations, no-op when best exists'
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on:

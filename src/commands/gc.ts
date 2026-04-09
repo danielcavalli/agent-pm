@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import chalk from "chalk";
-import { readYaml, writeYaml } from "../lib/fs.js";
+import { readYaml, writeText, writeYaml } from "../lib/fs.js";
 import { getPmDir, findEpicFile, getProjectCode } from "../lib/codes.js";
 import {
   CommentIndexSchema,
@@ -67,7 +67,9 @@ function isTaskCompleted(epicCode: string, taskId: string): boolean {
     const story = epic.stories?.find((s) => s.code === taskId);
     return story?.status === "done";
   } catch (err) {
-    process.stderr.write(`[pm gc] isTaskCompleted error for ${epicCode}/${taskId}: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(
+      `[pm gc] isTaskCompleted error for ${epicCode}/${taskId}: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
     return false;
   }
 }
@@ -234,14 +236,14 @@ async function gcReports(
     if (!consolidated) {
       if (dryRun) {
         console.log(
-          chalk.dim(`  [dry-run] Skipping report (not consolidated): ${reportFile}`),
+          chalk.dim(
+            `  [dry-run] Skipping report (not consolidated): ${reportFile}`,
+          ),
         );
       }
       if (verbose && !dryRun) {
         console.log(
-          chalk.dim(
-            `  [ttl] Report ${reportFile}: not consolidated, skipping`,
-          ),
+          chalk.dim(`  [ttl] Report ${reportFile}: not consolidated, skipping`),
         );
       }
       skipped++;
@@ -274,7 +276,9 @@ async function gcReports(
 
     if (dryRun) {
       console.log(
-        chalk.yellow(`  [dry-run] Would archive report (consolidated): ${reportFile}`),
+        chalk.yellow(
+          `  [dry-run] Would archive report (consolidated): ${reportFile}`,
+        ),
       );
     } else {
       if (!fs.existsSync(archiveDir)) {
@@ -413,7 +417,7 @@ async function gcAdrs(
       noRefs: true,
       sortKeys: false,
     });
-    fs.writeFileSync(indexPath, content, "utf8");
+    writeText(indexPath, content);
 
     console.log(
       chalk.green(`  Marked ${toSupersede.length} ADR(s) as superseded`),

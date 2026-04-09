@@ -2,6 +2,8 @@
 
 This guide walks through common workflows -- from setting up your first project to running multi-agent orchestration.
 
+For the authoritative generated CLI and MCP command reference, see `docs/reference/commands.md`. Regenerate it locally or in CI with `npm run docs:commands`.
+
 ## Table of Contents
 
 - [Setup](#setup)
@@ -199,7 +201,13 @@ While working, agents send periodic heartbeats:
 pm_agent_heartbeat agent_id="agent-abc" status="active" current_task="E001-S002"
 ```
 
-These create state files in `.pm/agents/` that the TUI reads for the agent sidebar.
+These create state files in `.pm/agents/` that the TUI reads for the agent sidebar. The sidebar is a live view of the
+current `.pm/agents/*.yaml` records, not an execution-history log: restarting the TUI or orchestrator does not clear it by
+itself.
+
+Single-agent heartbeats behave exactly as before: if you omit `session_id`, `pm agent heartbeat` writes `.pm/agents/{agent_id}.yaml`.
+If you include `session_id`, PM derives a worker identity as `{agent_id}--{session-slug}-{hash}` and writes a separate state file
+for that worker, so parallel workers sharing a base `agent_id` stay visible in the TUI instead of overwriting each other.
 
 ### Escalation
 
@@ -232,33 +240,33 @@ Run this in a terminal -- ideally a tmux split alongside your AI coding tool.
 
 ### Key Shortcuts
 
-| Key | Action |
-|-----|--------|
-| `j`/`k` or arrows | Navigate up/down |
-| `g` / `G` | Jump to top / bottom |
-| `Ctrl+u` / `Ctrl+d` | Half-page up / Half-page down |
-| Mouse wheel | Scroll focused panel |
-| `Tab` | Cycle focus between panels |
-| `Enter` | Expand/collapse epic |
-| `/` | Search |
-| `f` | Filter by status (all, backlog, in_progress, done) |
-| `a` | Toggle agent sidebar |
-| `x` | Dispatch agent for selected story/epic |
-| `e` | Respond to agent escalation |
-| `c` / `y` | Copy selected code to clipboard |
-| `Esc` | Cancel search / reset filters |
-| `?` | Help overlay |
-| `q` | Quit |
+| Key                 | Action                                             |
+| ------------------- | -------------------------------------------------- |
+| `j`/`k` or arrows   | Navigate up/down                                   |
+| `g` / `G`           | Jump to top / bottom                               |
+| `Ctrl+u` / `Ctrl+d` | Half-page up / Half-page down                      |
+| Mouse wheel         | Scroll focused panel                               |
+| `Tab`               | Cycle focus between panels                         |
+| `Enter`             | Expand/collapse epic                               |
+| `/`                 | Search                                             |
+| `f`                 | Filter by status (all, backlog, in_progress, done) |
+| `a`                 | Toggle agent sidebar                               |
+| `x`                 | Dispatch agent for selected story/epic             |
+| `e`                 | Respond to agent escalation                        |
+| `c` / `y`           | Copy selected code to clipboard                    |
+| `Esc`               | Cancel search / reset filters                      |
+| `?`                 | Help overlay                                       |
+| `q`                 | Quit                                               |
 
 ### Agent Sidebar Status Icons
 
-| Icon | Meaning |
-|------|---------|
-| Filled circle (green) | Active -- agent is working |
-| Hollow circle (gray) | Idle |
-| Triangle (red) | Needs attention -- escalation waiting |
-| X (red) | Blocked |
-| Checkmark (gray) | Completed |
+| Icon                  | Meaning                               |
+| --------------------- | ------------------------------------- |
+| Filled circle (green) | Active -- agent is working            |
+| Hollow circle (gray)  | Idle                                  |
+| Triangle (red)        | Needs attention -- escalation waiting |
+| X (red)               | Blocked                               |
+| Checkmark (gray)      | Completed                             |
 
 ---
 
@@ -267,6 +275,7 @@ Run this in a terminal -- ideally a tmux split alongside your AI coding tool.
 When `pm rules init` has been run in a repo, agents proactively file work they discover during unrelated tasks.
 
 **What gets filed:**
+
 - Bugs or regressions unrelated to the current task
 - Tech debt (duplicated code, missing error handling, outdated patterns)
 - Missing features or improvement opportunities that are out of scope
@@ -274,6 +283,7 @@ When `pm rules init` has been run in a repo, agents proactively file work they d
 - Performance concerns
 
 **What does NOT get filed:**
+
 - Issues directly related to the current task (just fix it)
 - Trivial fixes (under 2 minutes -- just fix it)
 - Uncertain observations (mention to the user instead)
@@ -342,6 +352,7 @@ pm consolidate config          # Show current configuration
 ```
 
 The pipeline:
+
 1. Deduplicates findings (structural matching first, then LLM-powered semantic clustering)
 2. Creates ADRs for confirmed decisions that appear across multiple reports
 3. Creates resolution tasks for identified gaps or conflicts
@@ -352,7 +363,7 @@ Configure in `project.yaml`:
 ```yaml
 consolidation:
   max_reports_per_run: 20
-  trigger_mode: manual      # manual | event_based | time_based
+  trigger_mode: manual # manual | event_based | time_based
 ```
 
 ### Garbage Collection
@@ -374,6 +385,34 @@ gc_config:
   ttl_adrs_days: 90
 ```
 
+### TUI Hyperlinks
+
+Enable clickable story codes in terminals that support OSC 8 hyperlinks:
+
+```yaml
+tui:
+  links:
+    story_url_template: https://github.com/your-org/your-repo/search?q={code}
+```
+
+Use `{code}` as the placeholder for the PM story code.
+
+### TUI Themes
+
+Customize the TUI color palette in `project.yaml` with a bundled theme name and
+optional per-token hex overrides:
+
+```yaml
+theme:
+  name: catppuccin
+  colors:
+    primary: "#f4b8e4"
+    borderFocused: "#89b4fa"
+```
+
+Bundled theme names include `default`, `catppuccin`, and `tokyonight`. Invalid
+hex overrides are ignored so the TUI keeps rendering with the fallback theme.
+
 ---
 
 ## Document Review
@@ -385,6 +424,7 @@ gc_config:
 ```
 
 This runs a 5-agent review pipeline:
+
 - **Research Reviewer** -- Searches for evidence to support or contradict claims
 - **Researcher Validator** -- Validates research quality and sources
 - **Evaluator** -- Scores the document across 8 dimensions (claim support, logical coherence, completeness, feasibility, etc.)
@@ -403,6 +443,7 @@ The loop runs until the target score is reached or convergence is detected (mini
 Same architecture as `/pm-review-plan`, but the grounding prompt defines all evaluation criteria. Works on ADRs, RFCs, post-mortems, API specs, runbooks, or any document.
 
 Options:
+
 - `--max-loop N` -- Maximum review iterations (default: 5)
 - `--target N` -- Target composite score out of 5.0 (default: 4.0)
 - `--verbose` / `--summary` -- Control output detail level

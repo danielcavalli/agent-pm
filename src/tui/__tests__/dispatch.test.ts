@@ -3,6 +3,7 @@ import {
   isTmuxAvailable,
   buildStoryCommand,
   buildEpicCommand,
+  buildDispatchedAgentId,
 } from "../dispatch.js";
 
 describe("isTmuxAvailable", () => {
@@ -49,5 +50,25 @@ describe("buildEpicCommand", () => {
   it("builds a claude -p command for project orchestration", () => {
     const cmd = buildEpicCommand();
     expect(cmd).toBe('claude -p "/pm-work-on-project"');
+  });
+});
+
+describe("buildDispatchedAgentId", () => {
+  it("builds a stable, code-derived agent id", () => {
+    const id = buildDispatchedAgentId(
+      "PM-E065-S002",
+      new Date("2026-04-08T10:00:00Z"),
+    );
+
+    expect(id).toBe("tui-pm-e065-s002-1775642400000");
+  });
+
+  it("normalizes non-alphanumeric separators", () => {
+    const id = buildDispatchedAgentId(
+      "PM/E065 S002",
+      new Date("2026-04-08T10:00:00Z"),
+    );
+
+    expect(id).toBe("tui-pm-e065-s002-1775642400000");
   });
 });

@@ -14,7 +14,7 @@ import chalk from "chalk";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import yaml from "js-yaml";
-import { readYaml, writeYaml, fileExists } from "../lib/fs.js";
+import { readYaml, writeText, writeYaml, fileExists } from "../lib/fs.js";
 import { getPmDir, getProjectCode } from "../lib/codes.js";
 import {
   AgentExecutionReportSchema,
@@ -30,6 +30,7 @@ import type {
 } from "../schemas/index.js";
 import { PmError } from "../lib/errors.js";
 import { createLLMClient } from "../lib/llm.js";
+import type { LLMRequestOptions } from "../lib/llm.js";
 import { semanticClustering } from "./semantic-clustering.js";
 import { routeOutput } from "./consolidate-output.js";
 import { structuralDedup } from "./structural-dedup.js";
@@ -66,6 +67,8 @@ export interface UnmatchedItem {
 const DEFAULT_CONSOLIDATION_CONFIG: ConsolidationConfig = {
   max_reports_per_run: 10,
   trigger_mode: "manual" as TriggerMode,
+  llm_timeout_ms: 30000,
+  llm_max_retries: 2,
 };
 
 /**
@@ -162,6 +165,46 @@ export interface IngestionSummary {
   commentsProcessed: number;
   reportsSkipped: number;
   commentsSkipped: number;
+  warningCount: number;
+  errorCount: number;
+  partialFailure: boolean;
+}
+
+export interface ConsolidationIssue {
+  severity: "warning" | "error";
+  stage: string;
+  message: string;
+  filePath?: string;
+  reason?: string;
+}
+
+function formatIssue(issue: ConsolidationIssue): string {
+  const parts = [
+    `[pm consolidate] ${issue.severity}`,
+    `stage=${issue.stage}`,
+    `message=${JSON.stringify(issue.message)}`,
+  ];
+
+  if (issue.filePath) {
+    parts.push(`file=${JSON.stringify(issue.filePath)}`);
+  }
+
+  if (issue.reason) {
+    parts.push(`reason=${JSON.stringify(issue.reason)}`);
+  }
+
+  return `${parts.join(" ")}\n`;
+}
+
+function recordIssue(
+  issues: ConsolidationIssue[] | undefined,
+  issue: ConsolidationIssue,
+): void {
+  if (issues) {
+    issues.push(issue);
+  }
+
+  process.stderr.write(formatIssue(issue));
 }
 
 /**
@@ -218,6 +261,7 @@ export function findCommentFiles(): string[] {
 export function ingestReports(
   reportPaths: string[],
   lastConsolidatedAt?: string,
+  issues?: ConsolidationIssue[],
 ): { loaded: LoadedReport[]; skipped: number } {
   const loaded: LoadedReport[] = [];
   let skipped = 0;
@@ -243,8 +287,14 @@ export function ingestReports(
       }
 
       loaded.push({ filePath, data });
-    } catch {
-      // Skip invalid reports
+    } catch (err) {
+      recordIssue(issues, {
+        severity: "warning",
+        stage: "ingest_reports",
+        message: "Skipped unreadable report during consolidation ingestion",
+        filePath,
+        reason: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -257,6 +307,7 @@ export function ingestReports(
 export function ingestComments(
   commentPaths: string[],
   lastConsolidatedAt?: string,
+  issues?: ConsolidationIssue[],
 ): { loaded: LoadedComment[]; skipped: number } {
   const loaded: LoadedComment[] = [];
   let skipped = 0;
@@ -282,8 +333,14 @@ export function ingestComments(
       }
 
       loaded.push({ filePath, data });
-    } catch {
-      // Skip invalid comments
+    } catch (err) {
+      recordIssue(issues, {
+        severity: "warning",
+        stage: "ingest_comments",
+        message: "Skipped unreadable comment during consolidation ingestion",
+        filePath,
+        reason: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -294,7 +351,10 @@ export function ingestComments(
  * Mark processed reports as consolidated by setting consolidated: true
  * in their YAML files.
  */
-export function markReportsConsolidated(reports: LoadedReport[]): void {
+export function markReportsConsolidated(
+  reports: LoadedReport[],
+  issues?: ConsolidationIssue[],
+): void {
   for (const report of reports) {
     try {
       const content = fs.readFileSync(report.filePath, "utf8");
@@ -306,9 +366,15 @@ export function markReportsConsolidated(reports: LoadedReport[]): void {
         noRefs: true,
         sortKeys: false,
       });
-      fs.writeFileSync(report.filePath, updated, "utf8");
-    } catch {
-      // Best-effort marking
+      writeText(report.filePath, updated);
+    } catch (err) {
+      recordIssue(issues, {
+        severity: "error",
+        stage: "mark_reports",
+        message: "Failed to mark report as consolidated",
+        filePath: report.filePath,
+        reason: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 }
@@ -317,7 +383,10 @@ export function markReportsConsolidated(reports: LoadedReport[]): void {
  * Mark processed comments as consolidated by setting consolidated: true
  * in both their individual YAML files and the comment index.
  */
-export function markCommentsConsolidated(comments: LoadedComment[]): void {
+export function markCommentsConsolidated(
+  comments: LoadedComment[],
+  issues?: ConsolidationIssue[],
+): void {
   const commentIds = new Set(comments.map((c) => c.data.id));
 
   // Mark individual comment files
@@ -332,9 +401,15 @@ export function markCommentsConsolidated(comments: LoadedComment[]): void {
         noRefs: true,
         sortKeys: false,
       });
-      fs.writeFileSync(comment.filePath, updated, "utf8");
-    } catch {
-      // Best-effort marking
+      writeText(comment.filePath, updated);
+    } catch (err) {
+      recordIssue(issues, {
+        severity: "error",
+        stage: "mark_comments",
+        message: "Failed to mark comment as consolidated",
+        filePath: comment.filePath,
+        reason: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -350,8 +425,14 @@ export function markCommentsConsolidated(comments: LoadedComment[]): void {
         }
       }
       writeYaml(indexPath, index);
-    } catch {
-      // Best-effort index update
+    } catch (err) {
+      recordIssue(issues, {
+        severity: "error",
+        stage: "mark_comment_index",
+        message: "Failed to update consolidated state in comment index",
+        filePath: indexPath,
+        reason: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 }
@@ -359,7 +440,10 @@ export function markCommentsConsolidated(comments: LoadedComment[]): void {
 /**
  * Update last_consolidated_at in project.yaml.
  */
-export function updateLastConsolidatedAt(timestamp: string): void {
+export function updateLastConsolidatedAt(
+  timestamp: string,
+  issues?: ConsolidationIssue[],
+): void {
   const pmDir = getPmDir();
   const projectYamlPath = path.join(pmDir, "project.yaml");
 
@@ -392,9 +476,15 @@ export function updateLastConsolidatedAt(timestamp: string): void {
       noRefs: true,
       sortKeys: false,
     });
-    fs.writeFileSync(projectYamlPath, updated, "utf8");
-  } catch {
-    // Best-effort update
+    writeText(projectYamlPath, updated);
+  } catch (err) {
+    recordIssue(issues, {
+      severity: "error",
+      stage: "update_project_config",
+      message: "Failed to update last_consolidated_at in project config",
+      filePath: projectYamlPath,
+      reason: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
@@ -410,6 +500,8 @@ export function updateLastConsolidatedAt(timestamp: string): void {
 async function synthesizeItems(
   unmatchedItems: UnmatchedItem[],
   comments: LoadedComment[],
+  llmOptions?: LLMRequestOptions,
+  issues?: ConsolidationIssue[],
 ): Promise<SynthesisResult> {
   if (unmatchedItems.length === 0 && comments.length === 0) {
     return { candidates: [], unmatched: [], summary: "No items found" };
@@ -419,22 +511,14 @@ async function synthesizeItems(
 
   // Separate unmatched items by category for the prompt
   const decisions = unmatchedItems.filter((i) => i.category === "decision");
-  const assumptions = unmatchedItems.filter(
-    (i) => i.category === "assumption",
-  );
+  const assumptions = unmatchedItems.filter((i) => i.category === "assumption");
 
   const decisionsText = decisions
-    .map(
-      (d, i) =>
-        `${i + 1}. [DECISION] "${d.text}" (source: ${d.reportId})`,
-    )
+    .map((d, i) => `${i + 1}. [DECISION] "${d.text}" (source: ${d.reportId})`)
     .join("\n");
 
   const assumptionsText = assumptions
-    .map(
-      (a, i) =>
-        `${i + 1}. [ASSUMPTION] "${a.text}" (source: ${a.reportId})`,
-    )
+    .map((a, i) => `${i + 1}. [ASSUMPTION] "${a.text}" (source: ${a.reportId})`)
     .join("\n");
 
   const commentsText = comments
@@ -481,21 +565,26 @@ ${commentsText}
 
 Respond with valid JSON only, no other text.`;
 
-  const response = await llm.complete(prompt);
+  const response = await llm.complete(prompt, llmOptions);
 
   try {
     const jsonMatch = response.match(/\{[\s\S]*\}/);
-    const parsed = jsonMatch
-      ? JSON.parse(jsonMatch[0])
-      : JSON.parse(response);
+    const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(response);
 
     return {
       candidates: parsed.candidates || [],
       unmatched: parsed.unmatched || [],
       summary: parsed.summary || "Synthesis complete",
     };
-  } catch {
-    // On parse failure, return the raw unmatched items + comments as-is
+  } catch (err) {
+    recordIssue(issues, {
+      severity: "warning",
+      stage: "synthesis_parse",
+      message:
+        "LLM synthesis response was invalid JSON; falling back to raw unmatched items",
+      reason: err instanceof Error ? err.message : String(err),
+    });
+
     return {
       candidates: [],
       unmatched: [
@@ -528,10 +617,7 @@ export function mergeResults(
   llmResult: SynthesisResult,
 ): SynthesisResult {
   // Combine candidates from both phases into a unified set
-  const mergedCandidates = [
-    ...structuralCandidates,
-    ...llmResult.candidates,
-  ];
+  const mergedCandidates = [...structuralCandidates, ...llmResult.candidates];
 
   // The LLM already only processed unmatched items from structural phase,
   // so its unmatched output is the final set of truly unmatched items.
@@ -549,11 +635,10 @@ export async function consolidate(
   options?: { dryRun?: boolean },
 ): Promise<IngestionSummary> {
   const dryRun = options?.dryRun ?? false;
+  const issues: ConsolidationIssue[] = [];
 
   if (dryRun) {
-    console.log(
-      chalk.bold.yellow("\n  [DRY RUN] Consolidation Preview\n"),
-    );
+    console.log(chalk.bold.yellow("\n  [DRY RUN] Consolidation Preview\n"));
     console.log(
       chalk.yellow(
         "  No files will be written. Showing what would be created.\n",
@@ -568,15 +653,28 @@ export async function consolidate(
   const config = loadConsolidationConfig();
   console.log(
     chalk.dim(
-      `  Config: max_reports_per_run=${config.max_reports_per_run}, trigger_mode=${config.trigger_mode}`,
+      `  Config: max_reports_per_run=${config.max_reports_per_run}, trigger_mode=${config.trigger_mode}, llm_timeout_ms=${config.llm_timeout_ms}, llm_max_retries=${config.llm_max_retries}`,
     ),
   );
+
+  const llmOptions: LLMRequestOptions = {
+    timeoutMs: config.llm_timeout_ms,
+    maxRetries: config.llm_max_retries,
+    onRetry: ({ attempt, maxAttempts, reason }) => {
+      console.log(
+        chalk.yellow(
+          `  [retry ${attempt}/${maxAttempts - 1}] LLM request failed: ${reason}`,
+        ),
+      );
+    },
+  };
 
   // Ingest reports
   const reportPaths = findReportFiles();
   const { loaded: loadedReports, skipped: reportsSkipped } = ingestReports(
     reportPaths,
     config.last_consolidated_at,
+    issues,
   );
 
   // Ingest comments
@@ -584,6 +682,7 @@ export async function consolidate(
   const { loaded: loadedComments, skipped: commentsSkipped } = ingestComments(
     commentPaths,
     config.last_consolidated_at,
+    issues,
   );
 
   console.log(
@@ -611,6 +710,10 @@ export async function consolidate(
       commentsProcessed: 0,
       reportsSkipped,
       commentsSkipped,
+      warningCount: issues.filter((issue) => issue.severity === "warning")
+        .length,
+      errorCount: issues.filter((issue) => issue.severity === "error").length,
+      partialFailure: issues.length > 0,
     };
   }
 
@@ -658,6 +761,8 @@ export async function consolidate(
   const synthesisResult = await synthesizeItems(
     dedupResult.unmatched,
     loadedComments,
+    llmOptions,
+    issues,
   );
 
   // ── Step 4: MERGE ──
@@ -691,9 +796,7 @@ export async function consolidate(
         console.log(chalk.dim(`      Sources: ${sources}`));
       }
     } else {
-      console.log(
-        chalk.yellow("\n  [DRY RUN] No ADRs would be created"),
-      );
+      console.log(chalk.yellow("\n  [DRY RUN] No ADRs would be created"));
     }
 
     // ── Dry-run output: print proposed gap resolution tasks ──
@@ -701,6 +804,7 @@ export async function consolidate(
       console.log(chalk.dim("  Performing semantic clustering..."));
       const clusteringResult = await semanticClustering(
         mergedResult.unmatched,
+        llmOptions,
       );
       console.log(
         chalk.green("  [ok]") +
@@ -732,9 +836,7 @@ export async function consolidate(
       }
     } else {
       console.log(chalk.dim("  No unmatched items to cluster"));
-      console.log(
-        chalk.yellow("\n  [DRY RUN] No gap tasks would be created"),
-      );
+      console.log(chalk.yellow("\n  [DRY RUN] No gap tasks would be created"));
     }
 
     // ── Dry-run output: print items that would be marked consolidated ──
@@ -744,26 +846,22 @@ export async function consolidate(
       ),
     );
     if (reportsToProcess.length > 0) {
-      console.log(
-        chalk.yellow(
-          `    - ${reportsToProcess.length} report(s):`,
-        ),
-      );
+      console.log(chalk.yellow(`    - ${reportsToProcess.length} report(s):`));
       for (const report of reportsToProcess) {
         console.log(
-          chalk.dim(`      - ${report.data.task_id} (${path.basename(report.filePath)})`),
+          chalk.dim(
+            `      - ${report.data.task_id} (${path.basename(report.filePath)})`,
+          ),
         );
       }
     }
     if (loadedComments.length > 0) {
-      console.log(
-        chalk.yellow(
-          `    - ${loadedComments.length} comment(s):`,
-        ),
-      );
+      console.log(chalk.yellow(`    - ${loadedComments.length} comment(s):`));
       for (const comment of loadedComments) {
         console.log(
-          chalk.dim(`      - ${comment.data.id} (${path.basename(comment.filePath)})`),
+          chalk.dim(
+            `      - ${comment.data.id} (${path.basename(comment.filePath)})`,
+          ),
         );
       }
     }
@@ -774,6 +872,10 @@ export async function consolidate(
       commentsProcessed: loadedComments.length,
       reportsSkipped,
       commentsSkipped,
+      warningCount: issues.filter((issue) => issue.severity === "warning")
+        .length,
+      errorCount: issues.filter((issue) => issue.severity === "error").length,
+      partialFailure: issues.length > 0,
     };
 
     console.log(chalk.yellow("\n  [DRY RUN] Consolidation preview complete"));
@@ -790,8 +892,18 @@ export async function consolidate(
       );
     }
     console.log(
-      chalk.yellow("  No files were written."),
+      chalk.white(
+        `  Warnings: ${summary.warningCount}, Errors: ${summary.errorCount}`,
+      ),
     );
+    if (summary.partialFailure) {
+      console.log(
+        chalk.yellow(
+          "  Partial result: review warnings/errors above; dry-run preview is degraded.",
+        ),
+      );
+    }
+    console.log(chalk.yellow("  No files were written."));
 
     return summary;
   }
@@ -802,6 +914,7 @@ export async function consolidate(
     console.log(chalk.dim("  Performing semantic clustering..."));
     const clusteringResult = await semanticClustering(
       mergedResult.unmatched,
+      llmOptions,
     );
     console.log(
       chalk.green("  [ok]") +
@@ -833,15 +946,15 @@ export async function consolidate(
 
   // ── Step 6: MARK ──
   // Mark processed items as consolidated
-  markReportsConsolidated(reportsToProcess);
-  markCommentsConsolidated(loadedComments);
+  markReportsConsolidated(reportsToProcess, issues);
+  markCommentsConsolidated(loadedComments, issues);
 
   // Update last_consolidated_at timestamp
   const now = new Date()
     .toISOString()
     .replace(/\.\d{3}Z$/, "")
     .replace("Z", "");
-  updateLastConsolidatedAt(now);
+  updateLastConsolidatedAt(now, issues);
 
   // Print ingestion summary
   const summary: IngestionSummary = {
@@ -849,9 +962,16 @@ export async function consolidate(
     commentsProcessed: loadedComments.length,
     reportsSkipped,
     commentsSkipped,
+    warningCount: issues.filter((issue) => issue.severity === "warning").length,
+    errorCount: issues.filter((issue) => issue.severity === "error").length,
+    partialFailure: issues.length > 0,
   };
 
-  console.log(chalk.green("\n  Consolidation complete"));
+  if (summary.partialFailure) {
+    console.log(chalk.yellow("\n  Consolidation completed with warnings"));
+  } else {
+    console.log(chalk.green("\n  Consolidation complete"));
+  }
   console.log(
     chalk.white(
       `  Ingestion summary: ${summary.reportsProcessed} report(s), ${summary.commentsProcessed} comment(s) processed`,
@@ -861,6 +981,18 @@ export async function consolidate(
     console.log(
       chalk.dim(
         `  Skipped: ${summary.reportsSkipped} report(s), ${summary.commentsSkipped} comment(s)`,
+      ),
+    );
+  }
+  console.log(
+    chalk.white(
+      `  Warnings: ${summary.warningCount}, Errors: ${summary.errorCount}`,
+    ),
+  );
+  if (summary.partialFailure) {
+    console.log(
+      chalk.yellow(
+        "  Partial result: some consolidation steps failed; inspect warning/error output. Exit code is 1 for partial completion.",
       ),
     );
   }
@@ -879,7 +1011,10 @@ export async function consolidateRun(
   const opts = options as unknown as ConsolidateRunOptions;
   const projectCode = opts.projectCode?.toUpperCase();
 
-  await consolidate(projectCode, { dryRun: opts.dryRun });
+  const summary = await consolidate(projectCode, { dryRun: opts.dryRun });
+  if (summary.partialFailure) {
+    process.exitCode = 1;
+  }
 }
 
 interface ConsolidateConfigOptions {
@@ -904,6 +1039,14 @@ export async function consolidateConfig(
   console.log(
     chalk.white("  max_reports_per_run: ") +
       chalk.green(String(config.max_reports_per_run)),
+  );
+  console.log(
+    chalk.white("  llm_timeout_ms: ") +
+      chalk.green(String(config.llm_timeout_ms)),
+  );
+  console.log(
+    chalk.white("  llm_max_retries: ") +
+      chalk.green(String(config.llm_max_retries)),
   );
   if (config.trigger_event_count !== undefined) {
     console.log(

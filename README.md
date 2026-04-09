@@ -32,7 +32,7 @@ npm install && npm run build
 bash install/install.sh
 ```
 
-The installer registers the `pm` CLI globally, configures the MCP server for your AI clients, and copies slash commands into place.
+The installer registers the `pm` CLI globally, configures the MCP server for your AI clients, and copies slash commands into place. Before it overwrites an existing client config or command file, it writes a timestamped `.pm-backup-<timestamp>` sibling copy and reports those backup paths at the end of the run. For unattended setup, run `bash install/install.sh --non-interactive` or set `PM_INSTALL_NON_INTERACTIVE=1`. To restore manually, copy the reported backup file back over the mutated file.
 
 ### Initialize a Project
 
@@ -44,6 +44,10 @@ pm rules init   # Write agent filing rules into AGENTS.md (opt-in per repo)
 
 This creates a `.pm/` directory at your repo root. Commit it to git -- project data is versioned alongside your code.
 
+The generated command authority lives at `docs/reference/commands.md`. Regenerate it from the canonical contract registry with `npm run docs:commands`.
+
+The write/destructive command policy lives at `docs/reference/mutation-operations.md`. Use it when reviewing new mutable commands or planning locking and atomic-write work.
+
 ### Verify
 
 ```bash
@@ -52,6 +56,8 @@ pm tui                # Live dashboard
 ```
 
 In Claude Code or OpenCode, MCP tools (`pm_status`, `pm_epic_add`, `pm_story_add`, etc.) are available immediately in every session.
+
+For the full generated CLI and MCP reference, use `docs/reference/commands.md` rather than duplicating command details in prose docs. For lock expectations on mutable commands, use `docs/reference/mutation-operations.md`.
 
 ## Features
 
@@ -74,22 +80,22 @@ Stories support dependency declarations (`--depends-on E002-S001`) that the orch
 
 The MCP server exposes PM operations as tools available in every AI agent session, regardless of working directory. This is what enables autonomous filing -- an agent in any repo can query project state and create work items.
 
-| Tool | Purpose |
-|------|---------|
-| `pm_status` | Query project state |
-| `pm_epic_add` | Create an epic |
-| `pm_story_add` | Create a story with criteria and dependencies |
-| `pm_project_remove` | Delete a project |
-| `pm_comment_add` | Leave a cross-task comment for other agents |
-| `pm_comment_list` | Read comments (filtered by task, type, author) |
-| `pm_report_create` | File an execution report after completing a story |
-| `pm_report_view` | View an execution report |
-| `pm_adr_create` | Record an architecture decision |
-| `pm_adr_query` | Query ADRs with relevance ranking and full-text search |
-| `pm_agent_heartbeat` | Send agent heartbeat (status, current task, progress) |
-| `pm_agent_escalate` | Escalate a blocker to a human |
-| `pm_agent_check_response` | Check for human response to an escalation (read-once) |
-| `pm_gc_run` | Run garbage collection |
+| Tool                      | Purpose                                                |
+| ------------------------- | ------------------------------------------------------ |
+| `pm_status`               | Query project state                                    |
+| `pm_epic_add`             | Create an epic                                         |
+| `pm_story_add`            | Create a story with criteria and dependencies          |
+| `pm_project_remove`       | Delete a project                                       |
+| `pm_comment_add`          | Leave a cross-task comment for other agents            |
+| `pm_comment_list`         | Read comments (filtered by task, type, author)         |
+| `pm_report_create`        | File an execution report after completing a story      |
+| `pm_report_view`          | View an execution report                               |
+| `pm_adr_create`           | Record an architecture decision                        |
+| `pm_adr_query`            | Query ADRs with relevance ranking and full-text search |
+| `pm_agent_heartbeat`      | Send agent heartbeat (status, current task, progress)  |
+| `pm_agent_escalate`       | Escalate a blocker to a human                          |
+| `pm_agent_check_response` | Check for human response to an escalation (read-once)  |
+| `pm_gc_run`               | Run garbage collection                                 |
 
 All tools accept a `workdir` parameter to target a specific repo's `.pm/` directory.
 
@@ -97,21 +103,21 @@ All tools accept a `workdir` parameter to target a specific repo's `.pm/` direct
 
 Slash commands are available in both Claude Code and OpenCode. They guide agents through multi-step PM workflows.
 
-| Command | Purpose |
-|---------|---------|
-| `/pm-create-project` | Guided project creation wizard |
-| `/pm-add-epic` | Add an epic with optional story decomposition |
-| `/pm-add-story` | Add a story with guided estimation and criteria |
-| `/pm-refine-epic` | Research an epic, propose story breakdown (plan-only until approved) |
-| `/pm-work-on [code]` | Execute a story end-to-end: load context, implement, verify criteria, file report |
+| Command                      | Purpose                                                                             |
+| ---------------------------- | ----------------------------------------------------------------------------------- |
+| `/pm-create-project`         | Guided project creation wizard                                                      |
+| `/pm-add-epic`               | Add an epic with optional story decomposition                                       |
+| `/pm-add-story`              | Add a story with guided estimation and criteria                                     |
+| `/pm-refine-epic`            | Research an epic, propose story breakdown (plan-only until approved)                |
+| `/pm-work-on [code]`         | Execute a story end-to-end: load context, implement, verify criteria, file report   |
 | `/pm-work-on-project [code]` | Orchestrate all stories -- builds dependency-aware dispatch tiers, runs in parallel |
-| `/pm-prioritize [code]` | Re-prioritize backlog with a strategy |
-| `/pm-status` | Status report with blocker highlights and next-story recommendations |
-| `/pm-audit [code]` | Audit implementation against acceptance criteria, file gaps as stories |
-| `/pm-iterate-plan` | 4-agent iterative planning loop (Drafter, Reviewer, Researcher, Reporter) |
-| `/pm-review-plan` | 5-agent document review pipeline with research-grounded scoring |
-| `/pm-review-generic` | Subject-adaptive document review (works on any doc type: ADR, RFC, runbook, etc.) |
-| `/pm-help` | List all commands |
+| `/pm-prioritize [code]`      | Re-prioritize backlog with a strategy                                               |
+| `/pm-status`                 | Status report with blocker highlights and next-story recommendations                |
+| `/pm-audit [code]`           | Audit implementation against acceptance criteria, file gaps as stories              |
+| `/pm-iterate-plan`           | 4-agent iterative planning loop (Drafter, Reviewer, Researcher, Reporter)           |
+| `/pm-review-plan`            | 5-agent document review pipeline with research-grounded scoring                     |
+| `/pm-review-generic`         | Subject-adaptive document review (works on any doc type: ADR, RFC, runbook, etc.)   |
+| `/pm-help`                   | List all commands                                                                   |
 
 ### Interactive TUI
 
@@ -198,6 +204,7 @@ pm gc run --dry-run    # Preview what would be removed
 ```
 
 Three collectors with configurable TTLs (set in `project.yaml`):
+
 - **Comments** -- Deletes consolidated comments that have been consumed by their target agent
 - **Reports** -- Archives consolidated reports past TTL
 - **ADRs** -- Marks superseded ADRs past TTL
@@ -215,6 +222,7 @@ Both enforce a minimum of 3 review loops, track the best version across iteratio
 ### Multi-Agent Planning
 
 **`/pm-iterate-plan`** -- A 4-agent iterative planning loop:
+
 - **Drafter** generates or refines the plan
 - **Reviewer** evaluates across 5 dimensions (architecture, research grounding, story quality, completeness, feasibility)
 - **Researcher** performs web search and codebase exploration to ground the plan in reality
@@ -271,13 +279,13 @@ agent-pm/                       # This repository
 
 ### Naming Conventions
 
-| Entity       | Format               | Example                |
-|--------------|----------------------|------------------------|
-| Project Code | `[A-Z]{2,6}`        | `PM`, `MYAPP`          |
-| Epic Code    | `{PROJECT}-E{NNN}`  | `PM-E001`              |
-| Story Code   | `{EPIC}-S{NNN}`     | `PM-E001-S003`         |
-| Epic File    | `E{NNN}-{slug}.yaml`| `E001-authentication.yaml` |
-| ADR File     | `ADR-{NNN}.yaml`    | `ADR-001.yaml`         |
+| Entity       | Format               | Example                    |
+| ------------ | -------------------- | -------------------------- |
+| Project Code | `[A-Z]{2,6}`         | `PM`, `MYAPP`              |
+| Epic Code    | `{PROJECT}-E{NNN}`   | `PM-E001`                  |
+| Story Code   | `{EPIC}-S{NNN}`      | `PM-E001-S003`             |
+| Epic File    | `E{NNN}-{slug}.yaml` | `E001-authentication.yaml` |
+| ADR File     | `ADR-{NNN}.yaml`     | `ADR-001.yaml`             |
 
 ## Configuration
 
@@ -287,7 +295,7 @@ Project-level settings live in `.pm/project.yaml`:
 # Consolidation pipeline
 consolidation:
   max_reports_per_run: 20
-  trigger_mode: manual          # manual | event_based | time_based
+  trigger_mode: manual # manual | event_based | time_based
 
 # Garbage collection TTLs
 gc_config:

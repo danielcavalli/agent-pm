@@ -3,7 +3,7 @@
 **Project Code:** PM  
 **Status:** Active  
 **Created:** 2026-03-09  
-**Updated:** 2026-03-10  
+**Updated:** 2026-04-08  
 **Owner:** Dan
 
 ---
@@ -63,7 +63,7 @@ Without this, work is ephemeral, context is lost between sessions, and discovere
 
 ## 4. Architecture
 
-The system has three layers: a **data layer** (YAML files in a `.pm/` directory at the repository root), a **CLI layer** (globally-installed `pm` binary), and an **integration layer** (MCP server, global slash commands, and AGENTS.md rules that make PM available to every agent session in both OpenCode and Claude Code).
+The system has three layers: a **data layer** (YAML files in a `.pm/` directory at the repository root), a **CLI layer** (globally-installed `pm` binary), and an **integration layer** (MCP server, global slash commands, and repo-local AGENTS.md rules that make PM available to every agent session in both OpenCode and Claude Code).
 
 ```
 your-repo/                               # Your repository
@@ -259,29 +259,29 @@ pm story add E001 --title "Fix edge case" --points 2
 
 ### Client Integration Installation
 
-Slash commands and MCP tools are installed for all detected clients (OpenCode, Claude Code) so PM is available in every session regardless of the current project:
+Slash commands and MCP tools are installed for all detected clients (OpenCode, Claude Code) so PM is available in every session regardless of the current project. The installer does not inject global AGENTS rules; after installation, run `pm rules init` inside each repository where you want autonomous filing enabled.
+
+For unattended environments, run `bash install/install.sh --non-interactive` or set `PM_INSTALL_NON_INTERACTIVE=1`.
 
 ```bash
 # install.sh performs:
 # 1. npm install -g .                          (global pm binary)
 # 2. Detect available clients (OpenCode, Claude Code)
 # 3. Register MCP server with each detected client:
-#    - OpenCode: add to ~/.config/opencode/opencode.json mcp block
-#    - Claude Code: claude mcp add --scope user pm-tools node dist/pm-mcp-server.js
+#    - OpenCode: write pm-tools into ~/.config/opencode/opencode.json
+#    - Claude Code: claude mcp add -s user pm-tools -- node dist/mcp-server.js
 # 4. Copy install/commands/* to each client's commands directory:
 #    - OpenCode: ~/.config/opencode/commands/
 #    - Claude Code: ~/.claude/commands/
-# 5. Append PM rules to each client's agent instructions (if not already present):
-#    - OpenCode: ~/.config/opencode/AGENTS.md
-#    - Claude Code: ~/.claude/AGENTS.md
+# 5. Remove any legacy globally-injected PM rules from client AGENTS.md files
 ```
 
 After installation:
 
 - `pm` CLI is on `$PATH`
 - `/pm-*` slash commands are available in every OpenCode and Claude Code session
-- `pm_epic_add`, `pm_story_add`, `pm_status` MCP tools are available to every agent
-- AGENTS.md rules instruct agents when and how to file discovered work
+- 14 MCP tools are available to every agent via the shared PM MCP server
+- Autonomous filing rules are enabled per repository with `pm rules init`
 
 ### Migration from Global Storage
 
@@ -305,100 +305,27 @@ This section defines how PM integrates into AI coding tools so that **every agen
 
 The MCP (Model Context Protocol) server is the **single universal mechanism** for agent tool access. It replaces the previous `@opencode-ai/plugin` custom tools approach with a standard protocol that works identically in both OpenCode and Claude Code.
 
-The server is implemented in `src/mcp-server.ts`, compiled to `dist/pm-mcp-server.js`, and registered with each client during installation. It exposes three tools over the MCP stdio transport:
+The server is implemented in `src/mcp-server.ts`, compiled to `dist/mcp-server.js`, and registered with each client during installation. It currently exposes 14 tools over MCP stdio.
 
-**`pm_status`** — Show current project management status. Use this to understand what projects exist, what work is in progress, and what's in the backlog before filing new items.
+| Category             | Tools                                                                                                      |
+| -------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Project and planning | `pm_status`, `pm_epic_add`, `pm_story_add`, `pm_project_remove`                                            |
+| Cross-task knowledge | `pm_comment_add`, `pm_comment_list`, `pm_report_create`, `pm_report_view`, `pm_adr_create`, `pm_adr_query` |
+| Agent lifecycle      | `pm_agent_heartbeat`, `pm_agent_escalate`, `pm_agent_check_response`                                       |
+| Maintenance          | `pm_gc_run`                                                                                                |
 
-```json
-{
-  "name": "pm_status",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "project": {
-        "type": "string",
-        "description": "Project code (optional — omit for all projects)"
-      }
-    }
-  }
-}
-```
+Authoritative references:
 
-**`pm_epic_add`** — File a new epic. Use when you discover a significant area of work (new feature, major refactor, systemic issue).
-
-```json
-{
-  "name": "pm_epic_add",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "project": {
-        "type": "string",
-        "description": "Project code, e.g. 'PM', 'MYAPP'"
-      },
-      "title": {
-        "type": "string",
-        "description": "Epic title — concise, actionable"
-      },
-      "description": {
-        "type": "string",
-        "description": "What this epic covers and why it matters. 1-3 sentences."
-      },
-      "priority": {
-        "type": "string",
-        "enum": ["high", "medium", "low"],
-        "default": "medium"
-      }
-    },
-    "required": ["project", "title", "description"]
-  }
-}
-```
-
-**`pm_story_add`** — File a new story to an existing epic. Use when you discover a specific, actionable piece of work.
-
-```json
-{
-  "name": "pm_story_add",
-  "inputSchema": {
-    "type": "object",
-    "properties": {
-      "epic": { "type": "string", "description": "Epic code, e.g. 'PM-E001'" },
-      "title": {
-        "type": "string",
-        "description": "Story title — specific and actionable"
-      },
-      "description": {
-        "type": "string",
-        "description": "What needs to be done and why"
-      },
-      "points": {
-        "type": "string",
-        "enum": ["1", "2", "3", "5", "8"],
-        "default": "3"
-      },
-      "priority": {
-        "type": "string",
-        "enum": ["high", "medium", "low"],
-        "default": "medium"
-      },
-      "criteria": {
-        "type": "array",
-        "items": { "type": "string" },
-        "description": "Acceptance criteria items"
-      }
-    },
-    "required": ["epic", "title", "description"]
-  }
-}
-```
+- `src/mcp-server.ts` — canonical MCP tool definitions and input schemas
+- `docs/guide.md` — maintained user-facing workflow reference
+- `install/COMMANDS.md` — maintained slash command manifest
 
 Each tool invokes the `pm` CLI via Node's `child_process.spawnSync`. This maintains clean separation between the MCP protocol layer and the CLI implementation.
 
 **Client registration:**
 
 - **OpenCode:** Configured in `~/.config/opencode/opencode.json` under the `mcp` block
-- **Claude Code:** Registered via `claude mcp add --scope user pm-tools node dist/pm-mcp-server.js`
+- **Claude Code:** Registered via `claude mcp add -s user pm-tools -- node dist/mcp-server.js`
 
 ### 7.2 Global Slash Commands
 
@@ -407,29 +334,33 @@ Slash commands are stored canonically in `install/commands/` and copied to each 
 - **OpenCode:** `~/.config/opencode/commands/`
 - **Claude Code:** `~/.claude/commands/`
 
-They are available in every session regardless of the current working directory, and their content is identical across clients. All commands invoke the `pm` CLI directly (not `npm run pm --`), since it is installed globally.
+They are available in every session regardless of the current working directory, and their content is identical across clients. All commands invoke the `pm` CLI directly (not `npm run pm --`), since it is installed globally. The authoritative slash command list lives in `install/COMMANDS.md`.
 
-The full list of slash commands remains the same:
+Current slash command surface (14 commands):
 
-| Command                      | Purpose                     |
-| ---------------------------- | --------------------------- |
-| `/pm-create-project`         | Create a new project        |
-| `/pm-add-epic`               | Add an epic interactively   |
-| `/pm-add-story`              | Add a story interactively   |
-| `/pm-work-on [code]`         | Execute a single story      |
-| `/pm-prioritize [code]`      | Re-prioritize stories       |
-| `/pm-status [code]`          | Show status report          |
-| `/pm-refine-epic [code]`     | Plan story decomposition    |
-| `/pm-work-on-project [code]` | Orchestrate all stories     |
-| `/pm-audit [code]`           | Audit implementation vs PRD |
-| `/pm-implement`              | Bootstrap implementation    |
+| Command               | Purpose                                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------- |
+| `/pm-add-epic`        | Add a new epic to an existing project, with optional story decomposition                    |
+| `/pm-add-story`       | Add a new story to an epic, with guided acceptance criteria and story point estimation      |
+| `/pm-audit`           | Audit a project's implementation against its PRD/spec, flag gaps, and auto-generate epics   |
+| `/pm-create-project`  | Create a new project with name, description, vision, tech stack, and initial epic proposals |
+| `/pm-help`            | List all `/pm-*` slash commands with arguments and descriptions                             |
+| `/pm-implement`       | Deprecated bootstrap flow kept for compatibility; prefer `/pm-work-on-project`              |
+| `/pm-iterate-plan`    | Run the 4-agent planning loop until consensus on an implementation plan                     |
+| `/pm-prioritize`      | Re-prioritize and reorder stories and epics based on a user-provided strategy               |
+| `/pm-refine-epic`     | Research an epic and propose a detailed story decomposition for human approval              |
+| `/pm-review-generic`  | Run the subject-adaptive document review pipeline                                           |
+| `/pm-review-plan`     | Run the research-grounded plan review pipeline                                              |
+| `/pm-status`          | Show project status, blockers, and next-story recommendations                               |
+| `/pm-work-on`         | Execute a single story end-to-end                                                           |
+| `/pm-work-on-project` | Orchestrate all open stories with dependency-aware parallel dispatch                        |
 
-### 7.3 Global Agent Rules (AGENTS.md)
+### 7.3 Project Agent Rules (AGENTS.md)
 
-The installer appends PM-specific rules to each client's agent instructions file:
+PM-specific agent rules are installed per repository with `pm rules init` (or by slash commands that call it), not globally by the installer. This keeps autonomous filing opt-in at the repo level while still letting the installer configure the shared CLI, MCP server, and slash commands.
 
-- **OpenCode:** `~/.config/opencode/AGENTS.md`
-- **Claude Code:** `~/.claude/AGENTS.md`
+- **Default target:** `./AGENTS.md`
+- **Override target:** `pm rules init --path /custom/path/AGENTS.md`
 
 These rules instruct agents to **autonomously file discovered work** using the PM MCP tools:
 
@@ -484,13 +415,13 @@ to capture them before context is lost.`);
 };
 ```
 
-This is optional and complementary — the custom tools + AGENTS.md rules are the primary mechanism.
+This is optional and complementary — the MCP tool surface plus project-local AGENTS rules are the primary mechanism.
 
 ---
 
 ## 8. CLI Interface
 
-The CLI is invoked as `pm <command>` from any directory. The `pm` binary is installed globally via `npm install -g`.
+The CLI is invoked as `pm <command>` from any directory. The `pm` binary is installed globally via `npm install -g`. The authoritative CLI reference lives in `src/cli.ts`, with usage guidance in `docs/guide.md`.
 
 ### `pm init`
 
@@ -937,13 +868,13 @@ Detailed story breakdowns for v2.1 epics are tracked in `.pm/epics/` and viewabl
 - [x] Agents follow the autonomous filing rules (file when appropriate, don't file trivially)
 - [x] `pm migrate to-local` successfully moves legacy global data to local `.pm/`
 - [x] The TUI watches the local `.pm/` directory
-- [ ] `install.sh` performs a complete setup for both OpenCode and Claude Code (CLI + MCP server + commands + AGENTS.md rules)
+- [ ] `install.sh` performs a complete setup for both OpenCode and Claude Code (CLI + MCP server + slash commands), and `pm rules init` enables repo-local AGENTS rules where needed
 
 ### v2.1 (Multi-Client + MCP)
 
-- [ ] MCP server exposes all three tools (pm_status, pm_epic_add, pm_story_add) over stdio
+- [ ] MCP server exposes all 14 implemented tools over stdio
 - [ ] MCP server is registered with OpenCode via opencode.json mcp config
 - [ ] MCP server is registered with Claude Code via `claude mcp add`
 - [ ] `/pm-*` slash commands work in Claude Code sessions
-- [ ] Agent rules are installed for Claude Code in `~/.claude/AGENTS.md`
+- [ ] Project-local agent rules can be initialized with `pm rules init` in any repository used with Claude Code or OpenCode
 - [ ] Legacy `@opencode-ai/plugin` custom tools are removed

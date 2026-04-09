@@ -8,7 +8,7 @@ vision: >
   Enable AI agents to autonomously create, manage, prioritize, and execute software projects through a structured,
   file-based workflow — maintaining full execution state across sessions without any external services.
 status: active
-created_at: '2026-03-09'
+created_at: "2026-03-09"
 tech_stack:
   - TypeScript
   - Node.js
@@ -25,7 +25,10 @@ consolidation:
   trigger_mode: manual
   trigger_event_count: 5
   trigger_interval_minutes: 9999
-  last_consolidated_at: '2026-03-11T14:27:07'
+  last_consolidated_at: "2026-03-11T14:27:07"
+tui:
+  links:
+    story_url_template: https://github.com/danielcavalli/agent-pm/search?q={code}
 notes: >
   This project is self-hosting: it tracks its own development using the very schema and structure it defines. The PM
   project code is "PM".

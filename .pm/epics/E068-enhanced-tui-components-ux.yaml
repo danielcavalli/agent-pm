@@ -21,7 +21,7 @@ stories:
       - Bell only rings once per agent escalation (not on every reload)
       - Previously seen escalations do not re-trigger the bell
       - Bell is suppressed when NO_COLOR is set or terminal is not a TTY
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on: []
@@ -38,7 +38,7 @@ stories:
       - relativeTime function is pure and exported for testing
       - Falls back to raw ISO string if parsing fails
       - Tests cover various time deltas (seconds, minutes, hours, days)
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on: []
@@ -55,7 +55,7 @@ stories:
       - Percentage is computed from done/total stories across all epics
       - Bar gracefully handles 0 stories (shows 0%)
       - Bar width adapts to available terminal width
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on: []
@@ -72,7 +72,7 @@ stories:
       - Epic breadcrumb shows just the epic code
       - Agent breadcrumb shows Agent {id} or Agent {id} > Escalation when escalated
       - Breadcrumb uses theme.textMuted color for the parent and theme.text for the leaf
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on: []
@@ -89,7 +89,7 @@ stories:
       - Only non-zero status categories are shown
       - Chips fit within the panel width (truncate title if needed to make room)
       - Expanded epics do not show chips (stories are visible)
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on: []
@@ -108,7 +108,7 @@ stories:
       - Tree panel refreshes to reflect the new status
       - s key is a no-op when an epic or agent is selected
       - Help overlay updated with s keybinding
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on: []

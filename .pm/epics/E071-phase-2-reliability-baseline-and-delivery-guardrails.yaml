@@ -1,0 +1,100 @@
+id: E071
+code: PM-E071
+title: Phase 2 — Reliability Baseline and Delivery Guardrails
+description: >-
+  Establish a stronger operational baseline with CI, safer installation behavior, and improved error handling for
+  consolidation workflows. This phase reduces regressions and improves unattended usage safety.
+status: backlog
+priority: high
+created_at: '2026-04-08'
+stories:
+  - id: S001
+    code: PM-E071-S001
+    title: Add CI workflow for lint, build, and tests
+    description: Introduce a pull-request CI pipeline to catch regressions before merge.
+    acceptance_criteria:
+      - CI runs on pull requests
+      - Workflow executes lint, build, and test commands
+      - Pipeline fails on non-zero exit and reports step context
+      - Repository README or contributing docs mention CI expectations
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E071-S002
+    title: Add non-interactive installer mode
+    description: Enable unattended installation by providing a non-interactive path for installer prompts and defaults.
+    acceptance_criteria:
+      - Installer supports a documented non-interactive flag or env switch
+      - Interactive prompts are bypassed in non-interactive mode
+      - Default behavior remains interactive for manual installs
+      - Installer tests or script checks cover non-interactive path
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E071-S003
+    title: Implement installer backup and rollback safeguards
+    description: Protect user configuration by backing up modified files and providing rollback behavior on failure.
+    acceptance_criteria:
+      - Installer creates timestamped backups before config mutation
+      - On write failure, installer restores from backup when possible
+      - Success output includes backup location(s)
+      - Docs explain restore procedure
+    status: done
+    priority: high
+    story_points: 5
+    depends_on: []
+    notes: ''
+  - id: S004
+    code: PM-E071-S004
+    title: Add retry and timeout controls to LLM-backed consolidation calls
+    description: >-
+      Increase robustness of consolidation operations by introducing configurable retry and timeout behavior for LLM
+      requests.
+    acceptance_criteria:
+      - LLM call path supports timeout configuration
+      - Transient failures are retried with bounded attempts
+      - Retry/timeout behavior is observable in logs or command output
+      - Unit tests cover timeout and retry branches
+    status: done
+    priority: medium
+    story_points: 5
+    depends_on: []
+    notes: ''
+  - id: S005
+    code: PM-E071-S005
+    title: Surface consolidation warnings and partial-failure summaries
+    description: Replace silent error swallowing with explicit warnings and summary counts so users can detect degraded outcomes.
+    acceptance_criteria:
+      - Previously silent catches emit structured warning output
+      - Command summary reports warning/error counts
+      - Exit behavior is documented for partial completion
+      - Tests assert warning visibility for representative failure paths
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S006
+    code: PM-E071-S006
+    title: Remove duplicate blessed devDependency entry
+    description: >-
+      `npm test` currently emits a duplicate-object-key warning because `package.json` declares `blessed` twice in
+      `devDependencies`. Remove the duplicate entry so routine build/test output is clean and package metadata is
+      unambiguous.
+    acceptance_criteria:
+      - '`package.json` contains only one `blessed` entry in `devDependencies`'
+      - >-
+        Running `npm test -- src/lib/__tests__/agent-state.test.ts src/schemas/__tests__/escalation-log.schema.test.ts`
+        no longer emits the duplicate key warning
+      - '`npm run build` still succeeds after the cleanup'
+    status: done
+    priority: low
+    story_points: 1
+    depends_on: []
+    notes: ''

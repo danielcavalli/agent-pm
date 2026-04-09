@@ -40,7 +40,7 @@ stories:
         Assessment covers: mouse support quality, rendering performance, API ergonomics, maintenance risk, community
         health
       - 'If migration warranted: estimated effort and migration plan outlined'
-    status: backlog
+    status: done
     priority: low
     story_points: 5
     depends_on: []
@@ -57,7 +57,7 @@ stories:
       - Decision documented on whether to add hyperlink support
       - 'If adopted: story codes in tree/detail become clickable links'
       - Terminal compatibility matrix documented
-    status: backlog
+    status: done
     priority: low
     story_points: 2
     depends_on: []
@@ -74,7 +74,7 @@ stories:
       - Custom hex values in project.yaml override individual theme tokens
       - Invalid color values fall back to defaults without crashing
       - Users can change the TUI color scheme by editing project.yaml
-    status: backlog
+    status: done
     priority: low
     story_points: 3
     depends_on: []

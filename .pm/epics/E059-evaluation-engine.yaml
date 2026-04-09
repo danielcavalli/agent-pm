@@ -24,7 +24,7 @@ stories:
       - >-
         Unit tests: load with default profile, load with named profile, missing file fallback, invalid weights sum,
         missing profile error
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on:
@@ -48,7 +48,7 @@ stories:
       - duplicate_and_conflict_ratio = duplicate story_code entries / total count
       - Returns 0.0 for metrics with insufficient data
       - Unit tests with at least 3 observation fixtures verifying each metric
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -71,7 +71,7 @@ stories:
       - >-
         Unit tests: Phase 1 stats match expected, Phase 2 EWMA transition at count=11, correct z-scores, no partial
         files
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -90,7 +90,7 @@ stories:
       - Zero-weight tactics are excluded from the min computation
       - Returns NaN if no valid metrics available
       - 'Unit tests: balanced case, dominated case, zero-weight exclusion, direction handling'
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
@@ -113,7 +113,7 @@ stories:
       - Reads stale_threshold and frequency from strategy.yaml; falls back to defaults 60s/15s if absent
       - StrategySchema has Zod .refine() ensuring stale_threshold_seconds >= 3 * frequency_seconds
       - 'Unit tests: all-active (ratio near 0), mixed active/idle, agent gone mid-window, Zod invariant violation'
-    status: backlog
+    status: done
     priority: medium
     story_points: 5
     depends_on:
@@ -131,7 +131,7 @@ stories:
       - escalation_ratio = stories with at least one escalation / total stories in window
       - Returns 0 for both metrics if no escalation data exists
       - Unit tests with mocked escalation data verifying median and ratio
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on:

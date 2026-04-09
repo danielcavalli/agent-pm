@@ -9,6 +9,106 @@ import {
   YamlParseError,
   ZodValidationError,
 } from "./errors.js";
+import { recordAtomicWrite, recordLockAttempt } from "./mutation-telemetry.js";
+
+export interface AtomicWriteHooks {
+  afterRecovery?: (recoveredTempPaths: string[]) => void;
+  afterTempWrite?: (tempPath: string) => void;
+  beforeRename?: (tempPath: string, targetPath: string) => void;
+}
+
+export interface AtomicWriteOptions {
+  encoding?: BufferEncoding;
+  mode?: number;
+  hooks?: AtomicWriteHooks;
+}
+
+function atomicWriteTempPrefix(filePath: string): string {
+  return `.${path.basename(filePath)}.pm-write-`;
+}
+
+export function listAtomicWriteTemps(filePath: string): string[] {
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    return [];
+  }
+
+  const prefix = atomicWriteTempPrefix(filePath);
+  return fs
+    .readdirSync(dir)
+    .filter((name) => name.startsWith(prefix) && name.endsWith(".tmp"))
+    .map((name) => path.join(dir, name))
+    .sort();
+}
+
+export function recoverAtomicWrite(filePath: string): string[] {
+  const recovered: string[] = [];
+
+  for (const tempPath of listAtomicWriteTemps(filePath)) {
+    try {
+      fs.unlinkSync(tempPath);
+      recovered.push(tempPath);
+    } catch {
+      // Best-effort cleanup only; a concurrent writer may have already removed it.
+    }
+  }
+
+  return recovered;
+}
+
+export function writeFileAtomic(
+  filePath: string,
+  content: string | NodeJS.ArrayBufferView,
+  options: AtomicWriteOptions = {},
+): void {
+  const dir = path.dirname(filePath);
+  fs.mkdirSync(dir, { recursive: true });
+
+  const recovered = recoverAtomicWrite(filePath);
+  options.hooks?.afterRecovery?.(recovered);
+  recordAtomicWrite(recovered.length, filePath);
+
+  const tempPath = path.join(
+    dir,
+    `${atomicWriteTempPrefix(filePath)}${process.pid}.${Date.now()}.${crypto.randomUUID()}.tmp`,
+  );
+
+  const inheritedMode = fs.existsSync(filePath)
+    ? fs.statSync(filePath).mode & 0o777
+    : undefined;
+  const mode = options.mode ?? inheritedMode;
+
+  try {
+    if (typeof content === "string") {
+      fs.writeFileSync(tempPath, content, {
+        encoding: options.encoding ?? "utf8",
+        ...(mode !== undefined ? { mode } : {}),
+      });
+    } else {
+      fs.writeFileSync(tempPath, content, {
+        ...(mode !== undefined ? { mode } : {}),
+      });
+    }
+
+    options.hooks?.afterTempWrite?.(tempPath);
+    options.hooks?.beforeRename?.(tempPath, filePath);
+    fs.renameSync(tempPath, filePath);
+  } catch (err) {
+    if (fs.existsSync(tempPath)) {
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {
+        // Best-effort cleanup only.
+      }
+    }
+
+    throw err;
+  }
+}
+
+export function writeText(filePath: string, content: string): void {
+  writeFileAtomic(filePath, content, { encoding: "utf8" });
+}
 
 /**
  * Read and validate a YAML file against a Zod schema.
@@ -56,7 +156,7 @@ export function writeYaml(filePath: string, data: unknown): void {
     sortKeys: false,
   });
 
-  fs.writeFileSync(filePath, content, "utf8");
+  writeFileAtomic(filePath, content, { encoding: "utf8" });
 }
 
 /**
@@ -225,7 +325,9 @@ export async function withLock<T>(
   fs.mkdirSync(lockDir, { recursive: true });
 
   for (let attempt = 0; attempt < LOCK_RETRY_COUNT; attempt++) {
-    if (tryAcquireLock(lock)) {
+    const acquired = tryAcquireLock(lock);
+    recordLockAttempt(acquired, filePath);
+    if (acquired) {
       try {
         return await fn();
       } finally {

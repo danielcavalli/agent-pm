@@ -24,7 +24,7 @@ stories:
       - pm_agent_heartbeat MCP tool accepts progress fields
       - Existing heartbeats without progress continue to work (backward compatible)
       - Schema validated with Zod, tests cover progress field variations
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on: []
@@ -40,7 +40,7 @@ stories:
       - 'Progress bar format is [####....] N/M where # = done, . = remaining'
       - Agents without progress data show no bar (backward compatible)
       - Bar fits within the 22-char sidebar width without truncating agent ID
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on:
@@ -59,7 +59,7 @@ stories:
       - Current step is highlighted or shown at the top
       - Checklist updates on file watcher reload
       - Agents without progress data show existing progress_summary string
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
@@ -77,7 +77,7 @@ stories:
       - pm_agent_heartbeat MCP tool accepts log_file parameter
       - 'Convention documented: agents write to .pm/agents/{id}.log'
       - Schema validation passes with and without log_file field
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on: []
@@ -95,7 +95,7 @@ stories:
       - Log updates on file watcher reload
       - If log_file does not exist or is empty, shows No log available message
       - Help overlay updated with l keybinding
-    status: backlog
+    status: done
     priority: medium
     story_points: 5
     depends_on:

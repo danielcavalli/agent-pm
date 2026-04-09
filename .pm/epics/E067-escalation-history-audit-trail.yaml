@@ -20,7 +20,7 @@ stories:
       - Log file is a YAML array of entries at .pm/agents/{id}-escalation-log.yaml
       - Schema includes all escalation fields plus response fields
       - Tests validate schema with complete and partial entries
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on: []
@@ -38,7 +38,7 @@ stories:
       - Escalation log grows with each response cycle
       - Existing read-once-delete behavior still works for the agent polling side
       - Errors during log append do not block the response read
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
@@ -57,7 +57,7 @@ stories:
       - History is in reverse chronological order (newest first)
       - Empty history shows No past escalations message
       - Section is scrollable within the detail panel
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on:
@@ -75,7 +75,7 @@ stories:
       - Optional --agent flag filters to a specific agent
       - Empty state shows No escalation history found
       - Registered in CLI and available via pm escalation list
-    status: backlog
+    status: done
     priority: low
     story_points: 3
     depends_on:

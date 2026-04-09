@@ -1,0 +1,688 @@
+[
+  {
+    "name": "pm_project_remove",
+    "description": "Remove a project and all its epics and stories from the project management system. This is a destructive operation — use only when a project is no longer needed. Always confirm with the user before calling this tool. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Project code to remove"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      },
+      "required": [
+        "project"
+      ]
+    }
+  },
+  {
+    "name": "pm_epic_add",
+    "description": "File a new epic to the project management system. Use this when decomposing a large goal into trackable work (new feature, major refactor, multi-part initiative) or when you discover a significant area of work that should be tracked. An epic is a theme with multiple independent stories — create the epic first, then file stories under it. Do NOT use this for small fixes — use story_add instead. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Project code that owns the epic"
+        },
+        "title": {
+          "type": "string",
+          "description": "Epic title"
+        },
+        "description": {
+          "type": "string",
+          "description": "Epic description (optional)"
+        },
+        "priority": {
+          "type": "string",
+          "description": "Epic priority: high | medium | low (optional)",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      },
+      "required": [
+        "project",
+        "title",
+        "description"
+      ]
+    }
+  },
+  {
+    "name": "pm_story_add",
+    "description": "File a new story to the project management system. Use this to break down work into independently completable tasks that can be executed by you or picked up by parallel agents. Also use this when you discover a specific, actionable piece of work (bug, improvement, tech debt) while working on something else. Write clear acceptance criteria so any agent can verify completion. The story will be added to an existing epic's backlog. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "epic": {
+          "type": "string",
+          "description": "Epic code that will own the new story"
+        },
+        "title": {
+          "type": "string",
+          "description": "Story title"
+        },
+        "description": {
+          "type": "string",
+          "description": "Story description (optional)"
+        },
+        "points": {
+          "type": "string",
+          "description": "Story point estimate: 1 | 2 | 3 | 5 | 8 (optional)",
+          "enum": [
+            "1",
+            "2",
+            "3",
+            "5",
+            "8"
+          ]
+        },
+        "priority": {
+          "type": "string",
+          "description": "Story priority: high | medium | low (optional)",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Acceptance criteria entries (optional)"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Story dependencies (optional)"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      },
+      "required": [
+        "epic",
+        "title",
+        "description"
+      ]
+    }
+  },
+  {
+    "name": "pm_status",
+    "description": "Show current project management status. Use this to understand what projects exist, what work is in progress, and what's in the backlog before filing new items or picking up work. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Optional project code override for MCP projection"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      }
+    }
+  },
+  {
+    "name": "pm_gc_run",
+    "description": "Run garbage collection on the local .pm/ directory to clean up stale artifacts — expired comments, consolidated reports, and superseded ADRs. Use this periodically to keep the project data lean. Supports a dry-run mode to preview what would be collected without making changes. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "dry_run": {
+          "type": "boolean",
+          "description": "Preview changes without executing them"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      }
+    }
+  },
+  {
+    "name": "pm_adr_create",
+    "description": "Create a new Architecture Decision Record (ADR). Use this to document architectural decisions with context, decision rationale, and consequences. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Project code"
+        },
+        "title": {
+          "type": "string",
+          "description": "ADR title"
+        },
+        "status": {
+          "type": "string",
+          "description": "ADR lifecycle status: proposed | accepted | deprecated | superseded",
+          "enum": [
+            "proposed",
+            "accepted",
+            "deprecated",
+            "superseded"
+          ]
+        },
+        "context": {
+          "type": "string",
+          "description": "Decision context"
+        },
+        "decision": {
+          "type": "string",
+          "description": "Decision statement"
+        },
+        "positive_consequences": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Positive consequences (optional)"
+        },
+        "negative_consequences": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Negative consequences (optional)"
+        },
+        "author_type": {
+          "type": "string",
+          "description": "ADR author type: agent | human (optional)",
+          "enum": [
+            "agent",
+            "human"
+          ]
+        },
+        "author_name": {
+          "type": "string",
+          "description": "Human author name"
+        },
+        "author_id": {
+          "type": "string",
+          "description": "Agent author identifier"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "ADR tags (optional)"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      },
+      "required": [
+        "project",
+        "title",
+        "status",
+        "context",
+        "decision"
+      ]
+    }
+  },
+  {
+    "name": "pm_adr_query",
+    "description": "Query Architecture Decision Records (ADRs) with filters and relevance ranking. Results are scored by tag match count plus recency and returned sorted by relevance. Use this to find relevant architectural decisions before making new ones, or to check existing guidance on a topic. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Optional project code"
+        },
+        "id": {
+          "type": "string",
+          "description": "ADR id pattern"
+        },
+        "status": {
+          "type": "string",
+          "description": "ADR status filter: proposed | accepted | deprecated | superseded",
+          "enum": [
+            "proposed",
+            "accepted",
+            "deprecated",
+            "superseded"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Multi-tag filter"
+        },
+        "author": {
+          "type": "string",
+          "description": "Author filter"
+        },
+        "search": {
+          "type": "string",
+          "description": "Full-text search string"
+        },
+        "limit": {
+          "type": "number",
+          "description": "Maximum result count (optional)"
+        },
+        "format": {
+          "type": "string",
+          "description": "Output format: summary | full (optional)",
+          "enum": [
+            "summary",
+            "full"
+          ]
+        },
+        "include_superseded": {
+          "type": "boolean",
+          "description": "Include superseded and deprecated ADRs"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      }
+    }
+  },
+  {
+    "name": "pm_comment_add",
+    "description": "Add a comment to a target task for async cross-task communication. Use this to leave notes for other agents or humans working on related tasks. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string",
+          "description": "Target task id"
+        },
+        "type": {
+          "type": "string",
+          "description": "Comment type: agent | human",
+          "enum": [
+            "agent",
+            "human"
+          ]
+        },
+        "content": {
+          "type": "string",
+          "description": "Comment body"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Comment tags (optional)"
+        },
+        "author": {
+          "type": "string",
+          "description": "Human author name"
+        },
+        "author_id": {
+          "type": "string",
+          "description": "Agent author id"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      },
+      "required": [
+        "target",
+        "type",
+        "content"
+      ]
+    }
+  },
+  {
+    "name": "pm_comment_list",
+    "description": "List comments with optional filters. Use this to retrieve comments for a specific task or filtered by type/author. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "description": "Project code"
+        },
+        "task": {
+          "type": "string",
+          "description": "Target task filter"
+        },
+        "type": {
+          "type": "string",
+          "description": "Comment type filter: agent | human",
+          "enum": [
+            "agent",
+            "human"
+          ]
+        },
+        "author": {
+          "type": "string",
+          "description": "Author filter"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      },
+      "required": [
+        "project"
+      ]
+    }
+  },
+  {
+    "name": "pm_report_create",
+    "description": "Create an execution report for a completed task. The report captures decisions, assumptions, tradeoffs, and observations to support the consolidation agent's work. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "description": "Story id"
+        },
+        "agent_id": {
+          "type": "string",
+          "description": "Agent identifier"
+        },
+        "status": {
+          "type": "string",
+          "description": "Report status: complete | partial (optional)",
+          "enum": [
+            "complete",
+            "partial"
+          ]
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Decision items (optional)"
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Assumption items (optional)"
+        },
+        "tradeoffs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tradeoff items (optional)"
+        },
+        "out_of_scope": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Out-of-scope items (optional)"
+        },
+        "potential_conflicts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Potential conflict items (optional)"
+        },
+        "force": {
+          "type": "boolean",
+          "description": "Overwrite an existing report"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      },
+      "required": [
+        "task_id"
+      ]
+    }
+  },
+  {
+    "name": "pm_report_view",
+    "description": "View an execution report by task ID. Displays the report in human-readable format with section headers. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "description": "Story id"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      },
+      "required": [
+        "task_id"
+      ]
+    }
+  },
+  {
+    "name": "pm_agent_heartbeat",
+    "description": "Send an agent heartbeat, creating or updating the agent's state file at .pm/agents/{agent_id}.yaml. Use this periodically during long-running tasks to signal that the agent is still alive and to record progress. The tool sets last_heartbeat to the current timestamp and preserves all other existing fields. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "agent_id": {
+          "type": "string",
+          "description": "Unique agent identifier"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Session identifier"
+        },
+        "log_file": {
+          "type": "string",
+          "description": "Declared agent log file path"
+        },
+        "status": {
+          "type": "string",
+          "description": "Agent status: active | idle | needs_attention | blocked | completed (optional)",
+          "enum": [
+            "active",
+            "idle",
+            "needs_attention",
+            "blocked",
+            "completed"
+          ]
+        },
+        "current_task": {
+          "type": "string",
+          "description": "Current story code"
+        },
+        "progress_summary": {
+          "type": "string",
+          "description": "High-level progress summary"
+        },
+        "total_criteria": {
+          "type": "number",
+          "description": "Total criteria tracked in progress"
+        },
+        "completed_criteria": {
+          "type": "number",
+          "description": "Completed criteria count"
+        },
+        "current_step": {
+          "type": "string",
+          "description": "Current execution step label"
+        },
+        "criteria_status": {
+          "type": "object",
+          "description": "Per-criterion progress entries"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      },
+      "required": [
+        "agent_id"
+      ]
+    }
+  },
+  {
+    "name": "pm_agent_escalate",
+    "description": "Escalate an issue from an agent, setting its status to needs_attention and recording escalation details in .pm/agents/{agent_id}.yaml. Use this when the agent encounters a situation requiring human or supervisor intervention — a decision that needs approval, a clarification question, or an error that cannot be resolved autonomously. If the agent state file does not exist, it is created with started_at set to now. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "agent_id": {
+          "type": "string",
+          "description": "Unique agent identifier"
+        },
+        "type": {
+          "type": "string",
+          "description": "Escalation type: decision | clarification | approval | error",
+          "enum": [
+            "decision",
+            "clarification",
+            "approval",
+            "error"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "description": "Escalation message"
+        },
+        "confidence": {
+          "type": "number",
+          "description": "Confidence level from 0 to 1"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Escalation options"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      },
+      "required": [
+        "agent_id",
+        "type",
+        "message"
+      ]
+    }
+  },
+  {
+    "name": "pm_agent_check_response",
+    "description": "Check for a human response to a previously escalated issue. Looks for .pm/agents/{agent_id}-response.yaml, returns its contents (selected_option, additional_context, responded_at), and deletes the file (read-once semantics). If no response file exists, returns {status: no_response}. Use this periodically after escalating to check if a human has provided guidance. Pass your current working directory as workdir to ensure commands execute in the correct project context.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "agent_id": {
+          "type": "string",
+          "description": "Unique agent identifier"
+        },
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        }
+      },
+      "required": [
+        "agent_id"
+      ]
+    }
+  },
+  {
+    "name": "pm_swarm_read",
+    "description": "Read YAML content from a swarm namespace/key. Requires workdir, namespace, and key.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Swarm namespace to read from"
+        },
+        "key": {
+          "type": "string",
+          "description": "Swarm record key to read"
+        }
+      },
+      "required": [
+        "workdir",
+        "namespace",
+        "key"
+      ]
+    }
+  },
+  {
+    "name": "pm_swarm_write",
+    "description": "Write validated data into a swarm namespace/key. Requires workdir, namespace, key, and data.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Swarm namespace to write into"
+        },
+        "key": {
+          "type": "string",
+          "description": "Swarm record key to write"
+        },
+        "data": {
+          "type": "object",
+          "description": "JSON object payload to validate and persist as YAML"
+        }
+      },
+      "required": [
+        "workdir",
+        "namespace",
+        "key",
+        "data"
+      ]
+    }
+  },
+  {
+    "name": "pm_swarm_list",
+    "description": "List keys in a swarm namespace. Requires workdir and namespace.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "workdir": {
+          "type": "string",
+          "description": "Working directory containing the target .pm project"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Swarm namespace to inspect"
+        }
+      },
+      "required": [
+        "workdir",
+        "namespace"
+      ]
+    }
+  }
+]

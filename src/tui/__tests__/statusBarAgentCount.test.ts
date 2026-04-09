@@ -1,13 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { agentCountSummary } from "../components/StatusBar.js";
-import type { AgentState } from "../../schemas/agent-state.schema.js";
+import type { ObservedAgentState } from "../../lib/agent-state.js";
 
 function makeAgent(
-  overrides: Partial<AgentState> & { agent_id: string; status: AgentState["status"] },
-): AgentState {
+  overrides: Partial<ObservedAgentState> & {
+    agent_id: string;
+    status: ObservedAgentState["status"];
+  },
+): ObservedAgentState {
   return {
     started_at: "2026-03-13T10:00:00Z",
     last_heartbeat: "2026-03-13T10:05:00Z",
+    heartbeat_age_ms: 0,
+    heartbeat_stale: false,
     ...overrides,
   };
 }
@@ -69,5 +74,14 @@ describe("agentCountSummary", () => {
       makeAgent({ agent_id: "a3", status: "completed" }),
     ];
     expect(agentCountSummary(agents)).toBe("3 agents");
+  });
+
+  it("counts stale heartbeats as needing attention", () => {
+    const agents = [
+      makeAgent({ agent_id: "a1", status: "active", heartbeat_stale: true }),
+      makeAgent({ agent_id: "a2", status: "idle" }),
+    ];
+
+    expect(agentCountSummary(agents)).toBe("2 agents (1 needs attention)");
   });
 });

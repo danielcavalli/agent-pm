@@ -21,7 +21,7 @@ stories:
       - 'Trend colors: improving = green, plateaued = yellow, regressing = red'
       - Returns null (not error) if .pm/swarm/ does not exist
       - Unit test verifies data transformation
-    status: backlog
+    status: done
     priority: low
     story_points: 2
     depends_on:
@@ -38,7 +38,7 @@ stories:
       - Trend text colored per E063-S001 color mapping
       - StatusBar unchanged when swarm not initialized
       - Component renders correctly with swarm data loader returning null
-    status: backlog
+    status: done
     priority: low
     story_points: 2
     depends_on:
@@ -53,7 +53,7 @@ stories:
       - 'Each claim shows: agent_id, mutation_type icon (gear for runtime, tree for board), elapsed time'
       - Section hidden when no active claims exist
       - Component handles empty claims array without error
-    status: backlog
+    status: done
     priority: low
     story_points: 2
     depends_on:
@@ -67,7 +67,7 @@ stories:
       - DetailPanel shows Recent Experiments section with last 5 results
       - 'Each result shows: decision (keep=green, discard=red), score, truncated description'
       - Section hidden when no results exist
-    status: backlog
+    status: done
     priority: low
     story_points: 1
     depends_on:
@@ -81,7 +81,7 @@ stories:
       - DetailPanel shows exploration coverage with dimension names and experiment counts
       - Dimensions with 0 experiments shown in dim/grey to highlight gaps
       - Display updates when swarm analysis data refreshes
-    status: backlog
+    status: done
     priority: low
     story_points: 1
     depends_on:

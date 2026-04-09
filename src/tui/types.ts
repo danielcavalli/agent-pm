@@ -6,6 +6,18 @@ import type {
   StoryPoints,
   ResolutionType,
 } from "../schemas/index.js";
+import type { RecentExperimentResult } from "../lib/swarm-store.js";
+
+export interface ExplorationCoverageDimension {
+  name: string;
+  count: number;
+}
+
+export interface ExplorationCoverageSection {
+  key: "runtime" | "board";
+  label: string;
+  dimensions: ExplorationCoverageDimension[];
+}
 
 interface ConflictingAssumption {
   assumption: string;
@@ -14,6 +26,7 @@ interface ConflictingAssumption {
 
 export interface StoryNode {
   kind: "story";
+  epic_code: string;
   code: string;
   id: string;
   title: string;
@@ -62,6 +75,27 @@ export type TreeNode = ProjectNode | EpicNode | StoryNode;
 export interface TreeData {
   epics: EpicNode[];
   projectName: string;
+  storyLinkTemplate?: string;
+}
+
+export interface SwarmStatusData {
+  trend: string;
+  trendColor: string;
+  experimentCount: number;
+  bestScore: number | null;
+  activeClaims: number;
+  explorationCoverage: ExplorationCoverageSection[];
+  recentResults: Array<{
+    experimentId: string;
+    decision: RecentExperimentResult["decision"];
+    score: number;
+    description: string;
+  }>;
+  activeExperimentClaims: Array<{
+    agentId: string;
+    claimedAt: string;
+    mutationType: "runtime_config" | "board_mutation";
+  }>;
 }
 
 export type FilterMode = "all" | "backlog" | "in_progress" | "done";

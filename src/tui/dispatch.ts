@@ -34,6 +34,7 @@ export function buildEpicCommand(): string {
 export interface DispatchResult {
   success: boolean;
   method: "tmux" | "background";
+  pid?: number;
   detail?: string;
 }
 
@@ -43,10 +44,20 @@ export interface DispatchResult {
  */
 export function dispatchInTmuxPane(command: string): DispatchResult {
   try {
-    execSync(`tmux split-window -h '${command.replace(/'/g, "'\\''")}'`, {
-      stdio: "ignore",
-    });
-    return { success: true, method: "tmux", detail: "New tmux pane opened" };
+    const output = execSync(
+      `tmux split-window -h -P -F '#{pane_pid}' '${command.replace(/'/g, "'\\''")}'`,
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
+    const pid = Number.parseInt(output.trim(), 10);
+    return {
+      success: true,
+      method: "tmux",
+      pid: Number.isFinite(pid) ? pid : undefined,
+      detail: "New tmux pane opened",
+    };
   } catch (err) {
     return {
       success: false,
@@ -72,6 +83,7 @@ export function dispatchBackground(command: string): DispatchResult {
     return {
       success: true,
       method: "background",
+      pid,
       detail: pid ? `PID ${pid}` : "spawned",
     };
   } catch (err) {
@@ -91,4 +103,12 @@ export function dispatch(command: string): DispatchResult {
     return dispatchInTmuxPane(command);
   }
   return dispatchBackground(command);
+}
+
+export function buildDispatchedAgentId(code: string, now = new Date()): string {
+  const normalizedCode = code
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `tui-${normalizedCode}-${now.getTime()}`;
 }

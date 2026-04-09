@@ -94,6 +94,7 @@ export async function init(options: Record<string, unknown>): Promise<void> {
     status: "active",
     created_at: today,
     tech_stack: techStack,
+    stale_threshold_seconds: 60,
     architecture: architecturePattern
       ? {
           pattern: architecturePattern,

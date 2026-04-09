@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { PmError } from "../lib/errors.js";
+import { writeText } from "../lib/fs.js";
 
 const START_MARKER = "# PM Autonomous Filing Rules";
 const END_MARKER = "# END PM Autonomous Filing Rules";
@@ -85,7 +86,7 @@ export async function initRules(
   const separator = cleaned.length > 0 ? "\n\n" : "";
   const result = cleaned + separator + rulesContent.trimEnd() + "\n";
 
-  fs.writeFileSync(targetPath, result, "utf8");
+  writeText(targetPath, result);
 
   const action =
     isUpdate && existing.includes(START_MARKER)
@@ -120,11 +121,7 @@ export async function removeRules(
   }
 
   const cleaned = stripExistingRules(existing);
-  fs.writeFileSync(
-    targetPath,
-    cleaned.length > 0 ? cleaned + "\n" : "",
-    "utf8",
-  );
+  writeText(targetPath, cleaned.length > 0 ? cleaned + "\n" : "");
 
   console.log(
     chalk.green("✓") + ` Removed PM agent rules from ${chalk.bold(targetPath)}`,

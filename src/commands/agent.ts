@@ -1,12 +1,14 @@
 import chalk from "chalk";
 import { getPmDir } from "../lib/codes.js";
 import {
+  deriveObservedAgentId,
   writeAgentState,
   readAgentState,
   readAgentResponse,
 } from "../lib/agent-state.js";
 import { ValidationError } from "../lib/errors.js";
 import type {
+  AgentProgress,
   AgentState,
   AgentResponse,
   Escalation,
@@ -15,11 +17,13 @@ import type {
 import { YamlNotFoundError } from "../lib/errors.js";
 
 /**
- * pm agent heartbeat --agent-id X [--session-id S] [--status S] [--current-task T] [--progress-summary P]
+ * pm agent heartbeat --agent-id X [--session-id S] [--log-file F] [--status S] [--current-task T] [--progress-summary P]
  *
- * Creates or updates .pm/agents/{agent_id}.yaml with last_heartbeat set to
- * the current ISO timestamp. If the file already exists, all existing fields
- * are preserved and only the provided fields + last_heartbeat are updated.
+ * Creates or updates .pm/agents/{observed_agent_id}.yaml with last_heartbeat
+ * set to the current ISO timestamp. If session_id is present, the observed
+ * agent_id is derived from agent_id + session_id so parallel workers do not
+ * overwrite each other. Existing single-agent flows still persist directly to
+ * .pm/agents/{agent_id}.yaml.
  */
 export async function agentHeartbeat(
   options: Record<string, unknown>,
@@ -30,9 +34,15 @@ export async function agentHeartbeat(
   }
 
   const sessionId = options["sessionId"] as string | undefined;
+  const logFile = options["logFile"] as string | undefined;
   const status = options["status"] as string | undefined;
   const currentTask = options["currentTask"] as string | undefined;
   const progressSummary = options["progressSummary"] as string | undefined;
+  const totalCriteria = options["totalCriteria"];
+  const completedCriteria = options["completedCriteria"];
+  const currentStep = options["currentStep"] as string | undefined;
+  const criteriaStatusJson = options["criteriaStatus"] as string | undefined;
+  const observedAgentId = deriveObservedAgentId(agentId, sessionId);
 
   const pmDir = getPmDir();
   const now = new Date().toISOString();
@@ -40,7 +50,7 @@ export async function agentHeartbeat(
   // Try to read existing state; if it doesn't exist, create a new one
   let existing: AgentState | null = null;
   try {
-    existing = readAgentState(pmDir, agentId);
+    existing = readAgentState(pmDir, observedAgentId);
   } catch (err) {
     if (!(err instanceof YamlNotFoundError)) {
       throw err;
@@ -48,11 +58,39 @@ export async function agentHeartbeat(
     // File doesn't exist yet — will create new state below
   }
 
+  let parsedCriteriaStatus: AgentProgress["criteria_status"] | undefined;
+  if (criteriaStatusJson !== undefined) {
+    parsedCriteriaStatus = JSON.parse(
+      criteriaStatusJson,
+    ) as AgentProgress["criteria_status"];
+  }
+
+  const progressUpdates: Partial<AgentProgress> = {
+    ...(totalCriteria !== undefined
+      ? { total_criteria: Number(totalCriteria) }
+      : {}),
+    ...(completedCriteria !== undefined
+      ? { completed_criteria: Number(completedCriteria) }
+      : {}),
+    ...(currentStep !== undefined ? { current_step: currentStep } : {}),
+    ...(parsedCriteriaStatus !== undefined
+      ? { criteria_status: parsedCriteriaStatus }
+      : {}),
+  };
+  const hasProgressUpdates = Object.keys(progressUpdates).length > 0;
+  const progress = hasProgressUpdates
+    ? ({
+        ...(existing?.progress ?? {}),
+        ...progressUpdates,
+      } as AgentProgress)
+    : existing?.progress;
+
   const agentState: AgentState = existing
     ? {
         ...existing,
         last_heartbeat: now,
         ...(sessionId !== undefined ? { session_id: sessionId } : {}),
+        ...(logFile !== undefined ? { log_file: logFile } : {}),
         ...(status !== undefined
           ? { status: status as AgentState["status"] }
           : {}),
@@ -60,24 +98,27 @@ export async function agentHeartbeat(
         ...(progressSummary !== undefined
           ? { progress_summary: progressSummary }
           : {}),
+        ...(progress !== undefined ? { progress } : {}),
       }
     : {
-        agent_id: agentId,
+        agent_id: observedAgentId,
         status: (status as AgentState["status"]) || "active",
         started_at: now,
         last_heartbeat: now,
         ...(sessionId !== undefined ? { session_id: sessionId } : {}),
+        ...(logFile !== undefined ? { log_file: logFile } : {}),
         ...(currentTask !== undefined ? { current_task: currentTask } : {}),
         ...(progressSummary !== undefined
           ? { progress_summary: progressSummary }
           : {}),
+        ...(progress !== undefined ? { progress } : {}),
       };
 
   writeAgentState(pmDir, agentState);
 
   const verb = existing ? "Updated" : "Created";
   console.log(
-    chalk.green(`${verb} agent state for ${agentId}`) +
+    chalk.green(`${verb} agent state for ${observedAgentId}`) +
       chalk.dim(` (last_heartbeat: ${now})`),
   );
 }
@@ -181,7 +222,7 @@ export async function agentCheckResponse(
   }
 
   const pmDir = getPmDir();
-  const response = readAgentResponse(pmDir, agentId);
+  const response = await readAgentResponse(pmDir, agentId);
 
   if (response === null) {
     console.log(JSON.stringify({ status: "no_response" }));

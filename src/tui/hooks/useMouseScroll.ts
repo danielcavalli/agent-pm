@@ -10,12 +10,20 @@ export interface MouseEvent {
   release: boolean;
 }
 
+export interface MouseClickEvent {
+  button: number;
+  col: number;
+  row: number;
+}
+
 /**
  * Parse an SGR mouse sequence from a data buffer.
  * SGR format: \x1b[<button;col;rowM (press) or \x1b[<button;col;rowm (release)
  * Returns the parsed event and the number of bytes consumed, or null if not a mouse sequence.
  */
-export function parseMouseSequence(data: string): { event: MouseEvent; consumed: number } | null {
+export function parseMouseSequence(
+  data: string,
+): { event: MouseEvent; consumed: number } | null {
   // SGR mouse: \x1b[<Ps;Ps;PsM or \x1b[<Ps;Ps;Psm
   const match = data.match(/^\x1b\[<(\d+);(\d+);(\d+)([Mm])/);
   if (!match) return null;
@@ -40,6 +48,35 @@ export function isScrollDown(button: number): boolean {
   return button === 65;
 }
 
+/** Check if a mouse button code represents a click press */
+export function isClickPress(button: number, release: boolean): boolean {
+  return !release && button >= 0 && button <= 2;
+}
+
+export function dispatchMouseEvent(
+  event: MouseEvent,
+  onScroll: (direction: "up" | "down") => void,
+  onClick?: (event: MouseClickEvent) => void,
+): void {
+  if (event.release) {
+    return;
+  }
+
+  if (isScrollUp(event.button)) {
+    onScroll("up");
+    return;
+  }
+
+  if (isScrollDown(event.button)) {
+    onScroll("down");
+    return;
+  }
+
+  if (isClickPress(event.button, event.release)) {
+    onClick?.({ button: event.button, col: event.col, row: event.row });
+  }
+}
+
 // ── Enable/Disable Sequences ─────────────────────────────────────────────────
 
 const MOUSE_ENABLE = "\x1b[?1000h\x1b[?1006h";
@@ -57,9 +94,12 @@ const MOUSE_DISABLE = "\x1b[?1000l\x1b[?1006l";
  */
 export function useMouseScroll(
   onScroll: (direction: "up" | "down") => void,
+  onClick?: (event: MouseClickEvent) => void,
 ): void {
   const callbackRef = useRef(onScroll);
+  const clickCallbackRef = useRef(onClick);
   callbackRef.current = onScroll;
+  clickCallbackRef.current = onClick;
 
   useEffect(() => {
     // Don't enable mouse in non-TTY environments (CI, piped stdin, etc.)
@@ -78,14 +118,11 @@ export function useMouseScroll(
 
         if (parsed) {
           const { event, consumed } = parsed;
-          // Only handle scroll events (press, not release)
-          if (!event.release) {
-            if (isScrollUp(event.button)) {
-              callbackRef.current("up");
-            } else if (isScrollDown(event.button)) {
-              callbackRef.current("down");
-            }
-          }
+          dispatchMouseEvent(
+            event,
+            callbackRef.current,
+            clickCallbackRef.current,
+          );
           offset += consumed;
         } else {
           // Not a mouse sequence -- skip this character

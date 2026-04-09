@@ -1,10 +1,97 @@
 import { describe, it, expect } from "vitest";
 import {
+  AgentProcessMethodSchema,
+  AgentProcessSchema,
   AgentStateSchema,
   AgentStatusSchema,
+  AgentProgressSchema,
+  CriterionStatusSchema,
   EscalationSchema,
   EscalationTypeSchema,
 } from "../agent-state.schema.js";
+
+describe("AgentProcessMethodSchema", () => {
+  it.each(["tmux", "background"])("accepts '%s'", (val) => {
+    expect(AgentProcessMethodSchema.safeParse(val).success).toBe(true);
+  });
+
+  it("rejects an invalid process method", () => {
+    expect(AgentProcessMethodSchema.safeParse("fork").success).toBe(false);
+  });
+});
+
+describe("AgentProcessSchema", () => {
+  it("validates a complete agent process record", () => {
+    const result = AgentProcessSchema.safeParse({
+      pid: 12345,
+      spawned_at: "2026-04-08T10:00:00Z",
+      command: 'claude -p "/pm-work-on PM-E065-S002"',
+      method: "tmux",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a non-positive pid", () => {
+    const result = AgentProcessSchema.safeParse({
+      pid: 0,
+      spawned_at: "2026-04-08T10:00:00Z",
+      command: "claude -p test",
+      method: "background",
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("CriterionStatusSchema", () => {
+  it("validates a criterion status entry", () => {
+    const result = CriterionStatusSchema.safeParse({
+      criterion: "Schema field exists",
+      status: "done",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects invalid criterion status", () => {
+    const result = CriterionStatusSchema.safeParse({
+      criterion: "Schema field exists",
+      status: "active",
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("AgentProgressSchema", () => {
+  const validProgress = {
+    total_criteria: 3,
+    completed_criteria: 1,
+    current_step: "Update schema",
+    criteria_status: [
+      { criterion: "Progress field exists", status: "done" },
+      { criterion: "Heartbeat accepts progress", status: "pending" },
+    ],
+  };
+
+  it("validates a complete progress object", () => {
+    const result = AgentProgressSchema.safeParse(validProgress);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects progress missing required fields", () => {
+    const { current_step: _, ...missingStep } = validProgress;
+    const result = AgentProgressSchema.safeParse(missingStep);
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects progress with invalid criterion entries", () => {
+    const result = AgentProgressSchema.safeParse({
+      ...validProgress,
+      criteria_status: [{ criterion: "Broken entry", status: "working" }],
+    });
+    expect(result.success).toBe(false);
+  });
+});
 
 // ── EscalationTypeSchema ─────────────────────────────────────────────────────
 
@@ -124,11 +211,21 @@ describe("AgentStateSchema", () => {
   const validAgentState = {
     agent_id: "agent-1",
     session_id: "sess-abc-123",
+    log_file: ".pm/agents/agent-1.log",
     status: "active",
     current_task: "PM-E051-S001",
     started_at: "2026-03-13T10:00:00Z",
     last_heartbeat: "2026-03-13T10:05:00Z",
     progress_summary: "Implementing agent state schema",
+    progress: {
+      total_criteria: 5,
+      completed_criteria: 2,
+      current_step: "Add MCP fields",
+      criteria_status: [
+        { criterion: "Schema added", status: "done" },
+        { criterion: "Tests updated", status: "pending" },
+      ],
+    },
     escalation: {
       type: "decision",
       message: "Which pattern to use?",
@@ -142,6 +239,7 @@ describe("AgentStateSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.agent_id).toBe("agent-1");
+      expect(result.data.log_file).toBe(".pm/agents/agent-1.log");
       expect(result.data.status).toBe("active");
       expect(result.data.escalation?.type).toBe("decision");
     }
@@ -158,8 +256,10 @@ describe("AgentStateSchema", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.session_id).toBeUndefined();
+      expect(result.data.log_file).toBeUndefined();
       expect(result.data.current_task).toBeUndefined();
       expect(result.data.progress_summary).toBeUndefined();
+      expect(result.data.progress).toBeUndefined();
       expect(result.data.escalation).toBeUndefined();
     }
   });
@@ -174,6 +274,14 @@ describe("AgentStateSchema", () => {
     const result = AgentStateSchema.safeParse({
       ...validAgentState,
       agent_id: "",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-string log_file", () => {
+    const result = AgentStateSchema.safeParse({
+      ...validAgentState,
+      log_file: 42,
     });
     expect(result.success).toBe(false);
   });
@@ -261,6 +369,26 @@ describe("AgentStateSchema", () => {
       },
     };
     const result = AgentStateSchema.safeParse(state);
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts agent state with valid progress", () => {
+    const result = AgentStateSchema.safeParse(validAgentState);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.progress?.total_criteria).toBe(5);
+      expect(result.data.progress?.criteria_status).toHaveLength(2);
+    }
+  });
+
+  it("rejects agent state with incomplete progress", () => {
+    const result = AgentStateSchema.safeParse({
+      ...validAgentState,
+      progress: {
+        total_criteria: 5,
+        completed_criteria: 2,
+      },
+    });
     expect(result.success).toBe(false);
   });
 

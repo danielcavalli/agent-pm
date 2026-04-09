@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import * as path from "node:path";
-import { readYaml, writeYaml, fileExists } from "../lib/fs.js";
+import { readYaml, writeYaml, withLock, fileExists } from "../lib/fs.js";
 import { findEpicFile, getPmDir, parseStoryCode } from "../lib/codes.js";
 import { EpicSchema, AgentExecutionReportSchema } from "../schemas/index.js";
 import type { AgentExecutionReport } from "../schemas/index.js";
@@ -126,19 +126,6 @@ export async function reportCreate(
   }
 
   const reportFilePath = getReportFilePath(opts.taskId);
-  const existingReport = fileExists(reportFilePath);
-
-  if (existingReport && !opts.force) {
-    throw new ValidationError(
-      `Report already exists for ${opts.taskId}. Use --force to overwrite.`,
-    );
-  }
-
-  if (existingReport && opts.force) {
-    console.log(
-      chalk.yellow("⚠") + ` Overwriting existing report for ${opts.taskId}`,
-    );
-  }
 
   const reportData: Partial<AgentExecutionReport> = {
     task_id: opts.taskId,
@@ -170,7 +157,26 @@ export async function reportCreate(
   const { mkdirSync } = await import("node:fs");
   mkdirSync(reportsDir, { recursive: true });
 
-  writeYaml(reportFilePath, result.data);
+  let overwroteExistingReport = false;
+
+  await withLock(reportFilePath, () => {
+    const existingReport = fileExists(reportFilePath);
+
+    if (existingReport && !opts.force) {
+      throw new ValidationError(
+        `Report already exists for ${opts.taskId}. Use --force to overwrite.`,
+      );
+    }
+
+    overwroteExistingReport = existingReport && !!opts.force;
+    writeYaml(reportFilePath, result.data);
+  });
+
+  if (overwroteExistingReport) {
+    console.log(
+      chalk.yellow("⚠") + ` Overwriting existing report for ${opts.taskId}`,
+    );
+  }
 
   console.log(chalk.green("✓") + " Report created: " + chalk.bold(opts.taskId));
   console.log(chalk.dim("  File: ") + reportFilePath);

@@ -254,9 +254,7 @@ describe("StatusBar normal mode legend", () => {
   });
 
   it("shows hidden attention indicator when sidebar hidden with attention agents", () => {
-    const agents = [
-      makeAgent({ agent_id: "a1", status: "needs_attention" }),
-    ];
+    const agents = [makeAgent({ agent_id: "a1", status: "needs_attention" })];
     const legend = buildLegend({
       ...defaults,
       agents,
@@ -361,6 +359,7 @@ describe("buildContextKeys", () => {
     const keys = buildContextKeys("tree", false);
     expect(keys).toContain("[j/k] nav");
     expect(keys).toContain("[Enter] expand");
+    expect(keys).toContain("[s] status");
     expect(keys).toContain("[f] filter");
     expect(keys).toContain("[/] search");
   });
@@ -380,6 +379,7 @@ describe("buildContextKeys", () => {
     expect(keys).toContain("[j/k] nav");
     expect(keys).toContain("[f] filter");
     expect(keys).toContain("[e] respond");
+    expect(keys).toContain("[K] kill");
     expect(keys).not.toContain("[Enter] expand");
   });
 

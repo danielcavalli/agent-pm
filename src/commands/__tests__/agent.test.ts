@@ -9,7 +9,14 @@ import {
   type TmpDirHandle,
   type CapturedOutput,
 } from "../../__tests__/integration-helpers.js";
-import { readAgentState, writeAgentResponse } from "../../lib/agent-state.js";
+import {
+  deriveObservedAgentId,
+  listAgents,
+  readAgentState,
+  readEscalationLog,
+  writeAgentResponse,
+} from "../../lib/agent-state.js";
+import { agentCountSummary } from "../../tui/components/StatusBar.js";
 
 describe("pm agent heartbeat (integration)", () => {
   let tmp: TmpDirHandle;
@@ -60,17 +67,40 @@ describe("pm agent heartbeat (integration)", () => {
     await agentHeartbeat({
       agentId: "full-agent",
       sessionId: "sess-xyz",
+      logFile: ".pm/agents/full-agent.log",
       status: "active",
       currentTask: "TEST-E001-S001",
       progressSummary: "Working on implementation",
+      totalCriteria: "5",
+      completedCriteria: "2",
+      currentStep: "Update MCP tool",
+      criteriaStatus: JSON.stringify([
+        { criterion: "Schema has progress field", status: "done" },
+        { criterion: "Heartbeat accepts progress", status: "pending" },
+      ]),
     });
 
-    const state = readAgentState(tmp.projectsDir, "full-agent");
-    expect(state.agent_id).toBe("full-agent");
+    const state = readAgentState(
+      tmp.projectsDir,
+      deriveObservedAgentId("full-agent", "sess-xyz"),
+    );
+    expect(state.agent_id).toBe(
+      deriveObservedAgentId("full-agent", "sess-xyz"),
+    );
     expect(state.session_id).toBe("sess-xyz");
+    expect(state.log_file).toBe(".pm/agents/full-agent.log");
     expect(state.status).toBe("active");
     expect(state.current_task).toBe("TEST-E001-S001");
     expect(state.progress_summary).toBe("Working on implementation");
+    expect(state.progress).toEqual({
+      total_criteria: 5,
+      completed_criteria: 2,
+      current_step: "Update MCP tool",
+      criteria_status: [
+        { criterion: "Schema has progress field", status: "done" },
+        { criterion: "Heartbeat accepts progress", status: "pending" },
+      ],
+    });
   });
 
   it("can be verified by reading the file back", async () => {
@@ -79,11 +109,7 @@ describe("pm agent heartbeat (integration)", () => {
       status: "idle",
     });
 
-    const filePath = path.join(
-      tmp.projectsDir,
-      "agents",
-      "verify-agent.yaml",
-    );
+    const filePath = path.join(tmp.projectsDir, "agents", "verify-agent.yaml");
     expect(fs.existsSync(filePath)).toBe(true);
 
     const content = fs.readFileSync(filePath, "utf8");
@@ -98,12 +124,21 @@ describe("pm agent heartbeat (integration)", () => {
     await agentHeartbeat({
       agentId: "updating-agent",
       sessionId: "sess-1",
+      logFile: ".pm/agents/updating-agent.log",
       status: "active",
       currentTask: "TEST-E001-S001",
       progressSummary: "Started work",
+      totalCriteria: "4",
+      completedCriteria: "1",
+      currentStep: "Implement schema",
+      criteriaStatus: JSON.stringify([
+        { criterion: "Schema added", status: "done" },
+        { criterion: "Tests added", status: "pending" },
+      ]),
     });
 
-    const first = readAgentState(tmp.projectsDir, "updating-agent");
+    const observedAgentId = deriveObservedAgentId("updating-agent", "sess-1");
+    const first = readAgentState(tmp.projectsDir, observedAgentId);
     const firstStartedAt = first.started_at;
 
     // Small delay to ensure different timestamp
@@ -111,22 +146,94 @@ describe("pm agent heartbeat (integration)", () => {
 
     await agentHeartbeat({
       agentId: "updating-agent",
+      sessionId: "sess-1",
       progressSummary: "Continuing work",
+      completedCriteria: "2",
+      currentStep: "Run tests",
     });
 
-    const second = readAgentState(tmp.projectsDir, "updating-agent");
+    const second = readAgentState(tmp.projectsDir, observedAgentId);
     // started_at should be preserved
     expect(second.started_at).toBe(firstStartedAt);
     // last_heartbeat should be updated (different from started_at)
     expect(second.last_heartbeat).not.toBe(firstStartedAt);
     // session_id should be preserved from first call
     expect(second.session_id).toBe("sess-1");
+    expect(second.log_file).toBe(".pm/agents/updating-agent.log");
     // current_task should be preserved from first call
     expect(second.current_task).toBe("TEST-E001-S001");
     // progress_summary should be updated
     expect(second.progress_summary).toBe("Continuing work");
+    expect(second.progress).toEqual({
+      total_criteria: 4,
+      completed_criteria: 2,
+      current_step: "Run tests",
+      criteria_status: [
+        { criterion: "Schema added", status: "done" },
+        { criterion: "Tests added", status: "pending" },
+      ],
+    });
     // status should be preserved
     expect(second.status).toBe("active");
+  });
+
+  it("persists two completed workers that share a base agent_id as distinct TUI-visible agents", async () => {
+    await agentHeartbeat({
+      agentId: "shared-agent",
+      sessionId: "session-one",
+      status: "completed",
+      currentTask: "TEST-E065-S006",
+      progressSummary: "Completed first worker",
+    });
+
+    await agentHeartbeat({
+      agentId: "shared-agent",
+      sessionId: "session-two",
+      status: "completed",
+      currentTask: "TEST-E065-S007",
+      progressSummary: "Completed second worker",
+    });
+
+    const agents = listAgents(tmp.projectsDir).sort((left, right) =>
+      left.agent_id.localeCompare(right.agent_id),
+    );
+    const agentFiles = fs
+      .readdirSync(path.join(tmp.projectsDir, "agents"))
+      .filter(
+        (name) =>
+          name.endsWith(".yaml") &&
+          !name.endsWith("-response.yaml") &&
+          !name.endsWith("-process.yaml") &&
+          !name.endsWith("-escalation-log.yaml"),
+      )
+      .sort();
+
+    expect(agentFiles).toEqual([
+      `${deriveObservedAgentId("shared-agent", "session-one")}.yaml`,
+      `${deriveObservedAgentId("shared-agent", "session-two")}.yaml`,
+    ]);
+    expect(agents).toHaveLength(2);
+    expect(agents.map((agent) => agent.agent_id)).toEqual([
+      deriveObservedAgentId("shared-agent", "session-one"),
+      deriveObservedAgentId("shared-agent", "session-two"),
+    ]);
+    expect(agents.map((agent) => agent.status)).toEqual([
+      "completed",
+      "completed",
+    ]);
+    expect(agentCountSummary(agents)).toBe("2 agents");
+  });
+
+  it("remains backward compatible when progress fields are omitted", async () => {
+    await agentHeartbeat({
+      agentId: "legacy-agent",
+      status: "active",
+      progressSummary: "Legacy heartbeat",
+    });
+
+    const state = readAgentState(tmp.projectsDir, "legacy-agent");
+    expect(state.progress_summary).toBe("Legacy heartbeat");
+    expect(state.progress).toBeUndefined();
   });
 
   it("preserves escalation data on heartbeat update", async () => {
@@ -267,9 +374,9 @@ describe("pm agent escalate (integration)", () => {
       "Missing required option: --agent-id",
     );
 
-    await expect(
-      agentEscalate({ agentId: "agent-1" }),
-    ).rejects.toThrow("Missing required option: --type");
+    await expect(agentEscalate({ agentId: "agent-1" })).rejects.toThrow(
+      "Missing required option: --type",
+    );
 
     await expect(
       agentEscalate({ agentId: "agent-1", type: "decision" }),
@@ -455,6 +562,43 @@ describe("pm agent check-response (integration)", () => {
     expect(parsed.selected_option).toBe("Option A");
     expect(parsed.additional_context).toBe("Go with the simpler approach");
     expect(parsed.responded_at).toBe("2026-03-13T12:00:00Z");
+  });
+
+  it("archives the escalation exchange before deleting the response", async () => {
+    await agentHeartbeat({
+      agentId: "resp-agent",
+      status: "needs_attention",
+      currentTask: "TEST-E001-S001",
+    });
+    await agentEscalate({
+      agentId: "resp-agent",
+      type: "decision",
+      message: "Need a product call",
+      confidence: 0.75,
+      options: ["ship", "wait"],
+    });
+    writeAgentResponse(tmp.projectsDir, "resp-agent", {
+      selected_option: "wait",
+      additional_context: "Hold until QA signs off",
+      responded_at: "2026-03-13T12:30:00Z",
+    });
+
+    out.restore();
+    out = captureOutput();
+
+    await agentCheckResponse({ agentId: "resp-agent" });
+
+    expect(readEscalationLog(tmp.projectsDir, "resp-agent")).toEqual([
+      {
+        type: "decision",
+        message: "Need a product call",
+        confidence: 0.75,
+        options: ["ship", "wait"],
+        selected_option: "wait",
+        additional_context: "Hold until QA signs off",
+        responded_at: "2026-03-13T12:30:00Z",
+      },
+    ]);
   });
 
   // ── AC3: returns {status: no_response} when no response file exists ──────

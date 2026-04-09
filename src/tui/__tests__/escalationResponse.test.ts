@@ -8,23 +8,30 @@ import {
   confirmationMessage,
 } from "../escalationResponse.js";
 import type { EscalationResponseState } from "../escalationResponse.js";
-import type { AgentState } from "../../schemas/agent-state.schema.js";
+import type { ObservedAgentState } from "../../lib/agent-state.js";
 import { buildAgentDetailLines } from "../components/DetailPanel.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function makeAgent(overrides: Partial<AgentState> = {}): AgentState {
+function makeAgent(
+  overrides: Partial<ObservedAgentState> = {},
+): ObservedAgentState {
   return {
     agent_id: "agent-01",
     status: "active",
     started_at: "2026-03-13T10:00:00Z",
     last_heartbeat: "2026-03-13T10:05:00Z",
+    heartbeat_age_ms: 0,
+    heartbeat_stale: false,
     ...overrides,
   };
 }
 
-function escalatedAgent(optionCount = 3): AgentState {
-  const options = Array.from({ length: optionCount }, (_, i) => `Option ${i + 1}`);
+function escalatedAgent(optionCount = 3): ObservedAgentState {
+  const options = Array.from(
+    { length: optionCount },
+    (_, i) => `Option ${i + 1}`,
+  );
   return makeAgent({
     agent_id: "agent-42",
     status: "needs_attention",
@@ -107,13 +114,19 @@ describe("enterResponseMode", () => {
   });
 
   it("returns null when already in selecting mode", () => {
-    const state: EscalationResponseState = { mode: "selecting", confirmedOption: null };
+    const state: EscalationResponseState = {
+      mode: "selecting",
+      confirmedOption: null,
+    };
     const result = enterResponseMode(state, escalatedAgent());
     expect(result).toBeNull();
   });
 
   it("can re-enter from confirmed mode", () => {
-    const state: EscalationResponseState = { mode: "confirmed", confirmedOption: 1 };
+    const state: EscalationResponseState = {
+      mode: "confirmed",
+      confirmedOption: 1,
+    };
     const result = enterResponseMode(state, escalatedAgent());
     expect(result).toEqual({ mode: "selecting", confirmedOption: null });
   });
@@ -123,7 +136,10 @@ describe("enterResponseMode", () => {
 
 describe("exitResponseMode", () => {
   it("transitions from selecting to idle on Escape", () => {
-    const state: EscalationResponseState = { mode: "selecting", confirmedOption: null };
+    const state: EscalationResponseState = {
+      mode: "selecting",
+      confirmedOption: null,
+    };
     const result = exitResponseMode(state);
     expect(result).toEqual(INITIAL_RESPONSE_STATE);
   });
@@ -134,7 +150,10 @@ describe("exitResponseMode", () => {
   });
 
   it("returns null when in confirmed mode", () => {
-    const state: EscalationResponseState = { mode: "confirmed", confirmedOption: 2 };
+    const state: EscalationResponseState = {
+      mode: "confirmed",
+      confirmedOption: 2,
+    };
     const result = exitResponseMode(state);
     expect(result).toBeNull();
   });
@@ -143,7 +162,10 @@ describe("exitResponseMode", () => {
 // ── selectOption ─────────────────────────────────────────────────────────────
 
 describe("selectOption", () => {
-  const selectingState: EscalationResponseState = { mode: "selecting", confirmedOption: null };
+  const selectingState: EscalationResponseState = {
+    mode: "selecting",
+    confirmedOption: null,
+  };
   const agent = escalatedAgent(3); // 3 options
 
   it("selects option 1 when pressing '1'", () => {
@@ -316,7 +338,10 @@ describe("escalation response full flow", () => {
 
   it("invalid number key in selecting mode does nothing", () => {
     const agent = escalatedAgent(3);
-    const selectingState: EscalationResponseState = { mode: "selecting", confirmedOption: null };
+    const selectingState: EscalationResponseState = {
+      mode: "selecting",
+      confirmedOption: null,
+    };
 
     // Press 5 (only 3 options)
     const result = selectOption(selectingState, "5", agent);

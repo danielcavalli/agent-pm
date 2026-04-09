@@ -2,10 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as yaml from "js-yaml";
-import {
-  loadConsolidationConfig,
-  consolidateConfig,
-} from "../consolidate.js";
+import { loadConsolidationConfig, consolidateConfig } from "../consolidate.js";
 import {
   setupTmpDir,
   captureOutput,
@@ -38,41 +35,50 @@ describe("consolidation config (E042-S001)", () => {
   it("AC1: loads consolidation config from project.yaml", () => {
     // Write a project.yaml with consolidation config
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 15,
       trigger_mode: "manual",
+      llm_timeout_ms: 45000,
+      llm_max_retries: 4,
     };
     fs.writeFileSync(projectYaml, yaml.dump(project), "utf8");
 
     const config = loadConsolidationConfig();
     expect(config.max_reports_per_run).toBe(15);
     expect(config.trigger_mode).toBe("manual");
+    expect(config.llm_timeout_ms).toBe(45000);
+    expect(config.llm_max_retries).toBe(4);
   });
 
   it("AC1: returns defaults when no consolidation section in project.yaml", () => {
     // Remove the consolidation section from project.yaml
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     delete project.consolidation;
     fs.writeFileSync(projectYaml, yaml.dump(project), "utf8");
 
     const config = loadConsolidationConfig();
     expect(config.max_reports_per_run).toBe(10);
     expect(config.trigger_mode).toBe("manual");
+    expect(config.llm_timeout_ms).toBe(30000);
+    expect(config.llm_max_retries).toBe(2);
   });
 
   // ── AC2: max_reports_per_run is enforced during ingestion ──
 
   it("AC2: max_reports_per_run is read from config", () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 5,
       trigger_mode: "manual",
@@ -87,9 +93,10 @@ describe("consolidation config (E042-S001)", () => {
 
   it("AC3: validates manual trigger mode", () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 10,
       trigger_mode: "manual",
@@ -102,9 +109,10 @@ describe("consolidation config (E042-S001)", () => {
 
   it("AC3: validates event_based trigger mode with required trigger_event_count", () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 10,
       trigger_mode: "event_based",
@@ -119,9 +127,10 @@ describe("consolidation config (E042-S001)", () => {
 
   it("AC3: rejects event_based trigger mode without trigger_event_count", () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 10,
       trigger_mode: "event_based",
@@ -129,16 +138,15 @@ describe("consolidation config (E042-S001)", () => {
     fs.writeFileSync(projectYaml, yaml.dump(project), "utf8");
 
     expect(() => loadConsolidationConfig()).toThrow(PmError);
-    expect(() => loadConsolidationConfig()).toThrow(
-      "trigger_event_count",
-    );
+    expect(() => loadConsolidationConfig()).toThrow("trigger_event_count");
   });
 
   it("AC3: validates time_based trigger mode with required trigger_interval_minutes", () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 10,
       trigger_mode: "time_based",
@@ -153,9 +161,10 @@ describe("consolidation config (E042-S001)", () => {
 
   it("AC3: rejects time_based trigger mode without trigger_interval_minutes", () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 10,
       trigger_mode: "time_based",
@@ -163,21 +172,22 @@ describe("consolidation config (E042-S001)", () => {
     fs.writeFileSync(projectYaml, yaml.dump(project), "utf8");
 
     expect(() => loadConsolidationConfig()).toThrow(PmError);
-    expect(() => loadConsolidationConfig()).toThrow(
-      "trigger_interval_minutes",
-    );
+    expect(() => loadConsolidationConfig()).toThrow("trigger_interval_minutes");
   });
 
   // ── AC4: pm consolidate config prints the current configuration ──
 
   it("AC4: consolidateConfig prints current configuration from project.yaml", async () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 20,
       trigger_mode: "manual",
+      llm_timeout_ms: 45000,
+      llm_max_retries: 4,
       last_consolidated_at: "2026-03-11T14:27:07",
     };
     fs.writeFileSync(projectYaml, yaml.dump(project), "utf8");
@@ -191,15 +201,20 @@ describe("consolidation config (E042-S001)", () => {
     expect(output).toContain("manual");
     expect(output).toContain("max_reports_per_run");
     expect(output).toContain("20");
+    expect(output).toContain("llm_timeout_ms");
+    expect(output).toContain("45000");
+    expect(output).toContain("llm_max_retries");
+    expect(output).toContain("4");
     expect(output).toContain("last_consolidated_at");
     expect(output).toContain("2026-03-11T14:27:07");
   });
 
   it("AC4: consolidateConfig prints defaults when no consolidation section", async () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     delete project.consolidation;
     fs.writeFileSync(projectYaml, yaml.dump(project), "utf8");
     resetProjectCodeCache();
@@ -210,13 +225,16 @@ describe("consolidation config (E042-S001)", () => {
     expect(output).toContain("Consolidation Config");
     expect(output).toContain("manual");
     expect(output).toContain("10");
+    expect(output).toContain("30000");
+    expect(output).toContain("2");
   });
 
   it("AC4: consolidateConfig prints event_based config with trigger_event_count", async () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 10,
       trigger_mode: "event_based",
@@ -237,9 +255,10 @@ describe("consolidation config (E042-S001)", () => {
 
   it("AC5: produces clear error for invalid trigger_mode", () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 10,
       trigger_mode: "invalid_mode",
@@ -254,9 +273,10 @@ describe("consolidation config (E042-S001)", () => {
 
   it("AC5: produces clear error for negative max_reports_per_run", () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: -5,
       trigger_mode: "manual",
@@ -271,9 +291,10 @@ describe("consolidation config (E042-S001)", () => {
 
   it("AC5: produces clear error for non-integer max_reports_per_run", () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 3.5,
       trigger_mode: "manual",
@@ -288,9 +309,10 @@ describe("consolidation config (E042-S001)", () => {
 
   it("AC5: produces clear error for string max_reports_per_run", () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: "not-a-number",
       trigger_mode: "manual",
@@ -305,9 +327,10 @@ describe("consolidation config (E042-S001)", () => {
 
   it("AC1: loads last_consolidated_at from config", () => {
     const projectYaml = path.join(tmp.projectsDir, "project.yaml");
-    const project = yaml.load(
-      fs.readFileSync(projectYaml, "utf8"),
-    ) as Record<string, unknown>;
+    const project = yaml.load(fs.readFileSync(projectYaml, "utf8")) as Record<
+      string,
+      unknown
+    >;
     project.consolidation = {
       max_reports_per_run: 10,
       trigger_mode: "manual",

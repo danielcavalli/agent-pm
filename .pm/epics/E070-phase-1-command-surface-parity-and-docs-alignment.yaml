@@ -1,0 +1,56 @@
+id: E070
+code: PM-E070
+title: Phase 1 — Command Surface Parity and Docs Alignment
+description: >-
+  Close high-priority drift between CLI, MCP, and documentation so core tool flows are reliably executable and
+  discoverable. This phase targets fast risk reduction with minimal architectural change.
+status: backlog
+priority: high
+created_at: '2026-04-08'
+stories:
+  - id: S001
+    code: PM-E070-S001
+    title: Register comment and report commands in CLI
+    description: >-
+      Expose the existing comment/report command handlers through the main CLI so MCP delegations to `pm comment` and
+      `pm report` are executable.
+    acceptance_criteria:
+      - '`pm comment add/list` executes successfully from CLI entrypoint'
+      - '`pm report create/view` executes successfully from CLI entrypoint'
+      - Command help output includes comment and report groups
+      - No regressions for existing command registration
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E070-S002
+    title: Add MCP smoke tests for comment and report tools
+    description: Cover MCP tool paths for comment/report so tool wiring failures are caught automatically.
+    acceptance_criteria:
+      - MCP tests execute `pm_comment_add` and `pm_comment_list` end-to-end
+      - MCP tests execute `pm_report_create` and `pm_report_view` end-to-end
+      - Tests fail clearly when CLI command wiring is missing
+      - Tests run in standard test suite without manual setup
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S003
+    code: PM-E070-S003
+    title: Synchronize PRD and contribution docs with implemented interfaces
+    description: >-
+      Update product and contributor docs to reflect current CLI/MCP surface and installer behavior to reduce onboarding
+      confusion.
+    acceptance_criteria:
+      - PRD command/tool counts match current implementation
+      - CONTRIBUTING installer instructions match actual flags and behavior
+      - Updated sections link to authoritative command references
+      - Documentation changes are validated in review checklist
+    status: done
+    priority: medium
+    story_points: 2
+    depends_on: []
+    notes: ''

@@ -22,7 +22,7 @@ stories:
         add -> story_splits, pm prioritize -> priority_changes
       - readGlobalBest(pmDir) returns best metadata or null
       - Unit tests with 5+ fixture results verifying aggregation and category classification
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -41,7 +41,7 @@ stories:
         buildAnalysisSummary(pmDir) returns full analysis: global_best, recent_results, active_claims,
         unclaimed_hypotheses, agent_bests, trend, count, coverage
       - 'Unit tests: improving (ascending), plateaued (flat), regressing (descending), edge case fewer than 10'
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on:
@@ -59,7 +59,7 @@ stories:
       - If .pm/swarm/ does not exist, prints error message and exits with code 1
       - Subcommand registered under pm swarm in CLI
       - 'Integration test: init swarm, write fixtures, run analyze, verify output fields'
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on:
@@ -78,7 +78,7 @@ stories:
         ascending
       - 'Hypotheses with type tactic_suggestion get requires_human_review: true added automatically'
       - 'Unit tests: write/list round-trip, priority sorting, tactic_suggestion flagging'
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on:
@@ -96,7 +96,7 @@ stories:
       - searchInsights(pmDir, query, threshold) uses FileSwarmStore.search on insights namespace
       - filterInsightsByTag(pmDir, tag) returns only insights whose tags include the given tag
       - 'Unit tests: write/list round-trip, tag filtering, search by similarity'
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on:
@@ -118,7 +118,7 @@ stories:
       - >-
         Unit tests: normal update, rejection of score <= 0, rejection of anomalous improvement, concurrent write
         detection
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on:

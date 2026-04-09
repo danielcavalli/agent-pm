@@ -1,7 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { statusIcon, statusColor, flattenTree } from "../components/Tree.js";
+import {
+  statusIcon,
+  statusColor,
+  flattenTree,
+  collapsedEpicStatusChips,
+  buildTreeRowParts,
+} from "../components/Tree.js";
 import type { FlatRow } from "../components/Tree.js";
 import type { EpicNode, StoryNode, FilterMode } from "../types.js";
+import { theme } from "../colors.js";
 
 /**
  * Tests for PM-E050-S001: Tree.tsx exported pure functions.
@@ -17,12 +24,15 @@ function makeStory(
 ): StoryNode {
   return {
     kind: "story",
+    epic_code: "PM-E000",
     id: overrides.code,
     status: "backlog",
     priority: "medium",
     story_points: 1,
     description: "",
     acceptance_criteria: [],
+    depends_on: [],
+    notes: "",
     ...overrides,
   };
 }
@@ -36,6 +46,7 @@ function makeEpic(
     status: "backlog",
     priority: "medium",
     description: "",
+    created_at: "2026-01-01T00:00:00Z",
     stories: [],
     expanded: false,
     ...overrides,
@@ -328,9 +339,7 @@ describe("flattenTree", () => {
       code: "E001",
       title: "Epic",
       expanded: true,
-      stories: [
-        makeStory({ code: "S001", title: "Done", status: "done" }),
-      ],
+      stories: [makeStory({ code: "S001", title: "Done", status: "done" })],
     });
 
     const rows = flattenTree([epic], "backlog", "");
@@ -447,13 +456,106 @@ describe("flattenTree", () => {
       code: "E001",
       title: "Epic",
       expanded: false,
-      stories: [
-        makeStory({ code: "S001", title: "Matching search term" }),
-      ],
+      stories: [makeStory({ code: "S001", title: "Matching search term" })],
     });
 
     const rows = flattenTree([epic], "all", "Matching");
     expect(rows).toHaveLength(1);
     expect(rows[0]!.key).toBe("E001");
+  });
+});
+
+describe("collapsedEpicStatusChips", () => {
+  it("returns only non-zero status categories in priority order", () => {
+    const chips = collapsedEpicStatusChips([
+      makeStory({ code: "S001", title: "Active", status: "in_progress" }),
+      makeStory({ code: "S002", title: "Done 1", status: "done" }),
+      makeStory({ code: "S003", title: "Done 2", status: "done" }),
+    ]);
+
+    expect(chips).toEqual([
+      { text: "1 active", color: theme.warning },
+      { text: "2 done", color: theme.success },
+    ]);
+  });
+
+  it("maps all supported story statuses to semantic chip colors", () => {
+    const chips = collapsedEpicStatusChips([
+      makeStory({ code: "S001", title: "Backlog", status: "backlog" }),
+      makeStory({ code: "S002", title: "Active", status: "in_progress" }),
+      makeStory({ code: "S003", title: "Done", status: "done" }),
+      makeStory({ code: "S004", title: "Canceled", status: "cancelled" }),
+    ]);
+
+    expect(chips).toEqual([
+      { text: "1 active", color: theme.warning },
+      { text: "1 backlog", color: theme.info },
+      { text: "1 done", color: theme.success },
+      { text: "1 canceled", color: theme.error },
+    ]);
+  });
+});
+
+describe("buildTreeRowParts", () => {
+  it("shows inline chips for collapsed epic rows", () => {
+    const epic = makeEpic({
+      code: "E001",
+      title: "Epic One",
+      expanded: false,
+      stories: [
+        makeStory({ code: "S001", title: "Active", status: "in_progress" }),
+        makeStory({ code: "S002", title: "Done", status: "done" }),
+      ],
+    });
+
+    const text = buildTreeRowParts({ node: epic, depth: 0, key: epic.code }, 80)
+      .map((part) => part.text)
+      .join("");
+
+    expect(text).toContain("Epic One 1 active | 1 done");
+  });
+
+  it("truncates the epic title to preserve chip visibility within panel width", () => {
+    const epic = makeEpic({
+      code: "E001",
+      title: "Epic title that is intentionally very long",
+      expanded: false,
+      stories: [
+        makeStory({ code: "S001", title: "Backlog", status: "backlog" }),
+        makeStory({ code: "S002", title: "Active", status: "in_progress" }),
+        makeStory({ code: "S003", title: "Done", status: "done" }),
+      ],
+    });
+
+    const parts = buildTreeRowParts(
+      { node: epic, depth: 0, key: epic.code },
+      45,
+    );
+    const text = parts.map((part) => part.text).join("");
+
+    expect(text.length).toBeLessThanOrEqual(45);
+    expect(text).toContain("1 active | 1 backlog | 1 done");
+    expect(text).toContain("…");
+  });
+
+  it("does not show status chips for expanded epic rows", () => {
+    const epic = makeEpic({
+      code: "E001",
+      title: "Epic One",
+      expanded: true,
+      stories: [
+        makeStory({ code: "S001", title: "Active", status: "in_progress" }),
+        makeStory({ code: "S002", title: "Done", status: "done" }),
+      ],
+    });
+
+    const text = buildTreeRowParts({ node: epic, depth: 0, key: epic.code }, 80)
+      .map((part) => part.text)
+      .join("");
+
+    expect(text).toContain("Epic One [1/2]");
+    expect(text).not.toContain("active");
+    expect(text).not.toContain("backlog");
+    expect(text).not.toContain("canceled");
   });
 });

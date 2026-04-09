@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { EpicSchema, ProjectSchema } from "../schemas/index.js";
-import { readYaml, writeYaml } from "../lib/fs.js";
+import { readYaml, withLock, writeYaml } from "../lib/fs.js";
 import { resolveStoryCode, findEpicFile, getPmDir } from "../lib/codes.js";
 import { StoryNotFoundError } from "../lib/errors.js";
 import * as path from "node:path";
@@ -50,7 +50,9 @@ export async function work(storyCode: string): Promise<void> {
   if (story.status !== "in_progress") {
     const updatedStories = [...stories];
     updatedStories[storyIdx] = { ...story, status: "in_progress" };
-    writeYaml(epicFile, { ...epic, stories: updatedStories });
+    await withLock(epicFile, () => {
+      writeYaml(epicFile, { ...epic, stories: updatedStories });
+    });
   }
 
   const projectYaml = path.join(getPmDir(), "project.yaml");
@@ -59,7 +61,9 @@ export async function work(storyCode: string): Promise<void> {
     const project = readYaml(projectYaml, ProjectSchema);
     projectName = project.name;
   } catch (err) {
-    process.stderr.write(`[pm work] failed to read project name: ${err instanceof Error ? err.message : String(err)}\n`);
+    process.stderr.write(
+      `[pm work] failed to read project name: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
   }
 
   console.log("");

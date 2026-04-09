@@ -28,7 +28,7 @@ stories:
       - DECIDE step compares against best, instructs keep or discard with appropriate revert
       - PUBLISH step requires both result file and insight file; optionally hypothesis
       - 'Human override detection: if hashes changed externally, evaluate and record as result'
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -50,7 +50,7 @@ stories:
       - 'On step validation failure: retry once; if retry fails, skip to next iteration'
       - 'PUBLISH step explicitly states: carry forward only loop-state, current best, and last 3 summaries'
       - Unit tests verify LoopStateSchema and step output schemas
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -72,7 +72,7 @@ stories:
       - >-
         Unit tests: apply/revert board mutation (verify git history), apply/revert runtime (verify config_version
         monotonic)
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -94,7 +94,7 @@ stories:
       - 'Strategy.yaml corruption: write invalid YAML mid-iteration; verify fallback to best or clean abort'
       - Each error path has at least one dedicated test case
       - All tests clean up their temp directories
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -115,7 +115,7 @@ stories:
       - formatExperimentResult(data) returns YAML wrapped in ---/EXPERIMENT_RESULT:/--- delimiters
       - parseExperimentResult(stdout) extracts and validates the block from arbitrary text
       - Unit tests verify formatting and round-trip parsing
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on:

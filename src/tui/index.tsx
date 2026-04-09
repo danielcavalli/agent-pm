@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+  useEffect,
+} from "react";
 import { render, Box, Text, useInput, useApp, useStdout } from "ink";
 import type { Key } from "ink";
 import clipboard from "clipboardy";
@@ -10,18 +16,31 @@ import {
 import { useProjectTree } from "./hooks/useProjectTree.js";
 import { useAgentList } from "./hooks/useAgentList.js";
 import { useMouseScroll } from "./hooks/useMouseScroll.js";
+import type { MouseClickEvent } from "./hooks/useMouseScroll.js";
 import { getPmDir } from "../lib/codes.js";
-import { writeAgentResponse } from "../lib/agent-state.js";
+import { writeAgentProcess, writeAgentResponse } from "../lib/agent-state.js";
 import { PmError } from "../lib/errors.js";
 import { TreePanel, flattenTree } from "./components/Tree.js";
 import type { FlatRow } from "./components/Tree.js";
 import { DetailPanel } from "./components/DetailPanel.js";
 import type { DetailScrollHandle } from "./components/DetailPanel.js";
-import { AgentSidebar, nextAgentFilter, filterAgents } from "./components/AgentSidebar.js";
+import { toggleAgentDetailMode } from "./components/DetailPanel.js";
+import type { AgentDetailMode } from "./components/DetailPanel.js";
+import {
+  AgentSidebar,
+  nextAgentFilter,
+  filterAgents,
+} from "./components/AgentSidebar.js";
 import type { AgentFilterMode } from "./components/AgentSidebar.js";
 import { StatusBar } from "./components/StatusBar.js";
 import { HelpOverlay } from "./components/HelpOverlay.js";
-import type { EpicNode, TreeNode, FilterMode, FocusedPanel } from "./types.js";
+import type {
+  EpicNode,
+  TreeNode,
+  FilterMode,
+  FocusedPanel,
+  SwarmStatusData,
+} from "./types.js";
 import { NoPmDirectoryError } from "./loadTree.js";
 import { nextFocusedPanel } from "./focusCycling.js";
 import {
@@ -37,9 +56,31 @@ import {
   isTmuxAvailable,
   buildStoryCommand,
   buildEpicCommand,
+  buildDispatchedAgentId,
   dispatch as dispatchAgent,
 } from "./dispatch.js";
 import { theme, tc } from "./colors.js";
+import { supportsTerminalLinks } from "./terminalLinks.js";
+import { buildProjectProgressBar, truncateTitleSegment } from "./titleBar.js";
+import {
+  collectEscalationKeys,
+  hasNewEscalation,
+  shouldEmitEscalationBell,
+} from "./escalationNotification.js";
+import {
+  buildKillConfirmationMessage,
+  getAgentKillTarget,
+  killAgentTarget,
+} from "./agentKill.js";
+import { resolveAppClick } from "./clickHandlers.js";
+import {
+  INITIAL_STORY_STATUS_PICKER_STATE,
+  buildStoryStatusPickerMessage,
+  cycleStoryStatusPicker,
+  enterStoryStatusPicker,
+  updateStoryStatus,
+} from "./storyStatus.js";
+import { loadSwarmStatus } from "./loadSwarmStatus.js";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -57,7 +98,8 @@ function App() {
   // Title bar (1) + status bar (1) = 2 reserved rows
   const bodyHeight = termHeight - 2;
 
-  const { epics, projectName, error, setEpics, reload } = useProjectTree();
+  const { epics, projectName, storyLinkTemplate, error, setEpics, reload } =
+    useProjectTree();
   const { agents, hasAgents, reload: reloadAgents } = useAgentList();
   const [cursor, setCursor] = useState(0);
   const [filter, setFilter] = useState<FilterMode>("all");
@@ -70,12 +112,39 @@ function App() {
   const [agentFilter, setAgentFilter] = useState<AgentFilterMode>("all");
   const [agentCursor, setAgentCursor] = useState(0);
   const [helpVisible, setHelpVisible] = useState(false);
-  const [responseState, setResponseState] = useState<EscalationResponseState>(INITIAL_RESPONSE_STATE);
-  const [dispatchPending, setDispatchPending] = useState<{ code: string; kind: "story" | "epic" } | null>(null);
+  const [agentDetailMode, setAgentDetailMode] =
+    useState<AgentDetailMode>("info");
+  const [responseState, setResponseState] = useState<EscalationResponseState>(
+    INITIAL_RESPONSE_STATE,
+  );
+  const [dispatchPending, setDispatchPending] = useState<{
+    code: string;
+    kind: "story" | "epic";
+  } | null>(null);
+  const [killPending, setKillPending] = useState<{
+    agentId: string;
+    pid: number;
+  } | null>(null);
+  const [storyStatusPicker, setStoryStatusPicker] = useState(
+    INITIAL_STORY_STATUS_PICKER_STATE,
+  );
+  const [swarmStatus, setSwarmStatus] = useState<SwarmStatusData | null>(null);
 
   // Detect dispatch capabilities on mount
   const claudeAvailable = useMemo(() => isClaudeAvailable(), []);
   const dispatchAvailable = claudeAvailable;
+  const hyperlinksEnabled = useMemo(() => supportsTerminalLinks(), []);
+
+  const pmDir = useMemo(() => {
+    try {
+      return getPmDir();
+    } catch (err) {
+      process.stderr.write(
+        `[pm tui] getPmDir error: ${err instanceof Error ? err.message : String(err)}\n`,
+      );
+      return null;
+    }
+  }, []);
 
   // Ref for external scroll control of DetailPanel
   const detailScrollRef = useRef<DetailScrollHandle>({ scrollBy: () => {} });
@@ -86,7 +155,7 @@ function App() {
     let done = 0;
     for (const epic of epics) {
       total += epic.stories.length;
-      done += epic.stories.filter(s => s.status === "done").length;
+      done += epic.stories.filter((s) => s.status === "done").length;
     }
     return { totalStories: total, doneStories: done };
   }, [epics]);
@@ -95,9 +164,10 @@ function App() {
   const sidebarVisible = hasAgents && !sidebarHidden;
 
   const filteredAgents = filterAgents(agents, agentFilter);
-  const clampedAgentCursor = filteredAgents.length > 0
-    ? Math.min(agentCursor, filteredAgents.length - 1)
-    : 0;
+  const clampedAgentCursor =
+    filteredAgents.length > 0
+      ? Math.min(agentCursor, filteredAgents.length - 1)
+      : 0;
 
   // Layout widths
   const sidebarWidth = sidebarVisible ? 22 : 0;
@@ -110,9 +180,11 @@ function App() {
   const effectiveFocusedPanel: FocusedPanel =
     focusedPanel === "sidebar" && !sidebarVisible ? "tree" : focusedPanel;
 
-  const selectedAgent = effectiveFocusedPanel === "sidebar" && filteredAgents.length > 0
-    ? filteredAgents[clampedAgentCursor] ?? null
-    : null;
+  const selectedAgent =
+    effectiveFocusedPanel === "sidebar" && filteredAgents.length > 0
+      ? (filteredAgents[clampedAgentCursor] ?? null)
+      : null;
+  const previousEscalationKeysRef = useRef<Set<string> | null>(null);
 
   // Track previous agent id to reset response state on agent change
   const prevAgentIdRef = useRef<string | null>(null);
@@ -144,24 +216,90 @@ function App() {
     setTimeout(() => setStatusMessage(""), ms);
   }, []);
 
-  // ── Mouse scroll handler ─────────────────────────────────────────────────
-  useMouseScroll(useCallback((direction: "up" | "down") => {
-    const delta = direction === "up" ? -SCROLL_LINES : SCROLL_LINES;
+  const refreshTreeSelection = useCallback(() => {
+    const currentKey = findCursorKey(rowsRef.current, cursor);
+    reload();
+    const newRows = rowsRef.current;
+    const newCursor = restoreCursor(newRows, currentKey);
+    setCursor(newCursor);
+  }, [cursor, reload]);
 
-    if (effectiveFocusedPanel === "tree") {
-      setCursor((c) => {
-        const next = c + delta;
-        return Math.max(0, Math.min(rows.length - 1, next));
-      });
-    } else if (effectiveFocusedPanel === "detail") {
-      detailScrollRef.current.scrollBy(delta);
-    } else if (effectiveFocusedPanel === "sidebar" && filteredAgents.length > 0) {
-      setAgentCursor((c) => {
-        const next = c + delta;
-        return Math.max(0, Math.min(filteredAgents.length - 1, next));
-      });
-    }
-  }, [effectiveFocusedPanel, rows.length, filteredAgents.length]));
+  // ── Mouse scroll handler ─────────────────────────────────────────────────
+  useMouseScroll(
+    useCallback(
+      (direction: "up" | "down") => {
+        const delta = direction === "up" ? -SCROLL_LINES : SCROLL_LINES;
+
+        if (effectiveFocusedPanel === "tree") {
+          setCursor((c) => {
+            const next = c + delta;
+            return Math.max(0, Math.min(rows.length - 1, next));
+          });
+        } else if (effectiveFocusedPanel === "detail") {
+          detailScrollRef.current.scrollBy(delta);
+        } else if (
+          effectiveFocusedPanel === "sidebar" &&
+          filteredAgents.length > 0
+        ) {
+          setAgentCursor((c) => {
+            const next = c + delta;
+            return Math.max(0, Math.min(filteredAgents.length - 1, next));
+          });
+        }
+      },
+      [effectiveFocusedPanel, rows.length, filteredAgents.length],
+    ),
+    useCallback(
+      ({ col, row }: MouseClickEvent) => {
+        const clickResult = resolveAppClick({
+          col,
+          row,
+          sidebarWidth,
+          leftWidth,
+          termWidth,
+          bodyHeight,
+          treeCursor: cursor,
+          rows,
+          filteredAgents,
+          selectedAgentIndex: clampedAgentCursor,
+        });
+        if (!clickResult) {
+          return;
+        }
+
+        setFocusedPanel(clickResult.focusedPanel);
+
+        if (typeof clickResult.agentCursor === "number") {
+          setAgentCursor(clickResult.agentCursor);
+        }
+
+        if (typeof clickResult.cursor === "number") {
+          setCursor(clickResult.cursor);
+        }
+
+        if (clickResult.toggleEpicCode) {
+          setEpics((prev) =>
+            prev.map((epic) =>
+              epic.code === clickResult.toggleEpicCode
+                ? { ...epic, expanded: !epic.expanded }
+                : epic,
+            ),
+          );
+        }
+      },
+      [
+        bodyHeight,
+        clampedAgentCursor,
+        cursor,
+        filteredAgents,
+        leftWidth,
+        rows,
+        setEpics,
+        sidebarWidth,
+        termWidth,
+      ],
+    ),
+  );
 
   // ── Keyboard input ───────────────────────────────────────────────────────
   useInput((input: string, key: Key) => {
@@ -202,12 +340,36 @@ function App() {
 
     if (dispatchPending) {
       if (input === "y") {
-        const command = dispatchPending.kind === "story"
-          ? buildStoryCommand(dispatchPending.code)
-          : buildEpicCommand();
+        const command =
+          dispatchPending.kind === "story"
+            ? buildStoryCommand(dispatchPending.code)
+            : buildEpicCommand();
         const result = dispatchAgent(command);
         if (result.success) {
-          const method = result.method === "tmux" ? "tmux pane" : `background (${result.detail})`;
+          if (pmDir && result.pid) {
+            try {
+              writeAgentProcess(
+                pmDir,
+                buildDispatchedAgentId(dispatchPending.code),
+                {
+                  pid: result.pid,
+                  spawned_at: new Date()
+                    .toISOString()
+                    .replace(/\.\d{3}Z$/, "Z"),
+                  command,
+                  method: result.method,
+                },
+              );
+            } catch (err) {
+              process.stderr.write(
+                `[pm tui] writeAgentProcess error: ${err instanceof Error ? err.message : String(err)}\n`,
+              );
+            }
+          }
+          const method =
+            result.method === "tmux"
+              ? "tmux pane"
+              : `background (${result.detail})`;
           showMessage(`Agent dispatched in ${method}`, 2500);
         } else {
           showMessage(`Dispatch failed: ${result.detail}`, 3000);
@@ -220,6 +382,62 @@ function App() {
         setStatusMessage("");
         return;
       }
+      return;
+    }
+
+    if (killPending) {
+      if (input === "y") {
+        try {
+          showMessage(killAgentTarget(killPending), 2500);
+          reloadAgents();
+        } catch (err) {
+          showMessage(
+            `Kill failed: ${err instanceof Error ? err.message : String(err)}`,
+            3000,
+          );
+        }
+        setKillPending(null);
+        return;
+      }
+      if (input === "n" || key.escape) {
+        setKillPending(null);
+        setStatusMessage("");
+        return;
+      }
+      return;
+    }
+
+    if (storyStatusPicker.mode === "selecting") {
+      if (key.escape) {
+        setStoryStatusPicker(INITIAL_STORY_STATUS_PICKER_STATE);
+        setStatusMessage("");
+        return;
+      }
+
+      if (input === "s") {
+        setStoryStatusPicker((current) => cycleStoryStatusPicker(current));
+        return;
+      }
+
+      if (key.return) {
+        try {
+          updateStoryStatus(storyStatusPicker.code, storyStatusPicker.status);
+          setStoryStatusPicker(INITIAL_STORY_STATUS_PICKER_STATE);
+          refreshTreeSelection();
+          showMessage(
+            `Updated ${storyStatusPicker.code} to ${storyStatusPicker.status}`,
+            2500,
+          );
+        } catch (err) {
+          setStoryStatusPicker(INITIAL_STORY_STATUS_PICKER_STATE);
+          showMessage(
+            `Status update failed: ${err instanceof Error ? err.message : String(err)}`,
+            3000,
+          );
+        }
+        return;
+      }
+
       return;
     }
 
@@ -277,6 +495,13 @@ function App() {
       return;
     }
 
+    if (input === "l") {
+      setAgentDetailMode((currentMode) =>
+        toggleAgentDetailMode(currentMode, selectedAgent),
+      );
+      return;
+    }
+
     if (effectiveFocusedPanel === "tree") {
       if (key.upArrow || input === "k") {
         setCursor((c) => (c <= 0 ? rows.length - 1 : c - 1));
@@ -324,6 +549,13 @@ function App() {
         }
         return;
       }
+      if (input === "s") {
+        const next = enterStoryStatusPicker(selectedNode);
+        if (next) {
+          setStoryStatusPicker(next);
+        }
+        return;
+      }
     }
 
     if (effectiveFocusedPanel === "sidebar" && filteredAgents.length > 0) {
@@ -351,6 +583,14 @@ function App() {
       }
       if (input === "G") {
         setAgentCursor(filteredAgents.length - 1);
+        return;
+      }
+      if (input === "K") {
+        const killTarget = getAgentKillTarget(selectedAgent);
+        if (killTarget) {
+          setKillPending(killTarget);
+          setStatusMessage(buildKillConfirmationMessage(killTarget.agentId));
+        }
         return;
       }
     }
@@ -403,6 +643,22 @@ function App() {
     }
   });
 
+  const refreshSwarmStatus = useCallback(async () => {
+    if (!pmDir) {
+      setSwarmStatus(null);
+      return;
+    }
+
+    try {
+      setSwarmStatus(await loadSwarmStatus(pmDir));
+    } catch (err) {
+      process.stderr.write(
+        `[pm tui] loadSwarmStatus error: ${err instanceof Error ? err.message : String(err)}\n`,
+      );
+      setSwarmStatus(null);
+    }
+  }, [pmDir]);
+
   const handleReload = useCallback(() => {
     const currentKey = findCursorKey(rowsRef.current, cursor);
     setReloading(true);
@@ -411,6 +667,7 @@ function App() {
     try {
       reload();
       reloadAgents();
+      void refreshSwarmStatus();
       setTimeout(() => {
         setReloading(false);
         setStatusMessage("");
@@ -421,20 +678,13 @@ function App() {
         }, 50);
       }, 300);
     } catch (err) {
-      process.stderr.write(`[pm tui] reload error: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.stderr.write(
+        `[pm tui] reload error: ${err instanceof Error ? err.message : String(err)}\n`,
+      );
       setReloading(false);
       setStatusMessage("");
     }
-  }, [cursor, reload, reloadAgents]);
-
-  const pmDir = useMemo(() => {
-    try {
-      return getPmDir();
-    } catch (err) {
-      process.stderr.write(`[pm tui] getPmDir error: ${err instanceof Error ? err.message : String(err)}\n`);
-      return null;
-    }
-  }, []);
+  }, [cursor, pmDir, refreshSwarmStatus, reload, reloadAgents]);
 
   useFileWatcher({
     projectsDir: pmDir ?? "",
@@ -442,13 +692,45 @@ function App() {
     debounceMs: 300,
   });
 
+  useEffect(() => {
+    void refreshSwarmStatus();
+  }, [refreshSwarmStatus]);
+
+  useEffect(() => {
+    const currentEscalationKeys = collectEscalationKeys(agents);
+    const previousEscalationKeys = previousEscalationKeysRef.current;
+
+    if (previousEscalationKeys === null) {
+      previousEscalationKeysRef.current = currentEscalationKeys;
+      return;
+    }
+
+    if (
+      hasNewEscalation(previousEscalationKeys, currentEscalationKeys) &&
+      shouldEmitEscalationBell(Boolean(stdout?.isTTY))
+    ) {
+      stdout?.write("\x07");
+    }
+
+    previousEscalationKeysRef.current = currentEscalationKeys;
+  }, [agents, stdout]);
+
   void reloading;
 
   if (error) {
     return (
-      <Box flexDirection="column" width={termWidth} height={termHeight} backgroundColor={tc(theme.bg)}>
+      <Box
+        flexDirection="column"
+        width={termWidth}
+        height={termHeight}
+        backgroundColor={tc(theme.bg)}
+      >
         <Box width={termWidth} height={1}>
-          <Text backgroundColor={tc(theme.bgDarker)} color={tc(theme.error)} bold>
+          <Text
+            backgroundColor={tc(theme.bgDarker)}
+            color={tc(theme.error)}
+            bold
+          >
             {"  pm tui -- Error".padEnd(termWidth)}
           </Text>
         </Box>
@@ -463,17 +745,38 @@ function App() {
   }
 
   // Title bar content
-  const statsText = `${epics.length} epics | ${doneStories}/${totalStories} stories done`;
   const titleLeft = `  pm tui`;
-  const titleMid = ` | ${projectName}`;
-  const titleRight = `${statsText}  `;
-  const titlePad = Math.max(0, termWidth - titleLeft.length - titleMid.length - titleRight.length);
+  const minTitleGap = 1;
+  const progressBar = buildProjectProgressBar(
+    doneStories,
+    totalStories,
+    Math.max(termWidth - titleLeft.length - minTitleGap, 0),
+  );
+  const titleRight = ` ${progressBar}  `;
+  const maxTitleMidWidth = Math.max(
+    termWidth - titleLeft.length - titleRight.length - minTitleGap,
+    0,
+  );
+  const titleMid = truncateTitleSegment(` | ${projectName}`, maxTitleMidWidth);
+  const titlePad = Math.max(
+    0,
+    termWidth - titleLeft.length - titleMid.length - titleRight.length,
+  );
 
   return (
-    <Box flexDirection="column" width={termWidth} height={termHeight} backgroundColor={tc(theme.bg)}>
+    <Box
+      flexDirection="column"
+      width={termWidth}
+      height={termHeight}
+      backgroundColor={tc(theme.bg)}
+    >
       {/* Title bar */}
       <Box width={termWidth} height={1}>
-        <Text backgroundColor={tc(theme.bgDarker)} color={tc(theme.primary)} bold>
+        <Text
+          backgroundColor={tc(theme.bgDarker)}
+          color={tc(theme.primary)}
+          bold
+        >
           {titleLeft}
         </Text>
         <Text backgroundColor={tc(theme.bgDarker)} color={tc(theme.textMuted)}>
@@ -501,6 +804,9 @@ function App() {
             >
               <AgentSidebar
                 agents={agents}
+                activeExperimentClaims={
+                  swarmStatus?.activeExperimentClaims ?? []
+                }
                 width={sidebarWidth - 2}
                 height={bodyHeight}
                 agentFilter={agentFilter}
@@ -511,7 +817,13 @@ function App() {
 
             {/* Gap between sidebar and tree */}
             <Box width={sidebarGap} height={bodyHeight}>
-              <Text color={tc(effectiveFocusedPanel === "sidebar" ? theme.borderFocused : theme.border)}>
+              <Text
+                color={tc(
+                  effectiveFocusedPanel === "sidebar"
+                    ? theme.borderFocused
+                    : theme.border,
+                )}
+              >
                 {"\u2502".repeat(1)}
               </Text>
             </Box>
@@ -528,20 +840,32 @@ function App() {
         >
           {/* Panel header */}
           <Box width={leftWidth - 2} height={1}>
-            <Text color={tc(theme.primary)} bold>{"Tree"}</Text>
-            <Text color={tc(theme.textMuted)}>{` [${filterLabels[filter]}]`}</Text>
+            <Text color={tc(theme.primary)} bold>
+              {"Tree"}
+            </Text>
+            <Text
+              color={tc(theme.textMuted)}
+            >{` [${filterLabels[filter]}]`}</Text>
           </Box>
           <TreePanel
             rows={rows}
             cursor={cursor}
             width={leftWidth - 2}
             height={bodyHeight - 1}
+            storyLinkTemplate={storyLinkTemplate}
+            hyperlinksEnabled={hyperlinksEnabled}
           />
         </Box>
 
         {/* Gap between tree and detail */}
         <Box width={treeGap} height={bodyHeight}>
-          <Text color={tc(effectiveFocusedPanel === "tree" ? theme.borderFocused : theme.border)}>
+          <Text
+            color={tc(
+              effectiveFocusedPanel === "tree"
+                ? theme.borderFocused
+                : theme.border,
+            )}
+          >
             {"\u2502"}
           </Text>
         </Box>
@@ -556,17 +880,25 @@ function App() {
         >
           {/* Panel header */}
           <Box width={rightWidth - 2} height={1}>
-            <Text color={tc(theme.primary)} bold>{"Detail"}</Text>
-            {selectedCode && <Text color={tc(theme.textMuted)}>{` | ${selectedCode}`}</Text>}
+            <Text color={tc(theme.primary)} bold>
+              {"Detail"}
+            </Text>
+            {selectedCode && (
+              <Text color={tc(theme.textMuted)}>{` | ${selectedCode}`}</Text>
+            )}
           </Box>
           <DetailPanel
             node={selectedNode}
             width={rightWidth - 2}
             height={bodyHeight - 1}
             focused={effectiveFocusedPanel === "detail"}
+            swarmStatus={swarmStatus}
             selectedAgent={selectedAgent}
+            agentDetailMode={agentDetailMode}
             responseMode={responseState.mode}
             confirmedOption={responseState.confirmedOption}
+            storyLinkTemplate={storyLinkTemplate}
+            hyperlinksEnabled={hyperlinksEnabled}
             scrollRef={detailScrollRef}
           />
         </Box>
@@ -578,12 +910,17 @@ function App() {
         filter={filter}
         search={search}
         searching={searching}
-        message={statusMessage}
+        message={
+          storyStatusPicker.mode === "selecting"
+            ? buildStoryStatusPickerMessage(storyStatusPicker)
+            : statusMessage
+        }
         width={termWidth}
         agents={agents}
         sidebarHidden={sidebarHidden}
         focusedPanel={effectiveFocusedPanel}
         dispatchAvailable={dispatchAvailable}
+        swarmStatus={swarmStatus}
       />
 
       {/* Help Overlay */}
@@ -595,7 +932,11 @@ function App() {
           flexDirection="column"
         >
           <Box width={termWidth} height={1}>
-            <Text backgroundColor={tc(theme.bgDarker)} color={tc(theme.primary)} bold>
+            <Text
+              backgroundColor={tc(theme.bgDarker)}
+              color={tc(theme.primary)}
+              bold
+            >
               {"  Help -- Keyboard Shortcuts".padEnd(termWidth)}
             </Text>
           </Box>
@@ -603,7 +944,10 @@ function App() {
             <HelpOverlay width={termWidth} height={bodyHeight} />
           </Box>
           <Box width={termWidth} height={1}>
-            <Text backgroundColor={tc(theme.bgDarker)} color={tc(theme.textMuted)}>
+            <Text
+              backgroundColor={tc(theme.bgDarker)}
+              color={tc(theme.textMuted)}
+            >
               {" Press ? or Esc to close".padEnd(termWidth)}
             </Text>
           </Box>

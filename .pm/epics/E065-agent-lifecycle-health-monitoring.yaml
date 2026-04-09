@@ -22,7 +22,7 @@ stories:
       - Threshold is configurable via stale_threshold_seconds in project.yaml
       - Default threshold is 60 seconds when not configured
       - Stale detection updates on each file watcher reload cycle
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on: []
@@ -38,7 +38,7 @@ stories:
       - Process file contains pid, spawned_at timestamp, command string, and method
       - Schema is validated with Zod
       - Process file is only created for agents dispatched from the TUI
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on: []
@@ -55,7 +55,7 @@ stories:
       - Liveness check runs on each file watcher reload cycle
       - Agents without a tracked PID (externally registered) are not checked
       - process.kill(pid, 0) errors are caught gracefully (ESRCH = dead, EPERM = alive)
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
@@ -74,7 +74,7 @@ stories:
       - If PID is already dead, shows appropriate message instead of error
       - K is a no-op for agents without tracked PIDs
       - Help overlay updated with K keybinding
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on:
@@ -94,9 +94,70 @@ stories:
       - If agent has escalation, it appears in the timeline
       - If agent is completed or crashed, terminal event is shown
       - Timeline is scrollable within the detail panel
-    status: backlog
+    status: done
     priority: medium
     story_points: 5
     depends_on:
       - PM-E065-S001
+    notes: ''
+  - id: S006
+    code: PM-E065-S006
+    title: Investigate missing completed agents in TUI after parallel orchestration
+    description: >-
+      During /pm-work-on-project execution, multiple sub-agents completed stories successfully, but the TUI Agents tab
+      only reflected a small subset of those completed agents. Investigate whether the gap is caused by agent-state
+      persistence, sidebar filtering, file-watcher refresh timing, completed-agent retention, or another
+      lifecycle/display mismatch, and capture the root cause plus a recommended fix path.
+    acceptance_criteria:
+      - Reproduce the mismatch between orchestrator logs and TUI agent counts using a controlled multi-agent run
+      - Identify the code path or state transition responsible for completed agents not appearing in the TUI
+      - Document the root cause and recommended remediation in an execution report or agent comment
+      - >-
+        If the investigation does not include the fix itself, file a follow-up implementation story with clear
+        acceptance criteria
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S007
+    code: PM-E065-S007
+    title: Investigate agent sidebar reset behavior when orchestration resumes
+    description: >-
+      The TUI agent sidebar appears to reset after pausing and resuming orchestration. Investigate whether agent state
+      is expected to persist across orchestrator restarts, and determine whether the reset comes from state cleanup,
+      reload semantics, process tracking, or UI-layer assumptions.
+    acceptance_criteria:
+      - Reproduce the sidebar reset behavior across an orchestrator pause/resume cycle
+      - Determine whether the current behavior matches intended lifecycle semantics or is a regression
+      - Document the root cause and the expected persistence contract for the Agents tab
+      - If a fix is needed but not implemented in the investigation, file a follow-up implementation story
+    status: done
+    priority: high
+    story_points: 2
+    depends_on: []
+    notes: ''
+  - id: S008
+    code: PM-E065-S008
+    title: Prevent parallel worker agent-state collisions in TUI observer model
+    description: >-
+      Parallel orchestrated workers can currently reuse a shared agent_id (for example `opencode-agent`), and `pm agent
+      heartbeat` stores state at `.pm/agents/{agent_id}.yaml`. That causes later heartbeats to overwrite earlier
+      workers, so the TUI only sees the last writer and completed-agent counts are understated. Implement a durable
+      identity strategy or persistence layout that preserves distinct concurrent/completed workers and keeps
+      session/task metadata internally consistent for the TUI.
+    acceptance_criteria:
+      - >-
+        A controlled reproduction with two completed workers that currently collapses to one `.pm/agents` record is
+        added as an automated regression test
+      - >-
+        Parallel workers with distinct sessions but a shared base agent identity are persisted as distinct observed
+        agents instead of overwriting each other
+      - The TUI agent list/count reflects both completed workers in the controlled reproduction
+      - Existing single-agent heartbeat flows remain supported and documented, including how worker identity is derived
+    status: done
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E065-S006
     notes: ''

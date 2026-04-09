@@ -1,0 +1,37 @@
+id: ADR-004
+title: Adopt optional OSC 8 hyperlinks for TUI story codes
+status: accepted
+context: >-
+  Story PM-E069-S003 evaluated whether agent-pm should emit OSC 8 terminal hyperlinks so story codes rendered in the Ink
+  TUI can become clickable. The evaluation covered iTerm2, Kitty, Alacritty, Terminal.app, and tmux behavior. The
+  project needs a low-risk way to improve navigation without breaking unsupported terminals.
+decision: >-
+  Adopt OSC 8 hyperlinks for story codes in the tree and detail panels when a project config provides
+  `tui.links.story_url_template` and the active terminal is known to support hyperlinks. Use conservative
+  auto-detection: enable for iTerm2, Kitty, Alacritty, VTE-family terminals, Windows Terminal, and similar environments;
+  disable for Terminal.app and inside tmux unless the user explicitly overrides detection. Unsupported terminals fall
+  back to plain text.
+consequences:
+  positive:
+    - Story codes become clickable in modern terminals without changing the visible TUI layout
+    - >-
+      Hyperlink behavior is opt-in per project through a URL template instead of being hard-coded to a specific issue
+      tracker
+    - Conservative detection limits rendering surprises in terminals and multiplexers with partial OSC 8 support
+  negative:
+    - Terminal capability detection is heuristic rather than negotiated with the terminal
+    - tmux users need an explicit override or future enhancement if they have hyperlink support configured
+    - Project owners must provide a useful URL template for the links to be meaningful
+author:
+  type: agent
+  agent_id: opencode-agent-PM-E069-S003
+timestamp: '2026-04-08T05:36:02.199Z'
+tags:
+  - tui
+  - osc8
+  - hyperlinks
+  - terminal-compatibility
+  - PM-E069-S003
+references: []
+created_at: '2026-04-08T05:36:02.199Z'
+updated_at: '2026-04-08T05:36:02.199Z'

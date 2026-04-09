@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { parseMouseSequence, isScrollUp, isScrollDown } from "../hooks/useMouseScroll.js";
+import {
+  parseMouseSequence,
+  isScrollUp,
+  isScrollDown,
+  isClickPress,
+  dispatchMouseEvent,
+} from "../hooks/useMouseScroll.js";
 
 describe("parseMouseSequence", () => {
   it("parses a scroll-up press event", () => {
@@ -80,5 +86,61 @@ describe("isScrollDown", () => {
 
   it("returns false for button 0", () => {
     expect(isScrollDown(0)).toBe(false);
+  });
+});
+
+describe("isClickPress", () => {
+  it("returns true for left click press", () => {
+    expect(isClickPress(0, false)).toBe(true);
+  });
+
+  it("returns true for middle and right click press", () => {
+    expect(isClickPress(1, false)).toBe(true);
+    expect(isClickPress(2, false)).toBe(true);
+  });
+
+  it("returns false for releases and scroll buttons", () => {
+    expect(isClickPress(0, true)).toBe(false);
+    expect(isClickPress(64, false)).toBe(false);
+    expect(isClickPress(65, false)).toBe(false);
+  });
+});
+
+describe("dispatchMouseEvent", () => {
+  it("routes scroll events to onScroll", () => {
+    const calls: string[] = [];
+
+    dispatchMouseEvent(
+      { button: 64, col: 10, row: 20, release: false },
+      (direction) => calls.push(direction),
+    );
+
+    expect(calls).toEqual(["up"]);
+  });
+
+  it("routes click presses to onClick with coordinates", () => {
+    const clicks: Array<{ button: number; col: number; row: number }> = [];
+
+    dispatchMouseEvent(
+      { button: 0, col: 50, row: 25, release: false },
+      () => {},
+      (event) => clicks.push(event),
+    );
+
+    expect(clicks).toEqual([{ button: 0, col: 50, row: 25 }]);
+  });
+
+  it("ignores release events", () => {
+    const calls: string[] = [];
+    const clicks: Array<{ button: number; col: number; row: number }> = [];
+
+    dispatchMouseEvent(
+      { button: 0, col: 50, row: 25, release: true },
+      (direction) => calls.push(direction),
+      (event) => clicks.push(event),
+    );
+
+    expect(calls).toEqual([]);
+    expect(clicks).toEqual([]);
   });
 });

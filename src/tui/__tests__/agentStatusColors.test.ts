@@ -78,6 +78,20 @@ describe("agentStatusStyle", () => {
     expect(style.bold).toBe(false);
   });
 
+  it("returns dim yellow style for stale heartbeat", () => {
+    const style = agentStatusStyle("active", true);
+    expect(style.color).toBe("yellow");
+    expect(style.bold).toBe(false);
+    expect(style.dimColor).toBe(true);
+  });
+
+  it("returns bold red style for crashed process", () => {
+    const style = agentStatusStyle("active", false, true);
+    expect(style.color).toBe("red");
+    expect(style.bold).toBe(true);
+    expect(style.dimColor).toBe(false);
+  });
+
   it("returns default (no color) for unknown status", () => {
     const style = agentStatusStyle("unknown_status");
     expect(style.color).toBeUndefined();
@@ -111,6 +125,14 @@ describe("agentStatusIcon", () => {
 
   it("returns ? for unknown status", () => {
     expect(agentStatusIcon("foo")).toBe("?");
+  });
+
+  it("returns hourglass for stale heartbeat", () => {
+    expect(agentStatusIcon("active", true)).toBe("⌛");
+  });
+
+  it("returns a distinct marker for crashed process", () => {
+    expect(agentStatusIcon("active", false, true)).toBe("!");
   });
 });
 

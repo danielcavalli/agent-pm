@@ -108,4 +108,13 @@ describe("pm init (integration)", () => {
     expect(index.name).toBe("My App");
     expect(index.status).toBe("active");
   });
+
+  it("does not create .pm/swarm during project init", async () => {
+    await init({
+      name: "My App",
+      code: "MYAPP",
+    });
+
+    expect(fs.existsSync(path.join(pmDir, "swarm"))).toBe(false);
+  });
 });

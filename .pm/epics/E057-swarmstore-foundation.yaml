@@ -38,7 +38,7 @@ stories:
       - >-
         Unit tests in src/schemas/__tests__/swarm-store.schema.test.ts verify valid payloads pass and invalid payloads
         (missing fields, out-of-range values, wrong enums) fail for each schema
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on: []
@@ -62,7 +62,7 @@ stories:
       - >-
         Unit tests cover: write then read round-trip, list with multiple files, delete existing and non-existing, read
         of corrupted YAML returns null
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -82,7 +82,7 @@ stories:
       - >-
         Unit tests verify: exact match=1.0, similar strings expected ratios, unrelated below threshold, empty namespace
         returns empty
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on:
@@ -103,7 +103,7 @@ stories:
       - If .pm/swarm/ already exists, prints warning and does not overwrite existing files
       - 'If .pm/ does not exist, fails with clear error: No project found. Run pm init first.'
       - The swarm subdirectory is NOT created by pm init -- it is opt-in via pm swarm init only
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
@@ -120,7 +120,7 @@ stories:
       - 'pm swarm --help lists all registered swarm subcommands (at minimum: init)'
       - Running pm swarm with no subcommand prints the help text
       - The swarm command group is registered in src/cli.ts following the existing Commander pattern
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on:
@@ -139,7 +139,7 @@ stories:
       - All three tools accept and require workdir parameter
       - Tools return graceful error messages (not stack traces) for invalid inputs or missing .pm/swarm/
       - Integration tests in src/__tests__/mcp-server.test.ts cover each tool happy path and error case
-    status: backlog
+    status: done
     priority: medium
     story_points: 5
     depends_on:

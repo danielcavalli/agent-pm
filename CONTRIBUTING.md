@@ -48,7 +48,7 @@ src/
       useMouseScroll.ts     # Mouse wheel scroll support
 install/
   install.sh                # Multi-client installer (npm global + MCP + slash commands)
-  agents-rules.md           # Autonomous filing rules template (injected into AGENTS.md)
+  agents-rules.md           # Autonomous filing rules template used by `pm rules init`
   commands/                 # Slash command Markdown files (one per /pm-* command)
   COMMANDS.md               # Slash command index
 docs/
@@ -93,6 +93,22 @@ npm run build     # Compile TypeScript to dist/
 
 The build produces `dist/cli.js` (CLI entry) and `dist/mcp-server.js` (MCP server entry). Both get `chmod +x` automatically.
 
+To refresh the generated CLI surface, MCP surface, and command reference from the canonical contract registry, run:
+
+```bash
+npm run refresh:command-artifacts
+```
+
+This writes `docs/reference/cli-surface.txt`, `docs/reference/mcp-tools.json`, and `docs/reference/commands.md`.
+
+To verify that the checked-in generated artifacts are in sync with the canonical contract, run:
+
+```bash
+npm run build && npm run check:command-surface
+```
+
+The mutation policy for every write/destructive command lives in `docs/reference/mutation-operations.md`. Update it whenever you add a new mutable command path or change the locking/atomicity expectations of an existing one.
+
 ## Testing
 
 ```bash
@@ -102,6 +118,7 @@ npm test          # Run all tests with vitest
 Tests live alongside the code they test (`src/**/__tests__/`). They use the `PM_HOME` environment variable pointed at temporary directories for isolation -- tests never touch real `.pm/` data.
 
 Key test areas:
+
 - `src/__tests__/mcp-server.test.ts` -- End-to-end MCP server tests using the MCP SDK client
 - `src/commands/__tests__/` -- CLI command tests (init, epic, story, work, consolidate, gc, ADR, agent, etc.)
 - `src/tui/__tests__/` -- TUI component and interaction tests
@@ -159,20 +176,49 @@ Zod schemas in `src/schemas/` define the shape of all YAML data. When modifying:
 
 ## How install.sh Works
 
-The installer (`install/install.sh`) is idempotent:
+The installer (`install/install.sh`) is idempotent and supports `--non-interactive` (or `PM_INSTALL_NON_INTERACTIVE=1`) for unattended setup:
 
-1. Runs `npm install -g . --force` to install the `pm` binary globally
-2. Detects AI clients by checking for `~/.config/opencode/` and `~/.claude/`
-3. For each detected client:
-   - Registers the MCP server in the client's config
-   - Copies all `install/commands/pm-*.md` to the client's commands directory
-4. Removes any legacy global agent rules from client AGENTS.md files
+1. Runs `npm install` locally so build-time devDependencies are available, then `npm install -g .`
+2. Checks for `tmux` and offers to install it interactively if missing
+3. Detects AI clients by checking for `~/.config/opencode/` and the Claude CLI / `~/.claude/`
+4. For each detected client:
+   - Registers the shared MCP server (`dist/mcp-server.js`)
+   - Copies all `install/commands/pm-*.md` files to the client's commands directory
+5. Removes stale OpenCode plugin artifacts and legacy globally-injected PM rules
+
+Before the installer overwrites an existing client config, command file, or legacy artifact, it creates a timestamped sibling backup named like `<path>.pm-backup-<timestamp>`. If a write fails after backup creation, the installer restores the original file when possible and reports the backup locations in the success summary. To restore manually, copy the backup file back to the original path.
+
+Claude Code MCP registration uses `claude mcp add -s user pm-tools -- node <path>`, not manual edits to `~/.claude/settings.json`.
+
+Use `bash install/install.sh --non-interactive` or `PM_INSTALL_NON_INTERACTIVE=1` when prompts are not allowed; the installer will skip interactive tmux installation and use safe defaults.
 
 Agent rules are installed per-repo via `pm rules init`, not globally.
+
+## Documentation Review Checklist
+
+When you change the command surface or installer behavior, verify these docs in the same PR:
+
+1. `PRD.md` matches current CLI / MCP / slash-command counts and installation behavior
+2. `CONTRIBUTING.md` matches the actual contributor workflow and installer behavior
+3. `docs/guide.md` reflects any user-visible workflow changes
+4. `install/COMMANDS.md` matches the slash command files in `install/commands/`
+5. The canonical references still agree with implementation: `src/cli.ts` and `src/mcp-server.ts`
+6. `docs/reference/commands.md` has been regenerated if contract metadata changed
+
+## Mutation Review Checklist
+
+When you add or change a write/destructive command, verify these items in the same PR:
+
+1. `docs/reference/mutation-operations.md` includes the command path and correct mutation category
+2. Mutation policy conformance is explicit: safety level, lock class, and atomicity rule all match the implementation intent
+3. Any shared allocator/index updates are covered by the same lock scope as the primary write
+4. Tests cover the policy/documentation contract when the mutable command surface changes
 
 ## Submitting Changes
 
 1. Create a branch
 2. Make changes
-3. `npm run build && npm test`
+3. Run `npm run lint && npm run build && npm test`
 4. Submit a pull request describing what changed and why
+
+Pull requests now run the same lint, build, and test checks in GitHub Actions. Keeping the local commands green before you open or update a PR should match the CI result.

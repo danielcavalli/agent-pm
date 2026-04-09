@@ -37,6 +37,7 @@ const KEYBINDING_GROUPS: KeyBindingGroup[] = [
     bindings: [
       { key: "Tab", description: "Cycle focus between panels" },
       { key: "a", description: "Toggle agent sidebar" },
+      { key: "l", description: "Toggle agent info/log view" },
       { key: "Enter", description: "Expand/collapse epic in tree" },
     ],
   },
@@ -44,8 +45,10 @@ const KEYBINDING_GROUPS: KeyBindingGroup[] = [
     category: "Actions",
     bindings: [
       { key: "x", description: "Dispatch agent for selected story/epic" },
+      { key: "s", description: "Update selected story status" },
       { key: "c / y", description: "Copy selected code to clipboard" },
       { key: "e", description: "Respond to escalation" },
+      { key: "K", description: "Kill selected agent" },
       { key: "/", description: "Start search" },
       { key: "Esc", description: "Cancel search / reset filters" },
       { key: "q", description: "Quit" },
@@ -54,7 +57,10 @@ const KEYBINDING_GROUPS: KeyBindingGroup[] = [
   {
     category: "Filters",
     bindings: [
-      { key: "f", description: "Cycle tree filter (or agent filter when sidebar focused)" },
+      {
+        key: "f",
+        description: "Cycle tree filter (or agent filter when sidebar focused)",
+      },
       { key: "?", description: "Toggle this help overlay" },
     ],
   },
@@ -74,7 +80,9 @@ export function HelpOverlay({ width, height }: HelpOverlayProps) {
 
   lines.push(
     <Box key="sep-title" width={width}>
-      <Text color={tc(theme.border)}>{"\u2500".repeat(Math.min(width - 4, 60))}</Text>
+      <Text color={tc(theme.border)}>
+        {"\u2500".repeat(Math.min(width - 4, 60))}
+      </Text>
     </Box>,
   );
 

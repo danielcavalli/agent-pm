@@ -11,28 +11,30 @@ import {
 } from "../../__tests__/integration-helpers.js";
 import { resetProjectCodeCache } from "../../lib/codes.js";
 
+const mockLlmComplete = vi.fn().mockResolvedValue(
+  JSON.stringify({
+    candidates: [
+      {
+        type: "confirmed_decision",
+        content: "Use TypeScript for all new modules",
+        sourceReportIds: ["TEST-E001-S001", "TEST-E001-S002"],
+      },
+    ],
+    unmatched: [
+      {
+        reportId: "TEST-E001-S001",
+        category: "assumption",
+        text: "Performance is not critical",
+      },
+    ],
+    summary: "TypeScript decision confirmed across reports",
+  }),
+);
+
 // Mock the LLM client so we don't need real API keys
 vi.mock("../../lib/llm.js", () => ({
   createLLMClient: () => ({
-    complete: vi.fn().mockResolvedValue(
-      JSON.stringify({
-        candidates: [
-          {
-            type: "confirmed_decision",
-            content: "Use TypeScript for all new modules",
-            sourceReportIds: ["TEST-E001-S001", "TEST-E001-S002"],
-          },
-        ],
-        unmatched: [
-          {
-            reportId: "TEST-E001-S001",
-            category: "assumption",
-            text: "Performance is not critical",
-          },
-        ],
-        summary: "TypeScript decision confirmed across reports",
-      }),
-    ),
+    complete: mockLlmComplete,
   }),
 }));
 
@@ -135,6 +137,26 @@ describe("consolidation dry-run (E042-S004)", () => {
   beforeEach(async () => {
     tmp = setupTmpDir();
     out = captureOutput();
+    mockLlmComplete.mockReset();
+    mockLlmComplete.mockResolvedValue(
+      JSON.stringify({
+        candidates: [
+          {
+            type: "confirmed_decision",
+            content: "Use TypeScript for all new modules",
+            sourceReportIds: ["TEST-E001-S001", "TEST-E001-S002"],
+          },
+        ],
+        unmatched: [
+          {
+            reportId: "TEST-E001-S001",
+            category: "assumption",
+            text: "Performance is not critical",
+          },
+        ],
+        summary: "TypeScript decision confirmed across reports",
+      }),
+    );
     resetProjectCodeCache();
     await seedProject({ code: "TEST", name: "Test Project" });
   });
@@ -150,10 +172,14 @@ describe("consolidation dry-run (E042-S004)", () => {
   it("AC1: dry-run prints proposed ADRs that would be created", async () => {
     const reportsDir = path.join(tmp.projectsDir, "reports");
     createReportFile(reportsDir, "TEST-E001-S001", {
-      decisions: [{ type: "semantic", text: "Use TypeScript for all new modules" }],
+      decisions: [
+        { type: "semantic", text: "Use TypeScript for all new modules" },
+      ],
     });
     createReportFile(reportsDir, "TEST-E001-S002", {
-      decisions: [{ type: "semantic", text: "Use TypeScript for all new modules" }],
+      decisions: [
+        { type: "semantic", text: "Use TypeScript for all new modules" },
+      ],
     });
 
     const { consolidate } = await import("../consolidate.js");
@@ -256,9 +282,7 @@ describe("consolidation dry-run (E042-S004)", () => {
     expect(fs.readFileSync(projectYamlPath, "utf8")).toBe(projectBefore);
 
     // Verify no new ADR files were created
-    const adrsAfter = fs.existsSync(adrDir)
-      ? fs.readdirSync(adrDir).length
-      : 0;
+    const adrsAfter = fs.existsSync(adrDir) ? fs.readdirSync(adrDir).length : 0;
     expect(adrsAfter).toBe(adrsBefore);
   });
 
@@ -286,7 +310,9 @@ describe("consolidation dry-run (E042-S004)", () => {
     expect(output).toContain("[DRY RUN] Proposed ADRs");
 
     // Consolidated items section
-    expect(output).toContain("[DRY RUN] Items that would be marked consolidated");
+    expect(output).toContain(
+      "[DRY RUN] Items that would be marked consolidated",
+    );
 
     // Footer
     expect(output).toContain("[DRY RUN] Consolidation preview complete");
@@ -323,9 +349,10 @@ describe("consolidation dry-run (E042-S004)", () => {
     await consolidate("TEST", { dryRun: true });
 
     // After dry-run, the report file should still have consolidated: false
-    const content = yaml.load(
-      fs.readFileSync(rpPath, "utf8"),
-    ) as Record<string, unknown>;
+    const content = yaml.load(fs.readFileSync(rpPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
     expect(content.consolidated).toBe(false);
 
     // A subsequent real ingestion should still pick up the reports
@@ -355,5 +382,75 @@ describe("consolidation dry-run (E042-S004)", () => {
     const output = out.log().join("\n");
     expect(output).toContain("[DRY RUN]");
     expect(output).toContain("No files were written");
+  });
+
+  it("AC2: summary reports warning counts for unreadable inputs", async () => {
+    const reportsDir = path.join(tmp.projectsDir, "reports");
+    createReportFile(reportsDir, "TEST-E001-S001", {
+      decisions: [{ type: "semantic", text: "Use TypeScript" }],
+    });
+    fs.writeFileSync(
+      path.join(reportsDir, "broken-report.yaml"),
+      "task_id: [not valid yaml",
+      "utf8",
+    );
+
+    const stderrChunks: string[] = [];
+    const origStderrWrite = process.stderr.write;
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrChunks.push(typeof chunk === "string" ? chunk : chunk.toString());
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      const { consolidate } = await import("../consolidate.js");
+      const result = await consolidate("TEST", { dryRun: true });
+
+      expect(result.warningCount).toBe(1);
+      expect(result.errorCount).toBe(0);
+      expect(result.partialFailure).toBe(true);
+
+      const output = out.log().join("\n");
+      expect(output).toContain("Warnings: 1, Errors: 0");
+      expect(output).toContain("Partial result");
+      expect(stderrChunks.join("\n")).toContain("[pm consolidate] warning");
+      expect(stderrChunks.join("\n")).toContain("stage=ingest_reports");
+      expect(stderrChunks.join("\n")).toContain("broken-report.yaml");
+    } finally {
+      process.stderr.write = origStderrWrite;
+    }
+  });
+
+  it("AC4: parse fallback warning is visible for invalid synthesis output", async () => {
+    const reportsDir = path.join(tmp.projectsDir, "reports");
+    createReportFile(reportsDir, "TEST-E001-S001", {
+      assumptions: [{ type: "semantic", text: "Performance is not critical" }],
+    });
+    mockLlmComplete.mockResolvedValueOnce("not valid json");
+
+    const stderrChunks: string[] = [];
+    const origStderrWrite = process.stderr.write;
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrChunks.push(typeof chunk === "string" ? chunk : chunk.toString());
+      return true;
+    }) as typeof process.stderr.write;
+
+    try {
+      const { consolidateRun } = await import("../consolidate.js");
+      process.exitCode = 0;
+      await consolidateRun({ dryRun: true });
+
+      const output = out.log().join("\n");
+      expect(output).toContain("Warnings: 1, Errors: 0");
+      expect(output).toContain("Partial result");
+      expect(process.exitCode).toBe(1);
+      expect(stderrChunks.join("\n")).toContain("stage=synthesis_parse");
+      expect(stderrChunks.join("\n")).toContain(
+        "falling back to raw unmatched items",
+      );
+    } finally {
+      process.stderr.write = origStderrWrite;
+      process.exitCode = 0;
+    }
   });
 });

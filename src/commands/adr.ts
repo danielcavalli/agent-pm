@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import chalk from "chalk";
 import { getPmDir } from "../lib/codes.js";
+import { writeText } from "../lib/fs.js";
 import {
   ADRSchema,
   ADRIndexSchema,
@@ -76,7 +77,7 @@ export async function adrCreate(options: {
     noRefs: true,
     sortKeys: false,
   });
-  fs.writeFileSync(filePath, content, "utf8");
+  writeText(filePath, content);
 
   await updateAdrIndex(validated);
 
@@ -148,7 +149,7 @@ export async function updateAdrIndex(newAdr: ADR): Promise<void> {
     noRefs: true,
     sortKeys: false,
   });
-  fs.writeFileSync(indexPath, content, "utf8");
+  writeText(indexPath, content);
 }
 
 export async function adrList(_projectCode: string): Promise<void> {
@@ -283,10 +284,7 @@ export async function adrQuery(options: AdrQueryOptions): Promise<void> {
   }
 
   // Merge single --tag with --tags array for backward compatibility
-  const queryTags: string[] = [
-    ...(tag ? [tag] : []),
-    ...(tagsOpt ?? []),
-  ];
+  const queryTags: string[] = [...(tag ? [tag] : []), ...(tagsOpt ?? [])];
   // Remove duplicates
   const uniqueQueryTags = [...new Set(queryTags)];
 
@@ -400,9 +398,7 @@ export async function adrQuery(options: AdrQueryOptions): Promise<void> {
       }
     } else {
       console.log(
-        chalk.dim(
-          "ID        Title                          Status       Tags",
-        ),
+        chalk.dim("ID        Title                          Status       Tags"),
       );
       console.log(chalk.dim("─".repeat(70)));
 

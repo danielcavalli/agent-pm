@@ -1,10 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { listAgents } from "../../lib/agent-state.js";
+import {
+  AGENT_HEARTBEAT_STALE_MS,
+  getHeartbeatStaleThresholdMs,
+  listAgents,
+} from "../../lib/agent-state.js";
 import { getPmDir } from "../../lib/codes.js";
-import type { AgentState } from "../../schemas/agent-state.schema.js";
+import type { ObservedAgentState } from "../../lib/agent-state.js";
+
+const HEARTBEAT_REFRESH_MS = Math.max(5_000, AGENT_HEARTBEAT_STALE_MS / 4);
 
 export interface UseAgentListResult {
-  agents: AgentState[];
+  agents: ObservedAgentState[];
   hasAgents: boolean;
   reload: () => void;
 }
@@ -14,7 +20,7 @@ export interface UseAgentListResult {
  * Returns an empty array if the directory doesn't exist or has no valid agents.
  */
 export function useAgentList(): UseAgentListResult {
-  const [agents, setAgents] = useState<AgentState[]>([]);
+  const [agents, setAgents] = useState<ObservedAgentState[]>([]);
 
   const pmDir = useMemo(() => {
     try {
@@ -30,7 +36,8 @@ export function useAgentList(): UseAgentListResult {
       return;
     }
     try {
-      const result = listAgents(pmDir);
+      const staleAfterMs = getHeartbeatStaleThresholdMs(pmDir);
+      const result = listAgents(pmDir, staleAfterMs);
       setAgents(result);
     } catch {
       setAgents([]);
@@ -40,6 +47,20 @@ export function useAgentList(): UseAgentListResult {
   useEffect(() => {
     loadAgents();
   }, [loadAgents]);
+
+  useEffect(() => {
+    if (!pmDir) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      loadAgents();
+    }, HEARTBEAT_REFRESH_MS);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [loadAgents, pmDir]);
 
   const hasAgents = agents.length > 0;
 

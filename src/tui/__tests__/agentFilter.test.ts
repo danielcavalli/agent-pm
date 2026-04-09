@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  agentNeedsAttention,
   filterAgents,
   nextAgentFilter,
   sidebarHeader,
 } from "../components/AgentSidebar.js";
 import type { AgentFilterMode } from "../components/AgentSidebar.js";
-import type { AgentState } from "../../schemas/agent-state.schema.js";
+import type { ObservedAgentState } from "../../lib/agent-state.js";
 
 /**
  * Tests for PM-E053-S006: Agent filter in sidebar.
@@ -20,14 +21,16 @@ import type { AgentState } from "../../schemas/agent-state.schema.js";
  */
 
 function makeAgent(
-  overrides: Partial<AgentState> & {
+  overrides: Partial<ObservedAgentState> & {
     agent_id: string;
-    status: AgentState["status"];
+    status: ObservedAgentState["status"];
   },
-): AgentState {
+): ObservedAgentState {
   return {
     started_at: "2026-03-13T10:00:00Z",
     last_heartbeat: "2026-03-13T10:05:00Z",
+    heartbeat_age_ms: 0,
+    heartbeat_stale: false,
     ...overrides,
   };
 }
@@ -35,7 +38,7 @@ function makeAgent(
 // ── filterAgents ────────────────────────────────────────────────────────────
 
 describe("filterAgents", () => {
-  const agents: AgentState[] = [
+  const agents: ObservedAgentState[] = [
     makeAgent({ agent_id: "a1", status: "active" }),
     makeAgent({ agent_id: "a2", status: "idle" }),
     makeAgent({ agent_id: "a3", status: "needs_attention" }),
@@ -84,6 +87,40 @@ describe("filterAgents", () => {
     const result = filterAgents(attentionOnly, "attention");
     expect(result).toHaveLength(1);
     expect(result[0]!.agent_id).toBe("n1");
+  });
+
+  it("includes stale agents in attention filter", () => {
+    const staleOnly = [
+      makeAgent({ agent_id: "s1", status: "active", heartbeat_stale: true }),
+    ];
+
+    const result = filterAgents(staleOnly, "attention");
+    expect(result).toHaveLength(1);
+    expect(result[0]!.agent_id).toBe("s1");
+  });
+});
+
+describe("agentNeedsAttention", () => {
+  it("returns true for stale heartbeats", () => {
+    expect(
+      agentNeedsAttention(
+        makeAgent({ agent_id: "s1", status: "active", heartbeat_stale: true }),
+      ),
+    ).toBe(true);
+  });
+
+  it("returns true for crashed tracked processes", () => {
+    expect(
+      agentNeedsAttention(
+        makeAgent({ agent_id: "c1", status: "active", process_crashed: true }),
+      ),
+    ).toBe(true);
+  });
+
+  it("returns false for fresh active agents", () => {
+    expect(
+      agentNeedsAttention(makeAgent({ agent_id: "a1", status: "active" })),
+    ).toBe(false);
   });
 });
 

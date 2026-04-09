@@ -8,7 +8,7 @@ interface UseFileWatcherOptions {
 }
 
 /**
- * Watch the projects directory recursively for *.yaml changes.
+ * Watch the projects directory recursively for *.yaml and *.log changes.
  * Debounces rapid successive changes to avoid flicker.
  * Calls onReload when a change is detected.
  */
@@ -40,7 +40,7 @@ export function useFileWatcher({
           if (!filename) return;
           const name =
             typeof filename === "string" ? filename : filename.toString("utf8");
-          if (name.endsWith(".yaml")) {
+          if (name.endsWith(".yaml") || name.endsWith(".log")) {
             scheduleReload();
           }
         },

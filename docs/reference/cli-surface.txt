@@ -1,0 +1,393 @@
+# CLI Surface
+
+## pm init
+description: Initialize a new project and create its YAML definition
+arguments:
+- none
+options:
+- --name <name> | description=Project name (required) | required=yes
+- --code <code> | description=Optional project code override
+- --description <desc> | description=Project description (default: ) | default=
+- --vision <vision> | description=Project vision statement (default: ) | default=
+- --tech-stack <items...> | description=Technology stack entries (repeatable) (default: []) | default=[]
+- --architecture <pattern> | description=Architecture pattern label (default: ) | default=
+
+## pm remove
+description: Remove the .pm/ directory and all project data (e.g. pm remove --force)
+arguments:
+- none
+options:
+- --force | description=Skip confirmation
+
+## pm swarm
+description: Manage SwarmStore initialization and storage
+arguments:
+- none
+options:
+- none
+
+## pm swarm init
+description: Initialize optional swarm storage under .pm/swarm with default templates
+arguments:
+- none
+options:
+- none
+
+## pm swarm analyze
+description: Analyze swarm experiment state and print an operator-friendly YAML summary
+arguments:
+- none
+options:
+- none
+
+## pm epic
+description: Manage epics within a project
+arguments:
+- none
+options:
+- none
+
+## pm epic add [projectCode]
+description: Add a new epic to a project (e.g. pm epic add PM --title "Auth")
+arguments:
+- [projectCode]
+options:
+- --title <title> | description=Epic title (required) | required=yes
+- --description <desc> | description=Epic description (default: ) | default=
+- --priority <priority> | description=Epic priority: high | medium | low (default: medium) | default=medium
+
+## pm epic list [projectCode]
+description: List all epics for a project with status and story counts
+arguments:
+- [projectCode]
+options:
+- none
+
+## pm epic sync [projectCode]
+description: Sync epic statuses from story completion (e.g. all stories done → epic done)
+arguments:
+- [projectCode]
+options:
+- none
+
+## pm story
+description: Manage stories within an epic
+arguments:
+- none
+options:
+- none
+
+## pm story add <epicCode>
+description: Add a new story to an epic (e.g. pm story add E001 --title "..." or pm story add PM-E001 --title "...")
+arguments:
+- <epicCode>
+options:
+- --title <title> | description=Story title (required) | required=yes
+- --description <desc> | description=Story description (default: ) | default=
+- --points <points> | description=Story point estimate: 1 | 2 | 3 | 5 | 8 (default: 3) | default=3
+- --priority <priority> | description=Story priority: high | medium | low (default: medium) | default=medium
+- --criteria <criteria...> | description=Acceptance criteria entries (repeatable) (default: []) | default=[]
+- --depends-on <storyCode...> | description=Story dependencies (repeatable) (default: []) | default=[]
+
+## pm story list <epicCode>
+description: List all stories for an epic with status and priority
+arguments:
+- <epicCode>
+options:
+- --deps | description=Include dependency information
+- --type <type> | description=Optional resolution-task filter: conflict | gap
+
+## pm story update <storyCode>
+description: Update a story status or priority (e.g. pm story update E001-S001 --status done)
+arguments:
+- <storyCode>
+options:
+- --status <status> | description=New story status: backlog | in_progress | done | cancelled
+- --priority <priority> | description=New story priority: high | medium | low
+- --depends-on <storyCode...> | description=Replacement dependency list (repeatable)
+
+## pm work <storyCode>
+description: Load a story context and mark it in_progress (e.g. pm work E001-S001 or pm work PM-E001-S001)
+arguments:
+- <storyCode>
+options:
+- none
+
+## pm prioritize [projectCode]
+description: Output prioritization context for a project or epic
+arguments:
+- [projectCode]
+options:
+- --epic <epicCode> | description=Epic code override
+- --strategy <strategy> | description=Prioritization strategy description
+
+## pm rules
+description: Manage PM agent rules in project AGENTS.md files
+arguments:
+- none
+options:
+- none
+
+## pm rules init
+description: Write PM agent rules into the project's AGENTS.md (idempotent)
+arguments:
+- none
+options:
+- --path <path> | description=Target AGENTS.md path (default: ./AGENTS.md) | default=./AGENTS.md
+
+## pm rules remove
+description: Remove PM agent rules from a project's AGENTS.md
+arguments:
+- none
+options:
+- --path <path> | description=Target AGENTS.md path (default: ./AGENTS.md) | default=./AGENTS.md
+
+## pm status
+description: Show project status summary for the local .pm/ project
+arguments:
+- none
+options:
+- --json | description=Emit machine-readable output
+
+## pm migrate
+description: Migrate project data between storage locations
+arguments:
+- none
+options:
+- none
+
+## pm migrate to-local
+description: Migrate a project from global ~/.pm/projects/{CODE}/ to local .pm/ at target
+arguments:
+- none
+options:
+- --code <code> | description=Project code to migrate (required) | required=yes
+- --target <path> | description=Target repository path (required) | required=yes
+- --cleanup | description=Remove the original global project after migration
+
+## pm migrate from-source
+description: Migrate projects from a source directory to .pm/
+arguments:
+- none
+options:
+- --source <path> | description=Source directory to migrate from
+
+## pm tui
+description: Launch the interactive TUI dashboard (live project board)
+arguments:
+- none
+options:
+- none
+
+## pm gc
+description: Garbage collection for completed tasks and stale artifacts
+arguments:
+- none
+options:
+- none
+
+## pm gc run
+description: Run garbage collection on the local .pm/ directory
+arguments:
+- none
+options:
+- --dry-run | description=Preview changes without executing them
+- --verbose | description=Show TTL evaluation details
+
+## pm consolidate
+description: Consolidation pipeline for execution reports and comments
+arguments:
+- none
+options:
+- none
+
+## pm consolidate run
+description: Run the consolidation pipeline
+arguments:
+- none
+options:
+- --dry-run | description=Preview outputs without writing files
+
+## pm consolidate config
+description: Display the current consolidation configuration
+arguments:
+- none
+options:
+- none
+
+## pm adr
+description: Manage Architecture Decision Records (ADRs)
+arguments:
+- none
+options:
+- none
+
+## pm adr create
+description: Create a new ADR (e.g. pm adr create --project PM --title ...)
+arguments:
+- none
+options:
+- --project <code> | description=Project code (required) | required=yes
+- --title <title> | description=ADR title (required) | required=yes
+- --status <status> | description=ADR lifecycle status: proposed | accepted | deprecated | superseded (required) | required=yes
+- --context <context> | description=Decision context (required) | required=yes
+- --decision <decision> | description=Decision statement (required) | required=yes
+- --positive <items...> | description=Positive consequences (repeatable) (default: []) | default=[]
+- --negative <items...> | description=Negative consequences (repeatable) (default: []) | default=[]
+- --author-type <type> | description=ADR author type: agent | human (default: human) | default=human
+- --author <name> | description=Human author name
+- --author-id <id> | description=Agent author identifier
+- --tags <tags...> | description=ADR tags (repeatable) (default: []) | default=[]
+
+## pm adr list [projectCode]
+description: List all ADRs for a project
+arguments:
+- [projectCode]
+options:
+- none
+
+## pm adr query [projectCode]
+description: Query ADRs with filters, ranked by relevance
+arguments:
+- [projectCode]
+options:
+- --id <pattern> | description=ADR id pattern
+- --status <status> | description=ADR status filter: proposed | accepted | deprecated | superseded
+- --tag <tag> | description=Single-tag filter
+- --tags <tags...> | description=Multi-tag filter (repeatable)
+- --author-type <type> | description=Author-type filter: agent | human
+- --author <author> | description=Author filter
+- --search <text> | description=Full-text search string
+- --limit <n> | description=Maximum result count (default: 5) | default=5
+- --format <fmt> | description=Output format: summary | full (default: summary) | default=summary
+- --verbose | description=Show relevance scores in summary mode
+- --include-superseded | description=Include superseded and deprecated ADRs
+
+## pm comment
+description: Manage cross-task comments
+arguments:
+- none
+options:
+- none
+
+## pm comment add
+description: Add a comment to an epic or story
+arguments:
+- none
+options:
+- --target <taskId> | description=Target task id (required) | required=yes
+- --type <type> | description=Comment type: agent | human (required) | required=yes
+- --content <content> | description=Comment body (required) | required=yes
+- --tags <tags...> | description=Comment tags (repeatable) (default: []) | default=[]
+- --author <name> | description=Human author name
+- --author-id <id> | description=Agent author id
+
+## pm comment list
+description: List comments with optional filters
+arguments:
+- none
+options:
+- --project <code> | description=Project code
+- --task <taskId> | description=Target task filter
+- --type <type> | description=Comment type filter: agent | human
+- --author <author> | description=Author filter
+
+## pm report
+description: Manage agent execution reports
+arguments:
+- none
+options:
+- none
+
+## pm report create
+description: Create an execution report for a story
+arguments:
+- none
+options:
+- --task-id <taskId> | description=Story id (required) | required=yes
+- --agent-id <agentId> | description=Agent identifier
+- --timestamp <timestamp> | description=ISO-8601 report timestamp
+- --status <status> | description=Report status: complete | partial (default: complete) | default=complete
+- --decisions <items...> | description=Decision items (repeatable) (default: []) | default=[]
+- --assumptions <items...> | description=Assumption items (repeatable) (default: []) | default=[]
+- --tradeoffs <items...> | description=Tradeoff items (repeatable) (default: []) | default=[]
+- --out-of-scope <items...> | description=Out-of-scope items (repeatable) (default: []) | default=[]
+- --potential-conflicts <items...> | description=Potential conflict items (repeatable) (default: []) | default=[]
+- --force | description=Overwrite an existing report
+
+## pm report view <taskId>
+description: View an execution report by story ID
+arguments:
+- <taskId>
+options:
+- none
+
+## pm mutation
+description: Inspect mutation telemetry and diagnostics
+arguments:
+- none
+options:
+- none
+
+## pm mutation diagnostics
+description: Inspect recent mutation failures, warnings, and lock contention
+arguments:
+- none
+options:
+- --limit <n> | description=Maximum anomalies to display (default: 10) | default=10
+- --detailed | description=Show detailed multi-line output
+
+## pm agent
+description: Agent lifecycle commands (heartbeat, escalate, check-response)
+arguments:
+- none
+options:
+- none
+
+## pm agent heartbeat
+description: Send a heartbeat for an agent, creating or updating its state file
+arguments:
+- none
+options:
+- --agent-id <agentId> | description=Unique agent identifier (required) | required=yes
+- --session-id <sessionId> | description=Session identifier
+- --log-file <logFile> | description=Declared agent log file path
+- --status <status> | description=Agent status: active | idle | needs_attention | blocked | completed (default: active) | default=active
+- --current-task <currentTask> | description=Current story code
+- --progress-summary <progressSummary> | description=High-level progress summary
+- --total-criteria <totalCriteria> | description=Total criteria tracked in progress
+- --completed-criteria <completedCriteria> | description=Completed criteria count
+- --current-step <currentStep> | description=Current execution step label
+- --criteria-status <criteriaStatus> | description=Per-criterion progress entries
+
+## pm agent escalate
+description: Escalate an issue, setting agent status to needs_attention with escalation details
+arguments:
+- none
+options:
+- --agent-id <agentId> | description=Unique agent identifier (required) | required=yes
+- --type <type> | description=Escalation type: decision | clarification | approval | error (required) | required=yes
+- --message <message> | description=Escalation message (required) | required=yes
+- --confidence <confidence> | description=Confidence level from 0 to 1
+- --options <options...> | description=Escalation options (repeatable)
+
+## pm agent check-response
+description: Check for a human response to an agent escalation (read-once: deletes after read)
+arguments:
+- none
+options:
+- --agent-id <agentId> | description=Unique agent identifier (required) | required=yes
+
+## pm escalation
+description: Inspect escalation history across agents
+arguments:
+- none
+options:
+- none
+
+## pm escalation list
+description: List escalation history across all agents, with optional agent filtering
+arguments:
+- none
+options:
+- --agent <agent> | description=Filter escalation history to a specific agent ID

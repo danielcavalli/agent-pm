@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import * as fs from "node:fs";
 import chalk from "chalk";
-import { readYaml, writeYaml } from "../lib/fs.js";
+import { readYaml, withLock, writeYaml } from "../lib/fs.js";
 import { getPmDir, findEpicFile } from "../lib/codes.js";
 import { ValidationError, YamlNotFoundError } from "../lib/errors.js";
 import { EpicSchema, Epic } from "../schemas/epic.schema.js";
@@ -129,65 +129,84 @@ export async function commentAdd(
   const commentsDir = path.join(pmDir, "comments");
   fs.mkdirSync(commentsDir, { recursive: true });
 
-  const commentId = getNextCommentNumber();
-  const now = new Date().toISOString();
-
-  const author =
-    authorId && authorId.length > 0
-      ? { type: "agent" as const, agent_id: authorId }
-      : { type: "human" as const, name: authorName || "anonymous" };
-
-  const comment: CrossTaskComment = {
-    id: commentId,
-    target_task_id: targetTaskId,
-    comment_type: commentType as "agent" | "human",
-    content,
-    author,
-    timestamp: now,
-    tags,
-    consolidated: false,
-    consumed_by: [],
-    references: [],
-    created_at: now,
-    updated_at: now,
-  };
-
-  const commentFileName = `${commentId}-${content.slice(0, 30).replace(/[^a-z0-9]/gi, "-")}.yaml`;
-  const commentFilePath = path.join(commentsDir, commentFileName);
-  writeYaml(commentFilePath, comment);
-
   const indexPath = path.join(commentsDir, "index.yaml");
   type CommentIndexEntry = {
     comment_id: string;
     task_reference: string;
     created_at: string;
   };
-  let index: {
-    comments: CrossTaskComment[];
-    by_task: Record<string, CommentIndexEntry[]>;
-    last_updated: string;
-  };
-  try {
-    index = readYaml(indexPath, CommentIndexSchema);
-  } catch {
-    index = { comments: [], by_task: {}, last_updated: now };
-  }
+  let createdCommentId = "";
 
-  index.comments.push(comment);
-  index.last_updated = now;
+  await withLock(indexPath, () => {
+    const commentId = getNextCommentNumber();
+    const now = new Date().toISOString();
+    const author =
+      authorId && authorId.length > 0
+        ? { type: "agent" as const, agent_id: authorId }
+        : { type: "human" as const, name: authorName || "anonymous" };
 
-  if (!index.by_task[targetTaskId]) {
-    index.by_task[targetTaskId] = [];
-  }
-  index.by_task[targetTaskId]!.push({
-    comment_id: commentId,
-    task_reference: targetTaskId,
-    created_at: now,
+    const comment: CrossTaskComment = {
+      id: commentId,
+      target_task_id: targetTaskId,
+      comment_type: commentType as "agent" | "human",
+      content,
+      author,
+      timestamp: now,
+      tags,
+      consolidated: false,
+      consumed_by: [],
+      references: [],
+      created_at: now,
+      updated_at: now,
+    };
+
+    const commentFileName = `${commentId}-${content.slice(0, 30).replace(/[^a-z0-9]/gi, "-")}.yaml`;
+    const commentFilePath = path.join(commentsDir, commentFileName);
+
+    let index: {
+      comments: CrossTaskComment[];
+      by_task: Record<string, CommentIndexEntry[]>;
+      last_updated: string;
+    };
+
+    try {
+      writeYaml(commentFilePath, comment);
+
+      try {
+        index = readYaml(indexPath, CommentIndexSchema);
+      } catch {
+        index = { comments: [], by_task: {}, last_updated: now };
+      }
+
+      index.comments.push(comment);
+      index.last_updated = now;
+
+      if (!index.by_task[targetTaskId]) {
+        index.by_task[targetTaskId] = [];
+      }
+      index.by_task[targetTaskId]!.push({
+        comment_id: commentId,
+        task_reference: targetTaskId,
+        created_at: now,
+      });
+
+      writeYaml(indexPath, index);
+      createdCommentId = commentId;
+    } catch (err) {
+      if (fs.existsSync(commentFilePath)) {
+        try {
+          fs.unlinkSync(commentFilePath);
+        } catch {
+          // Best-effort rollback only.
+        }
+      }
+      throw err;
+    }
   });
 
-  writeYaml(indexPath, index);
-
-  console.log(chalk.green(`Comment ${commentId} added to ${targetTaskId}`));
+  console.log(
+    chalk.green(`Comment ${createdCommentId} added to ${targetTaskId}`),
+  );
 }
 
 export async function commentList(

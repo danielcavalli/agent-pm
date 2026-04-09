@@ -35,6 +35,8 @@ export const ConsolidationConfigSchema = z.object({
   trigger_mode: TriggerModeSchema.default("manual"),
   trigger_event_count: z.number().int().positive().optional(),
   trigger_interval_minutes: z.number().int().positive().optional(),
+  llm_timeout_ms: z.number().int().positive().default(30000),
+  llm_max_retries: z.number().int().min(0).default(2),
   last_consolidated_at: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/, "ISO datetime")
@@ -78,6 +80,59 @@ export const DEFAULT_GC_CONFIG: GcConfig = {
   ttl_adrs_days: 90,
 };
 
+export const DEFAULT_STALE_THRESHOLD_SECONDS = 60;
+
+export const ProjectTuiLinksSchema = z.object({
+  story_url_template: z
+    .string()
+    .min(1, "Story URL template cannot be empty")
+    .refine((value) => value.includes("{code}"), {
+      message: "Story URL template must include {code} placeholder",
+    })
+    .refine((value) => /^https?:\/\//.test(value), {
+      message: "Story URL template must start with http:// or https://",
+    })
+    .optional(),
+});
+export type ProjectTuiLinks = z.infer<typeof ProjectTuiLinksSchema>;
+
+export const ProjectTuiSchema = z.object({
+  links: ProjectTuiLinksSchema.optional(),
+});
+export type ProjectTui = z.infer<typeof ProjectTuiSchema>;
+
+export const ProjectThemeColorsSchema = z.object({
+  bg: z.string().optional(),
+  bgPanel: z.string().optional(),
+  bgDarker: z.string().optional(),
+  bgSelected: z.string().optional(),
+  text: z.string().optional(),
+  textMuted: z.string().optional(),
+  textBright: z.string().optional(),
+  primary: z.string().optional(),
+  secondary: z.string().optional(),
+  accent: z.string().optional(),
+  success: z.string().optional(),
+  warning: z.string().optional(),
+  error: z.string().optional(),
+  info: z.string().optional(),
+  border: z.string().optional(),
+  borderFocused: z.string().optional(),
+});
+export type ProjectThemeColors = z.infer<typeof ProjectThemeColorsSchema>;
+
+export const ProjectThemeConfigSchema = z.object({
+  name: z.string().optional(),
+  colors: ProjectThemeColorsSchema.optional(),
+});
+export type ProjectThemeConfig = z.infer<typeof ProjectThemeConfigSchema>;
+
+export const ProjectThemeSchema = z.union([
+  z.string(),
+  ProjectThemeConfigSchema,
+]);
+export type ProjectTheme = z.infer<typeof ProjectThemeSchema>;
+
 export const ProjectSchema = z.object({
   code: ProjectCodeSchema,
   name: z.string().min(1, "Project name is required"),
@@ -91,6 +146,13 @@ export const ProjectSchema = z.object({
   architecture: ProjectArchitectureSchema.optional(),
   consolidation: ConsolidationConfigSchema.optional(),
   gc_config: GcConfigSchema.optional(),
+  stale_threshold_seconds: z
+    .number()
+    .int()
+    .positive()
+    .default(DEFAULT_STALE_THRESHOLD_SECONDS),
+  theme: ProjectThemeSchema.optional(),
+  tui: ProjectTuiSchema.optional(),
   notes: z.string().optional().default(""),
 });
 export type Project = z.infer<typeof ProjectSchema>;

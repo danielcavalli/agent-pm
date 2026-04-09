@@ -18,6 +18,10 @@
   "scripts": {
     "build": "tsc && chmod +x dist/cli.js dist/mcp-server.js",
     "prepare": "npm run build",
+    "generate:command-artifacts": "node dist/scripts/generate-command-artifacts.js",
+    "refresh:command-artifacts": "npm run build && npm run generate:command-artifacts",
+    "check:command-surface": "node dist/scripts/check-command-artifacts.js",
+    "docs:commands": "npm run refresh:command-artifacts",
     "pm": "node dist/cli.js",
     "test": "vitest run",
     "lint": "eslint src --ext .ts,.tsx",
@@ -43,6 +47,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "blessed": "^0.1.81",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.11.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",

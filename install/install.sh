@@ -9,13 +9,57 @@ set -euo pipefail
 #   3. For each detected client:
 #      a. Register MCP server
 #      b. Copy slash commands
-#      c. Install agent rules
+#   4. Remove stale global PM integration artifacts
 #
 # Supported platforms: Linux, macOS
 # Idempotent: safe to run multiple times.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+RUN_TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+
+declare -a BACKUP_PATHS=()
+LAST_BACKUP_PATH=""
+
+is_truthy() {
+  case "${1:-}" in
+    1|true|TRUE|yes|YES|on|ON)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+NON_INTERACTIVE=false
+if is_truthy "${PM_INSTALL_NON_INTERACTIVE:-}"; then
+  NON_INTERACTIVE=true
+fi
+
+for arg in "$@"; do
+  case "$arg" in
+    --non-interactive)
+      NON_INTERACTIVE=true
+      ;;
+    -h|--help)
+      cat <<'EOF'
+Usage: bash install/install.sh [--non-interactive]
+
+Options:
+  --non-interactive  Bypass installer prompts and use safe defaults.
+
+Environment:
+  PM_INSTALL_NON_INTERACTIVE=1  Enable non-interactive mode.
+EOF
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $arg" >&2
+      exit 1
+      ;;
+  esac
+done
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 if [ -t 1 ] && [ "${NO_COLOR:-}" = "" ]; then
@@ -33,9 +77,65 @@ success() { echo -e "    ${GREEN}ok${NC} $1"; }
 warn()    { echo -e "    ${YELLOW}!!${NC} $1"; }
 detail()  { echo -e "    ${DIM}$1${NC}"; }
 
+create_timestamped_backup() {
+  local target_path="$1"
+  local backup_path="${target_path}.pm-backup-${RUN_TIMESTAMP}"
+  cp -p "$target_path" "$backup_path"
+  BACKUP_PATHS+=("$backup_path")
+  LAST_BACKUP_PATH="$backup_path"
+}
+
+restore_backup_if_possible() {
+  local target_path="$1"
+  local backup_path="$2"
+  local label="$3"
+
+  if [ -n "$backup_path" ] && [ -f "$backup_path" ]; then
+    cp -p "$backup_path" "$target_path"
+    warn "Restored $label from backup"
+    detail "$backup_path -> $target_path"
+  else
+    warn "Unable to restore $label automatically"
+  fi
+}
+
+mutate_with_backup() {
+  local target_path="$1"
+  local label="$2"
+  shift 2
+
+  local existed_before=false
+  local backup_path=""
+
+  if [ -f "$target_path" ]; then
+    existed_before=true
+    create_timestamped_backup "$target_path"
+    backup_path="$LAST_BACKUP_PATH"
+    info "Backed up $label"
+    detail "$backup_path"
+  fi
+
+  if ! "$@"; then
+    warn "Failed while updating $label"
+    if $existed_before; then
+      restore_backup_if_possible "$target_path" "$backup_path" "$label"
+    elif [ -e "$target_path" ]; then
+      rm -f "$target_path"
+      warn "Removed incomplete $label"
+    fi
+    return 1
+  fi
+
+  return 0
+}
+
 echo ""
 echo -e "${BOLD}  pm installer${NC}"
 echo -e "${DIM}  ────────────${NC}"
+
+if $NON_INTERACTIVE; then
+  echo -e "${DIM}  Non-interactive mode enabled -- prompts will use safe defaults${NC}"
+fi
 
 # ── Step 1: Install pm CLI globally ──────────────────────────────────────────
 step "Install pm CLI globally"
@@ -68,7 +168,12 @@ if command -v tmux &>/dev/null; then
 else
   warn "tmux is not installed."
   info "The TUI agent dispatch feature requires tmux to open agent panes."
-  read -rp "    Install tmux? [y/N] " install_tmux
+  install_tmux="n"
+  if $NON_INTERACTIVE; then
+    detail "Non-interactive mode: skipping optional tmux install prompt (default: No)"
+  else
+    read -rp "    Install tmux? [y/N] " install_tmux
+  fi
   if [[ "${install_tmux,,}" == "y" ]]; then
     if command -v brew &>/dev/null; then
       info "Installing tmux via Homebrew..."
@@ -139,7 +244,12 @@ fi
 STALE_PLUGIN="${HOME}/.config/opencode/tools/pm.ts"
 if [ -f "$STALE_PLUGIN" ]; then
   info "Removing stale OpenCode plugin..."
-  rm "$STALE_PLUGIN"
+
+  remove_stale_plugin() {
+    rm "$STALE_PLUGIN"
+  }
+
+  mutate_with_backup "$STALE_PLUGIN" "stale OpenCode plugin" remove_stale_plugin
   success "Removed ${STALE_PLUGIN}"
   detail "pm now uses the MCP server instead of the plugin file"
 fi
@@ -150,8 +260,13 @@ step "Configure MCP server"
 
 configure_mcp_opencode() {
   local config_path="${HOME}/.config/opencode/opencode.json"
+  local config_dir
+  config_dir="$(dirname "$config_path")"
   info "Registering pm-tools in OpenCode..."
-  node -e "
+
+  write_opencode_config() {
+    mkdir -p "$config_dir"
+    node -e "
     const fs = require('fs');
     const configPath = process.argv[1];
     const mcpServer = process.argv[2];
@@ -163,7 +278,10 @@ configure_mcp_opencode() {
       command: ['node', mcpServer]
     };
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
-  " "$config_path" "$MCP_SERVER"
+    " "$config_path" "$MCP_SERVER"
+  }
+
+  mutate_with_backup "$config_path" "OpenCode MCP config" write_opencode_config
   success "OpenCode MCP configured"
   detail "$config_path"
 }
@@ -182,17 +300,31 @@ configure_mcp_claude() {
   claude mcp add -s user pm-tools -- node "$MCP_SERVER" >/dev/null
   # Clean up stale mcpServers key from settings.json (written by older installers)
   local settings_path="${HOME}/.claude/settings.json"
+  local cleanup_failed=false
   if [ -f "$settings_path" ] && grep -q '"mcpServers"' "$settings_path" 2>/dev/null; then
     info "Cleaning up stale mcpServers from settings.json..."
-    node -e "
-      const fs = require('fs');
-      const p = process.argv[1];
-      try {
-        const c = JSON.parse(fs.readFileSync(p, 'utf8'));
-        delete c.mcpServers;
-        fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
-      } catch {}
-    " "$settings_path"
+
+    cleanup_claude_settings() {
+      node -e "
+        const fs = require('fs');
+        const p = process.argv[1];
+        try {
+          const c = JSON.parse(fs.readFileSync(p, 'utf8'));
+          delete c.mcpServers;
+          fs.writeFileSync(p, JSON.stringify(c, null, 2) + '\n');
+        } catch {
+          process.exit(1);
+        }
+      " "$settings_path"
+    }
+
+    if ! mutate_with_backup "$settings_path" "Claude Code settings.json" cleanup_claude_settings; then
+      cleanup_failed=true
+    fi
+  fi
+
+  if $cleanup_failed; then
+    return 1
   fi
   success "Claude Code MCP configured"
 }
@@ -212,13 +344,24 @@ step "Install slash commands"
 install_commands() {
   local target_dir="$1"
   local client_name="$2"
+
+  copy_command_file() {
+    local source_path="$1"
+    local destination_path="$2"
+    mkdir -p "$target_dir"
+    cp "$source_path" "$destination_path"
+  }
+
   mkdir -p "$target_dir"
   if [ -d "$SCRIPT_DIR/commands" ]; then
     local count=0
     for f in "$SCRIPT_DIR/commands/"pm-*.md; do
-      [ -f "$f" ] && count=$((count + 1))
+      if [ -f "$f" ]; then
+        local destination_path="$target_dir/$(basename "$f")"
+        mutate_with_backup "$destination_path" "$client_name command $(basename "$f")" copy_command_file "$f" "$destination_path"
+        count=$((count + 1))
+      fi
     done
-    cp "$SCRIPT_DIR/commands/"pm-*.md "$target_dir/"
     success "$count commands installed for $client_name"
     detail "$target_dir/"
   else
@@ -254,14 +397,19 @@ clean_global_rules() {
 
   if grep -qF "$start_marker" "$agents_file"; then
     info "Removing legacy PM rules from $client_name..."
-    local tmpfile
-    tmpfile=$(mktemp)
-    awk -v start="$start_marker" -v end="$end_marker" '
-      $0 == start { skip=1; next }
-      $0 == end { skip=0; next }
-      !skip { print }
-    ' "$agents_file" > "$tmpfile"
-    mv "$tmpfile" "$agents_file"
+
+    remove_legacy_rules_block() {
+      local tmpfile
+      tmpfile=$(mktemp)
+      awk -v start="$start_marker" -v end="$end_marker" '
+        $0 == start { skip=1; next }
+        $0 == end { skip=0; next }
+        !skip { print }
+      ' "$agents_file" > "$tmpfile"
+      mv "$tmpfile" "$agents_file"
+    }
+
+    mutate_with_backup "$agents_file" "$client_name AGENTS.md" remove_legacy_rules_block
     success "Removed legacy rules from $client_name"
     detail "PM rules are now per-project -- run 'pm rules init' in your repo"
     legacy_cleaned=true
@@ -309,8 +457,16 @@ fi
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 PM_VERSION="$(pm --version 2>/dev/null || echo 'not found')"
-CLIENTS="$(${OPENCODE_DETECTED} && echo 'OpenCode') $(${CLAUDE_DETECTED} && echo 'Claude Code')"
-CLIENTS="$(echo "$CLIENTS" | xargs)"  # trim whitespace
+CLIENTS=""
+if $OPENCODE_DETECTED; then
+  CLIENTS="OpenCode"
+fi
+if $CLAUDE_DETECTED; then
+  if [ -n "$CLIENTS" ]; then
+    CLIENTS="$CLIENTS "
+  fi
+  CLIENTS="${CLIENTS}Claude Code"
+fi
 
 echo ""
 echo -e "${DIM}  ────────────────────────────────────${NC}"
@@ -319,6 +475,14 @@ echo ""
 echo -e "    ${BOLD}Version${NC}     $PM_VERSION"
 echo -e "    ${BOLD}MCP server${NC}  $MCP_SERVER"
 echo -e "    ${BOLD}Clients${NC}     $CLIENTS"
+if [ ${#BACKUP_PATHS[@]} -gt 0 ]; then
+  echo -e "    ${BOLD}Backups${NC}"
+  for backup_path in "${BACKUP_PATHS[@]}"; do
+    detail "$backup_path"
+  done
+else
+  detail "No existing client files required backup"
+fi
 echo ""
 detail "Run /pm-help in your AI client to get started"
 echo ""

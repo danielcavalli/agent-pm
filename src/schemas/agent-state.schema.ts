@@ -9,6 +9,9 @@ export const AgentStatusSchema = z.enum([
 ]);
 export type AgentStatus = z.infer<typeof AgentStatusSchema>;
 
+export const AgentProcessMethodSchema = z.enum(["tmux", "background"]);
+export type AgentProcessMethod = z.infer<typeof AgentProcessMethodSchema>;
+
 export const EscalationTypeSchema = z.enum([
   "decision",
   "clarification",
@@ -25,6 +28,23 @@ export const EscalationSchema = z.object({
 });
 export type Escalation = z.infer<typeof EscalationSchema>;
 
+export const CriterionStatusValueSchema = z.enum(["pending", "done", "failed"]);
+export type CriterionStatusValue = z.infer<typeof CriterionStatusValueSchema>;
+
+export const CriterionStatusSchema = z.object({
+  criterion: z.string().min(1, "criterion is required"),
+  status: CriterionStatusValueSchema,
+});
+export type CriterionStatus = z.infer<typeof CriterionStatusSchema>;
+
+export const AgentProgressSchema = z.object({
+  total_criteria: z.number().int().min(0),
+  completed_criteria: z.number().int().min(0),
+  current_step: z.string().min(1, "current_step is required"),
+  criteria_status: z.array(CriterionStatusSchema),
+});
+export type AgentProgress = z.infer<typeof AgentProgressSchema>;
+
 const IsoDateTimeSchema = z
   .string()
   .regex(
@@ -35,14 +55,24 @@ const IsoDateTimeSchema = z
 export const AgentStateSchema = z.object({
   agent_id: z.string().min(1, "agent_id is required"),
   session_id: z.string().optional(),
+  log_file: z.string().optional(),
   status: AgentStatusSchema,
   current_task: z.string().optional(),
   started_at: IsoDateTimeSchema,
   last_heartbeat: IsoDateTimeSchema,
   progress_summary: z.string().optional(),
+  progress: AgentProgressSchema.optional(),
   escalation: EscalationSchema.optional(),
 });
 export type AgentState = z.infer<typeof AgentStateSchema>;
+
+export const AgentProcessSchema = z.object({
+  pid: z.number().int().positive(),
+  spawned_at: IsoDateTimeSchema,
+  command: z.string().min(1, "command is required"),
+  method: AgentProcessMethodSchema,
+});
+export type AgentProcess = z.infer<typeof AgentProcessSchema>;
 
 export const AgentResponseSchema = z.object({
   selected_option: z.string().optional(),

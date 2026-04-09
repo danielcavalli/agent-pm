@@ -24,7 +24,7 @@ stories:
         .pm/epics/*.yaml
       - Two identical board states produce the same board_hash regardless of file write order
       - 'Unit tests cover: write/read round-trip, hash stability, hash changes on mutation, no-strategy sentinel'
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -43,7 +43,7 @@ stories:
         reflection) or null
       - 'Handles: block at end, block in middle, multiple blocks (takes last), no block (null), malformed YAML (null)'
       - Unit tests with at least 6 test cases covering all above scenarios
-    status: backlog
+    status: done
     priority: high
     story_points: 5
     depends_on:
@@ -65,7 +65,7 @@ stories:
       - If STORY_RESULT parsing returns null, orchestrator logs warning and continues (no crash)
       - If .pm/swarm/ does not exist, observation persistence is skipped entirely (backward compatible)
       - Observation file includes started_at (dispatch time) and completed_at (return time) timestamps
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
@@ -85,7 +85,7 @@ stories:
         If strategy.yaml is missing, malformed, or value out of range [1,20], falls back to current behavior with
         warning
       - Concurrency limit is logged in the dispatch plan output
-    status: backlog
+    status: done
     priority: medium
     story_points: 3
     depends_on:
@@ -102,10 +102,32 @@ stories:
       - Orchestrator reads config_version from strategy.yaml at dispatch time and includes it in each observation
       - 'Observations written when strategy.yaml is absent have config_version: 0'
       - Unit test verifies config_version is correctly propagated from strategy.yaml to observation files
-    status: backlog
+    status: done
     priority: medium
     story_points: 2
     depends_on:
       - PM-E058-S001
       - PM-E058-S003
+    notes: ''
+  - id: S006
+    code: PM-E058-S006
+    title: Investigate and harden sub-agent prompts against recursive /pm-work-on loops
+    description: >-
+      During orchestrated project execution, dispatched sub-agents sometimes rediscovered the /pm-work-on slash command
+      and recursively invoked it instead of executing the assigned story directly. Investigate the prompt/context chain
+      that enables the recursion, then harden the dispatched prompt contract so sub-agents receive enough story context
+      to start work directly without creating nested workers.
+    acceptance_criteria:
+      - Reproduce or explain the prompt/context path that causes recursive /pm-work-on invocation
+      - >-
+        Define a direct-execution prompt contract for orchestrated sub-agents that includes story context, required
+        workflow, and an explicit anti-recursion guard
+      - >-
+        Document or implement the prompt change in the orchestrator path so newly dispatched agents no longer create
+        nested /pm-work-on workers
+      - Verify the new prompt contract on at least one orchestrated dispatch path and capture the result
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
     notes: ''

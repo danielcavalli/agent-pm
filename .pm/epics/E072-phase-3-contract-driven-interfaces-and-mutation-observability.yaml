@@ -1,0 +1,176 @@
+id: E072
+code: PM-E072
+title: Phase 3 — Contract-Driven Interfaces and Mutation Observability
+description: >-
+  Introduce a single command contract source for CLI/MCP/docs and harden mutation paths with consistent locking,
+  atomicity, telemetry, and failure recovery verification. This phase addresses systemic drift and long-term
+  reliability.
+status: backlog
+priority: high
+created_at: '2026-04-08'
+stories:
+  - id: S001
+    code: PM-E072-S001
+    title: Define canonical command contract schema and registry
+    description: >-
+      Create a typed command contract model that is the single source of truth for command names, arguments, validation
+      metadata, side effects, and documentation fields.
+    acceptance_criteria:
+      - A centralized contract registry exists and is loaded by application code
+      - Schema enforces required command metadata and argument definitions
+      - Contract supports both CLI and MCP projection needs
+      - Validation tests cover malformed and valid contract entries
+    status: done
+    priority: high
+    story_points: 5
+    depends_on: []
+    notes: ''
+  - id: S002
+    code: PM-E072-S002
+    title: Generate CLI command surface from contract registry
+    description: Refactor CLI registration to derive command wiring and argument handling from the canonical contract registry.
+    acceptance_criteria:
+      - CLI command registration reads from contract registry
+      - Command help output remains correct and complete
+      - Existing command behavior parity is preserved
+      - Regression tests validate parity for representative commands
+    status: done
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E072-S001
+    notes: ''
+  - id: S003
+    code: PM-E072-S003
+    title: Generate MCP tool definitions and dispatch from contract registry
+    description: >-
+      Derive MCP tool listing, argument schemas, and command dispatch logic from the same canonical contract source used
+      by CLI.
+    acceptance_criteria:
+      - MCP tool catalog is generated from contract entries
+      - MCP argument validation reuses contract-backed definitions
+      - Dispatch mapping no longer relies on duplicated manual tables
+      - MCP integration tests verify generated tools execute expected commands
+    status: done
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E072-S001
+    notes: ''
+  - id: S004
+    code: PM-E072-S004
+    title: Generate command reference docs from contract metadata
+    description: Produce CLI/MCP command reference documentation from the contract registry to reduce manual drift.
+    acceptance_criteria:
+      - Documentation artifact is generated from contract metadata
+      - Generated docs include command descriptions, arguments, and examples
+      - Existing docs link to generated reference as authority
+      - Doc generation step is reproducible in local and CI workflows
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E072-S001
+    notes: ''
+  - id: S005
+    code: PM-E072-S005
+    title: Add command-surface drift gate in CI
+    description: Introduce CI enforcement that fails when CLI, MCP, or generated docs are out of sync with the canonical contract.
+    acceptance_criteria:
+      - CI includes a deterministic drift-check step
+      - Build fails with actionable message when generated outputs are stale
+      - Developer workflow includes command to refresh generated artifacts
+      - At least one test fixture validates drift detection
+    status: done
+    priority: high
+    story_points: 3
+    depends_on:
+      - PM-E072-S002
+      - PM-E072-S003
+      - PM-E072-S004
+    notes: ''
+  - id: S006
+    code: PM-E072-S006
+    title: Create mutation operation taxonomy and lock policy
+    description: >-
+      Define mutation categories and required locking/atomicity rules for each command path to standardize data safety
+      guarantees.
+    acceptance_criteria:
+      - Mutation operations are categorized with clear safety levels
+      - Each mutable command path is mapped to required lock policy
+      - Policy document is referenced by contributor/developer docs
+      - Review checklist includes policy conformance for new mutations
+    status: done
+    priority: high
+    story_points: 3
+    depends_on: []
+    notes: ''
+  - id: S007
+    code: PM-E072-S007
+    title: Implement shared atomic write and recovery primitives
+    description: >-
+      Provide reusable file mutation helpers with atomic writes and bounded recovery behavior, then migrate mutable
+      command paths to use them.
+    acceptance_criteria:
+      - Shared utility supports temp-write-and-rename or equivalent atomic strategy
+      - Recovery path handles interrupted/failed writes without data corruption
+      - Core mutating commands are migrated to shared utility
+      - Tests cover successful writes and injected failure scenarios
+    status: done
+    priority: high
+    story_points: 8
+    depends_on:
+      - PM-E072-S006
+    notes: ''
+  - id: S008
+    code: PM-E072-S008
+    title: Add structured mutation telemetry and operation IDs
+    description: >-
+      Instrument mutation paths with operation IDs, structured events, and aggregate summaries to improve observability
+      and debugging.
+    acceptance_criteria:
+      - Mutation operations emit structured start/success/failure events
+      - Each mutation path has correlation via operation ID
+      - CLI output includes concise mutation summary counters
+      - Telemetry format is documented for downstream tooling
+    status: done
+    priority: medium
+    story_points: 5
+    depends_on:
+      - PM-E072-S006
+    notes: ''
+  - id: S009
+    code: PM-E072-S009
+    title: Add failure-injection reliability test suite for mutation paths
+    description: >-
+      Create tests that inject lock contention, I/O failures, and partial-write conditions to verify data safety and
+      recovery behavior.
+    acceptance_criteria:
+      - Test harness can simulate lock contention and write failures
+      - Critical mutation commands are covered by injected-failure tests
+      - Tests assert no silent corruption and expected recovery behavior
+      - Reliability tests run in CI with deterministic outcomes
+    status: done
+    priority: high
+    story_points: 5
+    depends_on:
+      - PM-E072-S007
+      - PM-E072-S008
+    notes: ''
+  - id: S010
+    code: PM-E072-S010
+    title: Add operational diagnostics for recent mutation issues
+    description: >-
+      Expose a command for inspecting recent mutation failures, warnings, and lock contention to support rapid
+      troubleshooting.
+    acceptance_criteria:
+      - New diagnostic command lists recent mutation anomalies
+      - Output includes timestamp, operation ID, and affected command/path
+      - Command supports concise and detailed modes
+      - Docs include troubleshooting workflow using diagnostics
+    status: done
+    priority: medium
+    story_points: 3
+    depends_on:
+      - PM-E072-S008
+    notes: ''

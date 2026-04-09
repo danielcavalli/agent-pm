@@ -105,6 +105,69 @@ describe("ProjectSchema", () => {
       expect(result.data.notes).toBe("");
     }
   });
+
+  it("accepts a TUI story URL template with {code}", () => {
+    const result = ProjectSchema.safeParse({
+      ...validProject,
+      tui: {
+        links: {
+          story_url_template: "https://example.com/stories/{code}",
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a TUI story URL template without the {code} placeholder", () => {
+    const result = ProjectSchema.safeParse({
+      ...validProject,
+      tui: {
+        links: {
+          story_url_template: "https://example.com/stories/static",
+        },
+      },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a named project theme", () => {
+    const result = ProjectSchema.safeParse({
+      ...validProject,
+      theme: "catppuccin",
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts project theme color overrides", () => {
+    const result = ProjectSchema.safeParse({
+      ...validProject,
+      theme: {
+        name: "tokyonight",
+        colors: {
+          primary: "#112233",
+          borderFocused: "#445566",
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("does not reject invalid theme color values", () => {
+    const result = ProjectSchema.safeParse({
+      ...validProject,
+      theme: {
+        colors: {
+          primary: "not-a-hex-color",
+        },
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
 });
 
 // ── Story schema ──────────────────────────────────────────────────────────────

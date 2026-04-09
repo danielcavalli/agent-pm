@@ -1,4 +1,5 @@
 import { createLLMClient } from "../lib/llm.js";
+import type { LLMRequestOptions } from "../lib/llm.js";
 import type { SynthesisResult } from "./consolidate.js";
 
 export interface SemanticCluster {
@@ -20,6 +21,7 @@ export interface SemanticClusteringResult {
 
 export async function semanticClustering(
   unmatched: SynthesisResult["unmatched"],
+  llmOptions?: LLMRequestOptions,
 ): Promise<SemanticClusteringResult> {
   if (unmatched.length === 0) {
     return { clusters: [], totalUnmatched: 0 };
@@ -58,7 +60,7 @@ ${itemsText}
 
 Respond with valid JSON only, no other text.`;
 
-  const response = await llm.complete(prompt);
+  const response = await llm.complete(prompt, llmOptions);
 
   let parsed: { clusters?: SemanticCluster[] };
   try {

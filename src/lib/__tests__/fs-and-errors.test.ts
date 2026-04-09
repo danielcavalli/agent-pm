@@ -2,7 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { readYaml, writeYaml } from "../fs.js";
+import {
+  readYaml,
+  recoverAtomicWrite,
+  listAtomicWriteTemps,
+  writeFileAtomic,
+  writeYaml,
+} from "../fs.js";
 import { ProjectSchema } from "../../schemas/project.schema.js";
 import {
   YamlNotFoundError,
@@ -52,6 +58,59 @@ describe("readYaml / writeYaml", () => {
       created_at: "2026-01-01",
     });
     expect(fs.existsSync(nested)).toBe(true);
+  });
+
+  it("writeFileAtomic leaves no temp files after a successful write", () => {
+    const filePath = path.join(tmpDir, "project.yaml");
+
+    writeFileAtomic(filePath, "name: success\n", { encoding: "utf8" });
+
+    expect(fs.readFileSync(filePath, "utf8")).toBe("name: success\n");
+    expect(listAtomicWriteTemps(filePath)).toEqual([]);
+  });
+
+  it("writeFileAtomic preserves existing content when rename fails", () => {
+    const filePath = path.join(tmpDir, "project.yaml");
+    fs.writeFileSync(filePath, "name: original\n", "utf8");
+
+    expect(() =>
+      writeFileAtomic(filePath, "name: updated\n", {
+        encoding: "utf8",
+        hooks: {
+          beforeRename: () => {
+            throw new Error("injected rename failure");
+          },
+        },
+      }),
+    ).toThrow("injected rename failure");
+
+    expect(fs.readFileSync(filePath, "utf8")).toBe("name: original\n");
+    expect(listAtomicWriteTemps(filePath)).toEqual([]);
+  });
+
+  it("writeFileAtomic recovers orphan temp files before publishing new content", () => {
+    const filePath = path.join(tmpDir, "project.yaml");
+    const orphanPath = path.join(tmpDir, ".project.yaml.pm-write-orphan.tmp");
+    fs.writeFileSync(orphanPath, "orphaned temp\n", "utf8");
+
+    writeFileAtomic(filePath, "name: recovered\n", { encoding: "utf8" });
+
+    expect(fs.existsSync(orphanPath)).toBe(false);
+    expect(fs.readFileSync(filePath, "utf8")).toBe("name: recovered\n");
+    expect(listAtomicWriteTemps(filePath)).toEqual([]);
+  });
+
+  it("recoverAtomicWrite removes leftover temp files without touching the target", () => {
+    const filePath = path.join(tmpDir, "project.yaml");
+    const orphanPath = path.join(tmpDir, ".project.yaml.pm-write-stale.tmp");
+    fs.writeFileSync(filePath, "name: stable\n", "utf8");
+    fs.writeFileSync(orphanPath, "partial\n", "utf8");
+
+    const recovered = recoverAtomicWrite(filePath);
+
+    expect(recovered).toEqual([orphanPath]);
+    expect(fs.existsSync(orphanPath)).toBe(false);
+    expect(fs.readFileSync(filePath, "utf8")).toBe("name: stable\n");
   });
 
   it("readYaml throws YamlNotFoundError when file is missing", () => {

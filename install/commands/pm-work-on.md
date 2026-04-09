@@ -30,6 +30,8 @@ If the story has a **Depends On** section listing other story codes, check wheth
 
 Implement the work described in the story's description and acceptance criteria. Use all available tools (file editing, bash commands, code search, etc.) to complete the task.
 
+Before your first heartbeat, declare a rolling log file at `.pm/agents/{agent_id}.log` and keep it trimmed to the last 100 lines. When you send heartbeats, include the same path via `log_file` / `--log-file` so observers can locate the log.
+
 **Important execution rules:**
 
 - Work systematically through each acceptance criterion

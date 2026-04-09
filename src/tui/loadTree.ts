@@ -5,6 +5,7 @@ import { ProjectSchema, EpicSchema } from "../schemas/index.js";
 import { getPmDir } from "../lib/codes.js";
 import { PmError } from "../lib/errors.js";
 import type { EpicNode, StoryNode, TreeData } from "./types.js";
+import { applyThemeConfig } from "./colors.js";
 
 export class NoPmDirectoryError extends PmError {
   constructor() {
@@ -39,6 +40,8 @@ export function loadTree(): TreeData {
     throw new NoPmDirectoryError();
   }
 
+  applyThemeConfig(project.theme);
+
   const epicsDir = path.join(pmDir, "epics");
   const epicFiles = fs.existsSync(epicsDir)
     ? fs
@@ -55,12 +58,15 @@ export function loadTree(): TreeData {
     try {
       epic = readYaml(epicFile, EpicSchema);
     } catch (err) {
-      process.stderr.write(`[pm tui] failed to parse epic file ${epicFile}: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.stderr.write(
+        `[pm tui] failed to parse epic file ${epicFile}: ${err instanceof Error ? err.message : String(err)}\n`,
+      );
       continue;
     }
 
     const stories: StoryNode[] = (epic.stories ?? []).map((s) => ({
       kind: "story" as const,
+      epic_code: epic.code,
       code: s.code,
       id: s.id,
       title: s.title,
@@ -93,5 +99,9 @@ export function loadTree(): TreeData {
     });
   }
 
-  return { epics, projectName: project.name };
+  return {
+    epics,
+    projectName: project.name,
+    storyLinkTemplate: project.tui?.links?.story_url_template,
+  };
 }

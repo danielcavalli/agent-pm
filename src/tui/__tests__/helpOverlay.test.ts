@@ -13,14 +13,17 @@ const REQUIRED_KEYBINDINGS = [
   "j",
   "k",
   "Tab",
+  "l",
   "a",
-  "e",     // not yet implemented, but documented per PRD
+  "e", // not yet implemented, but documented per PRD
   "?",
   "f",
   "Ctrl+u",
   "Ctrl+d",
   "g",
   "G",
+  "K",
+  "s",
 ];
 
 /** The keybinding groups as defined in HelpOverlay.tsx */
@@ -40,6 +43,7 @@ const KEYBINDING_GROUPS = [
     category: "Panels",
     bindings: [
       { key: "Tab", description: "Cycle focus between panels" },
+      { key: "l", description: "Toggle agent info/log view" },
       { key: "a", description: "Toggle agent sidebar" },
       { key: "Enter", description: "Expand/collapse epic in tree" },
     ],
@@ -47,8 +51,11 @@ const KEYBINDING_GROUPS = [
   {
     category: "Actions",
     bindings: [
+      { key: "x", description: "Dispatch agent for selected story/epic" },
+      { key: "s", description: "Update selected story status" },
       { key: "c / y", description: "Copy selected code to clipboard" },
       { key: "e", description: "Respond to escalation" },
+      { key: "K", description: "Kill selected agent" },
       { key: "/", description: "Start search" },
       { key: "Esc", description: "Cancel search / reset filters" },
       { key: "q", description: "Quit" },
@@ -57,7 +64,10 @@ const KEYBINDING_GROUPS = [
   {
     category: "Filters",
     bindings: [
-      { key: "f", description: "Cycle filter: All > Backlog > In Progress > Done" },
+      {
+        key: "f",
+        description: "Cycle filter: All > Backlog > In Progress > Done",
+      },
       { key: "?", description: "Toggle this help overlay" },
     ],
   },
@@ -65,7 +75,9 @@ const KEYBINDING_GROUPS = [
 
 /** Flatten all binding keys into a single string for searching */
 function allKeyStrings(): string {
-  return KEYBINDING_GROUPS.flatMap((g) => g.bindings.map((b) => b.key)).join(" ");
+  return KEYBINDING_GROUPS.flatMap((g) => g.bindings.map((b) => b.key)).join(
+    " ",
+  );
 }
 
 describe("HelpOverlay keybinding data", () => {
@@ -104,7 +116,11 @@ describe("HelpOverlay keybinding data", () => {
 
 describe("Help overlay toggle state machine", () => {
   /** Simulates the helpVisible toggle logic from index.tsx */
-  function toggleHelp(visible: boolean, input: string, isEscape: boolean): boolean {
+  function toggleHelp(
+    visible: boolean,
+    input: string,
+    isEscape: boolean,
+  ): boolean {
     if (visible) {
       if (input === "?" || isEscape) {
         return false;

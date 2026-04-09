@@ -21,7 +21,7 @@ stories:
       - onClick callback is called on left-click press (not release)
       - Existing scroll functionality continues to work unchanged
       - Tests verify click parsing and button 0 press/release differentiation
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on: []
@@ -40,7 +40,7 @@ stories:
       - Clicking on panel gap/divider returns null
       - Function is pure and exported for testing
       - Tests cover all panel regions and edge cases (no sidebar visible, narrow terminal)
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on:
@@ -59,7 +59,7 @@ stories:
       - Click row correctly accounts for scroll offset and title bar height
       - Out-of-bounds clicks (below last row) are handled gracefully
       - Tests verify row index computation with various scroll offsets
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
@@ -76,7 +76,7 @@ stories:
       - Click row correctly accounts for sidebar scroll offset and header
       - Out-of-bounds clicks are handled gracefully
       - Tests verify agent index computation
-    status: backlog
+    status: done
     priority: high
     story_points: 2
     depends_on:
@@ -95,7 +95,7 @@ stories:
       - Focus automatically moves to the clicked panel
       - Clicking in the detail panel focuses it for scrolling
       - No interference with existing keyboard navigation or mouse scroll
-    status: backlog
+    status: done
     priority: high
     story_points: 3
     depends_on:
