@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.9-alpha (2026-04-09)
+
+- Add swarm orchestration foundations: observation persistence, evaluation metrics, claim protocol, experiment loop contracts, and analysis/best-tracking flows
+- Generate CLI/MCP/docs surfaces from shared command contracts and add CI drift checks plus mutation diagnostics/telemetry
+- Expand the TUI with click handling, agent timeline/log views, swarm status panels, and fixes for parallel agent-state collisions and recursive worker dispatch
+- Refresh installer-facing release metadata to match the new version and current MCP surface
+
 ## 0.0.8-alpha (2026-03-18)
 
 - Rewrite README with comprehensive feature coverage (MCP tools, slash commands, TUI, agent state, consolidation, ADRs, review pipelines)

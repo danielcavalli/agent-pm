@@ -447,8 +447,8 @@ fi
 # settings.json entries.
 #
 # The MCP server (dist/mcp-server.js) is identical for both clients — it
-# serves 14 tools over stdio using the MCP protocol. No client-specific
-# behavior exists in the tool layer.
+# serves the current PM MCP tool surface over stdio using the MCP protocol.
+# No client-specific behavior exists in the tool layer.
 #
 # Agent rules are installed per-project by running `pm rules init` in the
 # project repository. The /pm-create-project slash command does this
